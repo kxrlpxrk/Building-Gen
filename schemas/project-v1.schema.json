@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:building-generator:project:v1",
+  "title": "Building Generator BG-01 Project",
+  "description": "Integer millimetre geometry. X/Y are horizontal; Z is vertical. One rectangular section in BG-01. Runtime validation also requires 2 × wallThickness < min(length, width) and distinct IDs.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "architecture",
+    "createdAt",
+    "updatedAt",
+    "building"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/id" },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "\\S"
+    },
+    "architecture": { "enum": ["Medieval", "Norse", "Mixed"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "building": {
+      "type": "object",
+      "required": ["id", "sections"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/rectangle" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]{1,100}$" },
+    "positionValue": {
+      "type": "integer",
+      "minimum": -10000000,
+      "maximum": 10000000
+    },
+    "dimension": { "type": "integer", "minimum": 500, "maximum": 500000 },
+    "rectangle": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "position",
+        "length",
+        "width",
+        "wallThickness",
+        "orientation",
+        "floorCount"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "const": "rectangle" },
+        "position": {
+          "type": "object",
+          "required": ["x", "y", "z"],
+          "properties": {
+            "x": { "$ref": "#/$defs/positionValue" },
+            "y": { "$ref": "#/$defs/positionValue" },
+            "z": { "$ref": "#/$defs/positionValue" }
+          }
+        },
+        "length": { "$ref": "#/$defs/dimension" },
+        "width": { "$ref": "#/$defs/dimension" },
+        "wallThickness": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 249999
+        },
+        "orientation": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 360
+        },
+        "floorCount": { "type": "integer", "minimum": 1, "maximum": 4 }
+      }
+    }
+  }
+}
