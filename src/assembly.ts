@@ -1,3 +1,10 @@
+import {
+  validateOpenings,
+  reanchorOpenings,
+  type OpeningContext,
+  type HostSegment,
+} from "./openings";
+import { deriveInterior } from "./interior";
 import { reconcileInterior, validateInterior } from "./interior";
 import {
   footprintVertices,
@@ -227,7 +234,15 @@ export function prepareBuilding(b: Building, previous?: Building): Building {
           )
         : b.interior;
     validateInterior(geometry.inner, interior);
-    return { ...b, connections, interior };
+    const next = { ...b, connections, interior };
+    if (previous && next.openings.length)
+      next.openings = reanchorOpenings(
+        openingContext(previous),
+        openingContext(next, geometry),
+        next.openings,
+      );
+    validateOpenings(openingContext(next, geometry), next.openings);
+    return next;
   } catch (e) {
     throw new Error(
       `Interior plan: ${(e as Error).message} Footprint edit rejected; partitions and room labels were preserved.`,
@@ -292,4 +307,72 @@ export function translateBuilding(b: Building, origin: Point): Building {
     },
     b,
   );
+}
+
+/** Source-wall references remain stable; only real merged exterior segments
+ * are offered. Shared open-plan section edges are deliberately absent. */
+export function openingContext(
+  b: Building,
+  geometry = combinedGeometry(b),
+): OpeningContext {
+  const hosts: HostSegment[] = b.interior.partitions.map((w) => ({
+    ref: { kind: "partition", partitionId: w.id },
+    a: w.a,
+    b: w.b,
+    thickness: w.thickness,
+    inward: null,
+  }));
+  for (const s of b.sections) {
+    const vertices =
+      b.frame.mode === "legacy"
+        ? footprintVertices(s)
+        : canonicalVertices(s, b);
+    vertices.forEach((a, index) => {
+      const z = vertices[(index + 1) % vertices.length],
+        vertical = a.x === z.x;
+      const external = geometry.vertices.find((p, i) => {
+        const q = geometry.vertices[(i + 1) % geometry.vertices.length];
+        return vertical
+          ? p.x === a.x &&
+              q.x === a.x &&
+              Math.max(Math.min(a.y, z.y), Math.min(p.y, q.y)) <
+                Math.min(Math.max(a.y, z.y), Math.max(p.y, q.y))
+          : p.y === a.y &&
+              q.y === a.y &&
+              Math.max(Math.min(a.x, z.x), Math.min(p.x, q.x)) <
+                Math.min(Math.max(a.x, z.x), Math.max(p.x, q.x));
+      });
+      if (!external) return;
+      const indexOf = geometry.vertices.indexOf(external),
+        end = geometry.vertices[(indexOf + 1) % geometry.vertices.length],
+        length = Math.abs(end.x - external.x) + Math.abs(end.y - external.y);
+      hosts.push({
+        ref: { kind: "exterior", sectionId: s.id, edge: index },
+        a,
+        b: z,
+        thickness: s.wallThickness,
+        inward: {
+          x: -(end.y - external.y) / length,
+          y: (end.x - external.x) / length,
+        },
+      });
+    });
+  }
+  return {
+    outer: geometry.vertices,
+    inner: geometry.inner,
+    partitions: b.interior.partitions,
+    regions: deriveInterior(geometry.inner, b.interior.partitions).regions,
+    hosts,
+    locked: b.sections
+      .filter((s) => s.locked)
+      .map((s) =>
+        b.frame.mode === "legacy"
+          ? footprintVertices(s)
+          : canonicalVertices(s, b),
+      ),
+    exteriorArea: polygonArea(geometry.vertices) - polygonArea(geometry.inner),
+    partitionArea: deriveInterior(geometry.inner, b.interior.partitions)
+      .partitionArea,
+  };
 }

@@ -1,3 +1,5 @@
+import { validateOpenings, type Opening, type OpeningHost } from "./openings";
+import { openingContext } from "./assembly";
 import {
   emptyInterior,
   ROOM_TYPES,
@@ -46,9 +48,10 @@ export type Building = {
   sections: Section[];
   connections: Connection[];
   interior: InteriorPlan;
+  openings: Opening[];
 };
 export type Project = {
-  schemaVersion: 4;
+  schemaVersion: 5;
   id: string;
   name: string;
   architecture: Architecture;
@@ -60,7 +63,7 @@ export function createProject(name = "Untitled building"): Project {
   const now = new Date().toISOString(),
     sectionId = crypto.randomUUID();
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     id: crypto.randomUUID(),
     name,
     architecture: "Norse",
@@ -72,6 +75,7 @@ export function createProject(name = "Untitled building"): Project {
       frame: { origin: { x: 0, y: 0 }, axis: 0, rotation: 0, mode: "legacy" },
       connections: [],
       interior: emptyInterior(),
+      openings: [],
       sections: [
         {
           id: sectionId,
@@ -223,11 +227,61 @@ function readInterior(value: unknown): InteriorPlan {
   });
   return { partitions, rooms };
 }
+function readOpenings(value: unknown): Opening[] {
+  if (!Array.isArray(value) || value.length > 128)
+    throw new Error("Invalid opening collection.");
+  return value.map((o: unknown) => {
+    if (
+      !object(o) ||
+      !validId(o.id) ||
+      !object(o.host) ||
+      !Number.isSafeInteger(o.offset) ||
+      !Number.isSafeInteger(o.width)
+    )
+      throw new Error("Invalid opening record.");
+    let host: OpeningHost;
+    if (o.host.kind === "partition" && validId(o.host.partitionId))
+      host = { kind: "partition", partitionId: o.host.partitionId };
+    else if (
+      o.host.kind === "exterior" &&
+      validId(o.host.sectionId) &&
+      Number.isSafeInteger(o.host.edge) &&
+      (o.host.edge as number) >= 0
+    )
+      host = {
+        kind: "exterior",
+        sectionId: o.host.sectionId,
+        edge: o.host.edge as number,
+      };
+    else throw new Error("Invalid opening host reference.");
+    const base = {
+      id: o.id,
+      host,
+      offset: o.offset as number,
+      width: o.width as number,
+    };
+    if (o.type === "passage") {
+      if (o.hinge !== undefined || o.swing !== undefined)
+        throw new Error("Passages have no hinge or swing.");
+      return { ...base, type: "passage" };
+    }
+    if (
+      (o.type !== "interior-door" && o.type !== "exterior-door") ||
+      (o.hinge !== "left" && o.hinge !== "right") ||
+      (o.swing !== 1 && o.swing !== -1)
+    )
+      throw new Error("Invalid hinged door type, hinge or swing side.");
+    return { ...base, type: o.type, hinge: o.hinge, swing: o.swing };
+  });
+}
 /** Pure, lossless read-time migration. Existing geometry fields are not rewritten. */
 export function validateProject(value: unknown): Project {
-  if (!object(value) || ![1, 2, 3, 4].includes(value.schemaVersion as number))
+  if (
+    !object(value) ||
+    ![1, 2, 3, 4, 5].includes(value.schemaVersion as number)
+  )
     throw new Error(
-      "Unsupported project schema. BG-03A accepts schemaVersion 1, 2, 3 or 4.",
+      "Unsupported project schema. BG-03B accepts schemaVersion 1, 2, 3, 4 or 5.",
     );
   const version = value.schemaVersion as number;
   if (
@@ -310,27 +364,38 @@ export function validateProject(value: unknown): Project {
     throw new Error(
       "Project, building, section and connection IDs must be distinct.",
     );
+  if (
+    version < 5 &&
+    source.openings !== undefined &&
+    (!Array.isArray(source.openings) || source.openings.length)
+  )
+    throw new Error(
+      "Legacy schema cannot contain door/opening data. Use schemaVersion 5.",
+    );
   const building: Building = {
     id: source.id as string,
     mainSectionId,
     frame,
     sections,
     connections,
-    interior: version === 4 ? readInterior(source.interior) : emptyInterior(),
+    interior: version >= 4 ? readInterior(source.interior) : emptyInterior(),
+    openings: version === 5 ? readOpenings(source.openings) : [],
   };
   validateConnections(building);
+  validateOpenings(openingContext(building), building.openings);
   validateInterior(combinedGeometry(building).inner, building.interior);
   const interiorIds = [
     ...building.interior.partitions,
     ...building.interior.rooms,
+    ...building.openings,
   ].map((v) => v.id);
   if (
     new Set([...ids, ...interiorIds]).size !==
     ids.length + interiorIds.length
   )
-    throw new Error("All project and interior IDs must be distinct.");
+    throw new Error("All project, interior and opening IDs must be distinct.");
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     id: value.id,
     name: value.name.trim(),
     architecture: value.architecture as Architecture,
@@ -374,8 +439,19 @@ export function duplicateProject(
     a: { ...c.a, sectionId: ids.get(c.a.sectionId)! },
     b: { ...c.b, sectionId: ids.get(c.b.sectionId)! },
   }));
+  const partitionIds = new Map(
+    copy.building.interior.partitions.map((w) => [w.id, crypto.randomUUID()]),
+  );
+  copy.building.openings = copy.building.openings.map((o) => ({
+    ...o,
+    id: crypto.randomUUID(),
+    host:
+      o.host.kind === "partition"
+        ? { ...o.host, partitionId: partitionIds.get(o.host.partitionId)! }
+        : { ...o.host, sectionId: ids.get(o.host.sectionId)! },
+  }));
   copy.building.interior.partitions = copy.building.interior.partitions.map(
-    (w) => ({ ...w, id: crypto.randomUUID() }),
+    (w) => ({ ...w, id: partitionIds.get(w.id)! }),
   );
   copy.building.interior.rooms = copy.building.interior.rooms.map((r) => ({
     ...r,

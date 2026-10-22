@@ -1,3 +1,12 @@
+import OpeningsLayer, { OpeningMask } from "./OpeningsLayer";
+import {
+  nearestOpeningHost,
+  hostKey,
+  newOpening,
+  openingGeometry,
+  type Opening,
+} from "./openings";
+import { circulation } from "./circulation";
 import { useMemo } from "react";
 import InteriorLayer from "./InteriorLayer";
 import {
@@ -28,7 +37,12 @@ import {
   polygonPath,
 } from "./polygon";
 import { withVertices, type Part } from "./footprint";
-import { combinedGeometry, displaySection, storedSection } from "./assembly";
+import {
+  combinedGeometry,
+  displaySection,
+  storedSection,
+  openingContext,
+} from "./assembly";
 import { attachmentBase } from "./attachments";
 import type { Building } from "./model";
 import type { Section } from "./model";
@@ -46,6 +60,10 @@ type Props = {
     tool: InteriorTool;
     selection: InteriorSelection;
     thickness: number;
+    openingDraft: Opening | null;
+    passage: boolean;
+    onOpeningDraft: (o: Opening | null) => void;
+    validateOpenings: (openings: Opening[]) => string | null;
     onSelect: (s: InteriorSelection) => void;
     onWalls: (walls: Partition[]) => string | null;
     validate: (walls: Partition[]) => string | null;
@@ -86,6 +104,7 @@ type Gesture =
       wall: Partition;
       handle: number | null;
     }
+  | { kind: "opening"; start: Point; opening: Opening; handle: number | null }
   | { kind: "draw"; start: Point; local: Point }
   | { kind: "pan"; start: Point; camera: Camera }
   | { kind: "pinch"; start: Point; distance: number; camera: Camera }
@@ -161,6 +180,18 @@ export default function Editor({
   const gesture = useRef<Gesture | null>(null);
   const initialized = useRef(false);
   const patternId = useId().replace(/:/g, "");
+  const doorsContext = useMemo(() => openingContext(building), [building]);
+  const access = useMemo(
+    () => circulation(doorsContext, building.openings),
+    [doorsContext, building.openings],
+  );
+  const openingMaskId = `${patternId}-opening-mask`;
+  const openingError = interior?.openingDraft
+    ? interior.validateOpenings([
+        ...building.openings.filter((o) => o.id !== interior.openingDraft!.id),
+        interior.openingDraft,
+      ])
+    : null;
   const display = draft || section;
   const draftBuilding = draft
     ? {
@@ -287,6 +318,7 @@ export default function Editor({
     if (pointers.current.size >= 2) {
       startWall(null);
       previewWall(null);
+      interior?.onOpeningDraft(null);
       preview(null); // An interrupted drag is rolled back before any pinch can edit geometry.
       const [a, b] = [...pointers.current.values()];
       gesture.current = {
@@ -300,7 +332,100 @@ export default function Editor({
     const world = screenToWorld(p, cameraRef.current, viewportRef.current);
     if (interior && tool !== "pan" && e.button !== 1) {
       const q = local(world);
-      if (interior.tool === "draw") {
+      if (interior.tool === "door") {
+        const target = (e.target as Element)
+          .closest("[data-opening-id]")
+          ?.getAttribute("data-opening-id");
+        const candidates = [
+          ...building.openings.filter(
+            (o) => o.id !== interior.openingDraft?.id,
+          ),
+          ...(interior.openingDraft ? [interior.openingDraft] : []),
+        ];
+        const actual = candidates.find((o) => {
+          const box = openingGeometry(doorsContext, o).gap;
+          return (
+            q.x >= box.x &&
+            q.x <= box.x + box.width &&
+            q.y >= box.y &&
+            q.y <= box.y + box.height
+          );
+        });
+        const touched = candidates.find((o) => o.id === target);
+        const nearest = nearestOpeningHost(
+          doorsContext,
+          q,
+          22 / cameraRef.current.scale,
+        );
+        const existing =
+          actual ??
+          (touched &&
+          nearest &&
+          hostKey(nearest.host.ref) !== hostKey(touched.host) &&
+          nearest.distance + 0.001 <
+            Math.abs(
+              (q.x - openingGeometry(doorsContext, touched).center.x) *
+                openingGeometry(doorsContext, touched).n.x +
+                (q.y - openingGeometry(doorsContext, touched).center.y) *
+                  openingGeometry(doorsContext, touched).n.y,
+            )
+            ? undefined
+            : touched);
+        if (existing) {
+          interior.onSelect({ kind: "opening", id: existing.id });
+          const handle = (e.target as Element)
+            .closest("[data-opening-end]")
+            ?.getAttribute("data-opening-end");
+          const geometry = openingGeometry(doorsContext, existing),
+            along =
+              (q.x - geometry.center.x) * geometry.u.x +
+              (q.y - geometry.center.y) * geometry.u.y;
+          gesture.current = {
+            kind: "opening",
+            start: p,
+            opening: existing,
+            handle:
+              handle != null &&
+              target === existing.id &&
+              Math.abs(along) >= existing.width * 0.3
+                ? along < 0
+                  ? 0
+                  : 1
+                : null,
+          };
+        } else {
+          const hit = nearestOpeningHost(
+            doorsContext,
+            q,
+            22 / cameraRef.current.scale,
+          );
+          if (hit) {
+            const offset = Math.round(
+              snapEnabled && grid
+                ? Math.round(hit.offset / grid) * grid
+                : hit.offset,
+            );
+            const draft = newOpening(
+              crypto.randomUUID(),
+              hit.host.ref,
+              offset,
+              interior.passage,
+            );
+            interior.onOpeningDraft(draft);
+            gesture.current = {
+              kind: "opening",
+              start: p,
+              opening: draft,
+              handle: null,
+            };
+          } else {
+            setGeometryError(
+              "Tap a real external wall or partition. Open-plan joins are not door hosts.",
+            );
+            gesture.current = { kind: "blocked" };
+          }
+        }
+      } else if (interior.tool === "draw") {
         gesture.current = { kind: "draw", start: p, local: snapped(q) };
         if (drawStartRef.current) previewWall(drawn(q));
       } else if (interior.tool === "room") {
@@ -459,6 +584,35 @@ export default function Editor({
             viewport,
           ),
         );
+    } else if (g.kind === "opening") {
+      if (!interior || distance(p, g.start) < 4) return;
+      const q = local(screenToWorld(p, cameraRef.current, viewportRef.current)),
+        geometry = openingGeometry(doorsContext, g.opening);
+      const fromCenter =
+        (q.x - geometry.center.x) * geometry.u.x +
+        (q.y - geometry.center.y) * geometry.u.y;
+      const startLocal = local(
+        screenToWorld(g.start, cameraRef.current, viewportRef.current),
+      );
+      const offset =
+        g.handle === null
+          ? g.opening.offset +
+            (q.x - startLocal.x) * geometry.u.x +
+            (q.y - startLocal.y) * geometry.u.y
+          : g.opening.offset + fromCenter;
+      const quantize = (n: number) =>
+        Math.round(snapEnabled && grid ? Math.round(n / grid) * grid : n);
+      const draft =
+        g.handle === null
+          ? { ...g.opening, offset: quantize(offset) }
+          : {
+              ...g.opening,
+              width: Math.max(
+                1,
+                Math.round(Math.abs(quantize(offset) - g.opening.offset) * 2),
+              ),
+            };
+      interior.onOpeningDraft(draft);
     } else if (g.kind === "draw") {
       if (drawStartRef.current)
         previewWall(
@@ -600,7 +754,10 @@ export default function Editor({
         }
       }
     }
-    if (cancelled) startWall(null);
+    if (cancelled) {
+      startWall(null);
+      if (g?.kind === "opening") interior?.onOpeningDraft(null);
+    }
     wallPreviewRef.current = null;
     setWallPreview(null);
     preview(null);
@@ -626,7 +783,7 @@ export default function Editor({
         role="application"
         aria-label={
           interior
-            ? "Ground-floor interior plan. Draw Wall: tap start, then end. Select Wall: drag body or endpoint. Select Room: tap clear space. Pan tool: drag canvas. Pinch or scroll to zoom."
+            ? "Ground-floor interior plan. Place Door: tap a real wall, preview and confirm in the Inspector. Draw Wall: tap start, then end. Select Wall: drag body or endpoint. Select Room: tap clear space. Pan tool: drag canvas. Pinch or scroll to zoom."
             : "Building plan. Edit tool: drag building to move, drag corners to resize. Pan tool: drag canvas. Pinch or scroll to zoom. Arrow keys move selected building."
         }
         tabIndex={0}
@@ -639,6 +796,7 @@ export default function Editor({
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             interior?.onSelect(null);
+            interior?.onOpeningDraft(null);
             startWall(null);
             previewWall(null);
             preview(null);
@@ -691,6 +849,11 @@ export default function Editor({
               strokeWidth={1 / s}
             />
           </pattern>
+          <OpeningMask
+            context={doorsContext}
+            openings={building.openings}
+            id={openingMaskId}
+          />
         </defs>
         <g
           transform={`translate(${viewport.width / 2} ${viewport.height / 2}) scale(${s}) translate(${-camera.center.x} ${-camera.center.y})`}
@@ -709,6 +872,14 @@ export default function Editor({
               transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
             >
               <InteriorLayer
+                doors={{
+                  context: doorsContext,
+                  openings: building.openings,
+                  draft: interior.openingDraft,
+                  invalid: !!openingError,
+                  maskId: openingMaskId,
+                  reachable: access.reachable,
+                }}
                 inner={merged.inner}
                 outer={merged.vertices}
                 plan={building.interior}
@@ -754,9 +925,17 @@ export default function Editor({
                 )}
                 <path
                   d={path}
-                  fill={building.sections.length > 1 ? "none" : "#46655e"}
+                  fill={
+                    building.sections.length > 1 || building.openings.length
+                      ? "none"
+                      : "#46655e"
+                  }
                   fillRule="evenodd"
-                  stroke={building.sections.length > 1 ? "none" : "#23463e"}
+                  stroke={
+                    building.sections.length > 1 || building.openings.length
+                      ? "none"
+                      : "#23463e"
+                  }
                   strokeWidth={1.25 / s}
                 />
                 {selected && (
@@ -880,7 +1059,7 @@ export default function Editor({
                   {metres(display.width)} m
                 </text>
               </g>
-              {building.sections.length > 1 && (
+              {building.sections.length > 1 && !building.openings.length && (
                 <g
                   data-combined-wall="true"
                   transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
@@ -892,6 +1071,29 @@ export default function Editor({
                     fillRule="evenodd"
                     stroke="#23463e"
                     strokeWidth={1.25 / s}
+                  />
+                </g>
+              )}
+              {building.openings.length > 0 && (
+                <g
+                  transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
+                  pointerEvents="none"
+                >
+                  <path
+                    d={`${polygonPath(merged.vertices)} ${polygonPath(merged.inner)}`}
+                    fill="#46655e"
+                    fillRule="evenodd"
+                    mask={`url(#${openingMaskId})`}
+                    data-physical-exterior="true"
+                  />
+                  <OpeningsLayer
+                    context={doorsContext}
+                    openings={building.openings.filter(
+                      (o) => o.host.kind === "exterior",
+                    )}
+                    selected={null}
+                    scale={s}
+                    interactive={false}
                   />
                 </g>
               )}

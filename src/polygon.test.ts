@@ -232,7 +232,7 @@ describe("schema v3 and lossless BG-01 migration", () => {
       migrated = validateProject(old);
     expect(migrated).toEqual({
       ...old,
-      schemaVersion: 4,
+      schemaVersion: 5,
       building: {
         ...old.building,
         frame: {
@@ -248,7 +248,7 @@ describe("schema v3 and lossless BG-01 migration", () => {
     });
     expect(old).toEqual(before);
     expect(parseProject(JSON.stringify(old))).toEqual(migrated);
-    expect(serializeProject(migrated)).toContain('"schemaVersion": 4');
+    expect(serializeProject(migrated)).toContain('"schemaVersion": 5');
   });
   it.each(SHAPES)(
     "roundtrips %s polygons, metadata, extents and stable IDs",

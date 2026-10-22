@@ -1,3 +1,7 @@
+import DoorsInspector from "./DoorsInspector";
+import { changeOpenings } from "./openingBuilding";
+import { type Opening } from "./openings";
+import { circulation } from "./circulation";
 import InteriorInspector, {
   type InteriorTool,
   type InteriorSelection,
@@ -36,6 +40,7 @@ import SectionsPanel from "./SectionsPanel";
 import ExtensionPanel from "./ExtensionPanel";
 import {
   combinedGeometry,
+  openingContext,
   translateBuilding,
   prepareBuilding,
   replaceSection,
@@ -76,6 +81,9 @@ export default function Studio({ project, onBack, onSaved }: Props) {
   const [interiorTool, setInteriorTool] = useState<InteriorTool>("wall");
   const [interiorSelection, setInteriorSelection] =
     useState<InteriorSelection>(null);
+  const [openingDraft, setOpeningDraft] = useState<Opening | null>(null);
+  const [passage, setPassage] = useState(false);
+  useEffect(() => setOpeningDraft(null), [mode, interiorTool, current]);
   const [partitionThickness, setPartitionThickness] = useState(100);
   const [tool, setTool] = useState<"edit" | "pan">("edit");
   const [selected, setSelected] = useState(true);
@@ -102,6 +110,27 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     [current.building],
   );
   const area = assembly;
+  const doorsContext = useMemo(
+    () => openingContext(current.building, assembly),
+    [current.building, assembly],
+  );
+  const access = useMemo(
+    () => circulation(doorsContext, current.building.openings),
+    [doorsContext, current.building.openings],
+  );
+  function doorsChange(openings: Opening[], preview = false): string | null {
+    try {
+      const building = changeOpenings(current.building, openings);
+      if (!preview) {
+        edit({ ...current, building });
+        setGeometryError("");
+      }
+      return null;
+    } catch (e) {
+      return (e as Error).message;
+    }
+  }
+
   const interiorGeometry = useMemo(
     () => deriveInterior(assembly.inner, current.building.interior.partitions),
     [assembly, current.building.interior.partitions],
@@ -423,7 +452,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-03A</span>
+        <span className="version">BG-03B</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -490,6 +519,15 @@ export default function Studio({ project, onBack, onSaved }: Props) {
               }}
             >
               Select Room
+            </button>
+            <button
+              aria-pressed={tool === "edit" && interiorTool === "door"}
+              onClick={() => {
+                setInteriorTool("door");
+                setTool("edit");
+              }}
+            >
+              Place Door
             </button>
           </>
         )}
@@ -635,6 +673,10 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                     onSelect: setInteriorSelection,
                     onWalls: interiorWalls,
                     validate: (walls) => interiorWalls(walls, true),
+                    openingDraft,
+                    passage,
+                    onOpeningDraft: setOpeningDraft,
+                    validateOpenings: (openings) => doorsChange(openings, true),
                   }
                 : undefined
             }
@@ -675,7 +717,9 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                     ? "Tap start · tap end"
                     : interiorTool === "wall"
                       ? "Drag wall · endpoints resize"
-                      : "Tap a clear region"}
+                      : interiorTool === "door"
+                        ? "Tap wall · preview · confirm"
+                        : "Tap a clear region"}
             </span>
             <span>Millimetre precision</span>
           </footer>
@@ -703,6 +747,32 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             <div className="inspector-content">
               {mode === "interior" ? (
                 <InteriorInspector
+                  roomAccess={
+                    interiorSelection?.kind === "room"
+                      ? access.reachable.has(interiorSelection.key)
+                      : undefined
+                  }
+                  doors={
+                    <DoorsInspector
+                      building={current.building}
+                      context={doorsContext}
+                      draft={openingDraft}
+                      passage={passage}
+                      onPassage={setPassage}
+                      selectedId={
+                        interiorSelection?.kind === "opening"
+                          ? interiorSelection.id
+                          : null
+                      }
+                      onDraft={setOpeningDraft}
+                      onChange={doorsChange}
+                      onSelect={(id) => {
+                        setInteriorSelection({ kind: "opening", id });
+                        setInteriorTool("door");
+                        setTool("edit");
+                      }}
+                    />
+                  }
                   building={current.building}
                   regions={interiorGeometry.regions}
                   partitionArea={interiorGeometry.partitionArea}

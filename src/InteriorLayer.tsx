@@ -1,3 +1,5 @@
+import OpeningsLayer from "./OpeningsLayer";
+import type { Opening, OpeningContext } from "./openings";
 import type { InteriorPlan, Partition, Region } from "./interior";
 import { wallBox } from "./interior";
 import type { Point } from "./geometry";
@@ -14,7 +16,16 @@ export default function InteriorLayer({
   preview,
   invalid,
   start,
+  doors,
 }: {
+  doors: {
+    context: OpeningContext;
+    openings: Opening[];
+    draft: Opening | null;
+    invalid: boolean;
+    maskId: string;
+    reachable: Set<string>;
+  };
   inner: Point[];
   outer: Point[];
   plan: InteriorPlan;
@@ -28,7 +39,12 @@ export default function InteriorLayer({
 }) {
   return (
     <g data-interior-layer="true">
-      <path d={polygonPath(outer)} fill="#46655e" />
+      <path
+        d={polygonPath(outer)}
+        fill="#46655e"
+        mask={`url(#${doors.maskId})`}
+        data-physical-exterior="true"
+      />
       <path d={polygonPath(inner)} fill="#f8f5e9" />
       {regions.map((r, i) => {
         const record = plan.rooms.find((m) => m.regionKey === r.key),
@@ -41,7 +57,21 @@ export default function InteriorLayer({
               d={r.loops.map(polygonPath).join(" ")}
               fillRule="evenodd"
               fill={active ? "#cddfda" : assigned ? "#e1e9d3" : "#f8f5e9"}
-              stroke={active ? "#326e70" : "#b5bba5"}
+              data-access={
+                doors.reachable.has(r.key) ? "accessible" : "unreachable"
+              }
+              stroke={
+                active
+                  ? "#326e70"
+                  : doors.reachable.has(r.key)
+                    ? "#b5bba5"
+                    : "#bd8d65"
+              }
+              strokeDasharray={
+                !active && !doors.reachable.has(r.key)
+                  ? `${4 / scale} ${3 / scale}`
+                  : undefined
+              }
               strokeWidth={(active ? 2 : 1) / scale}
             />
             <text
@@ -77,6 +107,8 @@ export default function InteriorLayer({
           <g key={w.id} data-partition-id={w.id}>
             <rect
               {...b}
+              mask={`url(#${doors.maskId})`}
+              data-physical-partition="true"
               fill={active ? "#a87735" : "#46655e"}
               stroke={active ? "#7d501f" : "none"}
               strokeWidth={1 / scale}
@@ -107,6 +139,15 @@ export default function InteriorLayer({
           </g>
         );
       })}
+      <OpeningsLayer
+        context={doors.context}
+        openings={doors.openings}
+        preview={doors.draft}
+        invalid={doors.invalid}
+        selected={selection?.kind === "opening" ? selection.id : null}
+        scale={scale}
+        interactive={tool === "door"}
+      />
       {preview && (
         <rect
           {...wallBox(preview)}

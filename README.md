@@ -1,6 +1,6 @@
-# Building Generator · BG-03A
+# Building Generator · BG-03B
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-03A adds manual ground-floor partitions and room labels to the existing footprint/extension studio, retaining BG-02B.1 mobile document scrolling. No BG-03B features are implemented.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-03B adds manually placed doors, passages and ground-floor circulation analysis to BG-03A interiors, retaining BG-02B.1 mobile document scrolling. No BG-04 features are implemented.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,21 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Doors, openings and circulation · BG-03B
+
+In **Interior Planning**, use **Place Door** and tap a real partition or exterior wall. The Doors & Openings Inspector shows a translucent placement with valid/invalid feedback. Adjust its centre distance from the host's start and width, then **Confirm opening** or **Cancel opening**. No preview changes saved geometry. Hinged doors default to **0.9 m**, open passages to **1.2 m**; the host determines Interior Door or Exterior Entrance. Passage openings may also open to outside.
+
+- Tap a saved opening or use **Select door/opening**. Drag its centre along its wall, or a jamb handle to resize symmetrically, then confirm the preview. Exact numeric edits on a saved opening commit independently; they never resize its wall. Deletion asks for confirmation. All accepted operations support Undo/Redo. Grid/Free affects canvas placement/dragging; exact inputs preserve integer-mm precision. Whole-building translation/rotation preserves anchors and door orientation.
+- Each opening has a stable ID, type, source-wall reference and integer-mm centre offset/width. Partition references use stable partition IDs; external references use source section ID plus edge index. Source edges must coincide with a real merged exterior boundary. BG-02B open-plan section joins have no wall and cannot host doors.
+- Physical gaps are cut from the wall bands with SVG luminance masks, including exterior walls in Footprint mode. Room-separating partition geometry stays logically complete: inserting/removing doors never merges regions, rekeys rooms or changes their names/types/notes. Threshold surfaces are shown separately.
+- A hinged leaf opens 90° about its chosen jamb, with a true radius-width swing arc. **Left** means the wall-start jamb; **Right** the wall-end jamb. **Side A** is left of the directed host, **Side B** right. **Flip Hinge** and **Reverse Swing** update the geometry. Passages have no leaf, hinge or arc. A warning appears when the swept quarter-disc intersects physical wall geometry; this includes exterior walls and excludes confirmed opening gaps. It is advisory and does not prevent intentionally obstructed layouts.
+- Widths are **0.4–3 m**. Leave **0.1 m** from host endpoints, merged exterior corners, other openings and partition junctions. The full aperture must adjoin clear space on both partition sides, or exactly one interior side for an exterior opening. Invalid overlaps, junction cuts, unsupported hosts and protrusions are rejected. Maximum **128 openings**. Relevant section locks protect opening placement, edits and deletion.
+- Moving a host carries its opening. Resizing a wall start adjusts its stored offset to keep the opening's longitudinal location fixed. Reversing/replacing a host direction requires explicit opening removal/relocation first. Host shortening, removal and footprint/extension edits revalidate all openings and reject invalid edits without detaching or deleting them.
+
+**Area convention:** thresholds through partitions are **separate passage area**, excluded from logical net room areas. Net rooms + remaining physical partitions + interior thresholds = the unchanged usable-interior baseline. Exterior thresholds reduce exterior wall footprint only and are never added to that baseline. For the centred BG-03A partition, rooms remain **43.70 + 43.70 = 87.40 m²**. A 0.9 m door through its 0.1 m thickness contributes **0.09 m²** threshold and leaves **0.67 m²** partition: **87.40 + 0.09 + 0.67 = 88.16 m²**. A 0.9 m entrance through 0.2 m exterior walls removes **0.18 m²** exterior wall footprint without changing 88.16 m². Calculations are exact; displayed areas are rounded.
+
+`src/circulation.ts` builds an access graph from validated apertures and the actual full-width clear regions on each wall side. Exterior openings seed reachability; interior doors/passages add region edges, including multi-hop routes. Open-plan regions are already continuous. The Inspector reports **Accessible** or **No entrance path**, including the selected room; disconnected regions receive warning outlines. Intentionally inaccessible rooms remain valid and savable. This is potential ground-floor traversal through placed doors, without a closed/locked door state; it is not real-world code, accessibility or fire-escape certification. No connections are invented.
 
 ## Manual interior planning · BG-03A
 
@@ -76,39 +91,42 @@ Each section uses a simple orthogonal ring before rotation, with 4–64 vertices
 
 Shoelace area computes exact exterior area. Clear area and the continuous rendered external wall band use the **validated mitered inward offset of the merged boundary**, not sums of section interiors or bounding-box estimates. The offset must remain one positive connected ring, not reverse edges, cross boundaries or intrude within the wall clearance. Too-thick walls, tiny jogs, collapsing necks, split interiors, overlapping interiors, holes, corner-only contacts and detached sections are rejected. Common exterior walls must be at least 0.01 m. No invalid measurement is replaced by an estimated value.
 
-## Schema v4 and migration
+## Schema v5 and migration
 
-The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 4` retains:
+The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 5` retains:
 
 - `building.mainSectionId` and up to twelve `sections`.
 - Section `name`, `type`, `locked`, with the original rectangle or polygon geometry fields.
 - `building.frame`: `origin` (integer XY), `axis`, `rotation`, `mode`.
 - Explicit connections: stable `id`, endpoint section IDs and edge indices, shared integer segment `start`/`end`, `mode: "open-plan"`.
 
-Schema v4 adds `building.interior: { partitions, rooms }`. Each partition has a stable ID, integer-mm endpoints `a`/`b` and integer-mm thickness. Room records have a stable ID, a derived geometric `regionKey` (or null for retained labels), name, type and notes. Geometric region keys contain coordinates, not identity references.
+Schema v4 introduced `building.interior: { partitions, rooms }`. Each partition has a stable ID, integer-mm endpoints `a`/`b` and integer-mm thickness. Room records have a stable ID, a derived geometric `regionKey` (or null for retained labels), name, type and notes. Geometric region keys contain coordinates, not identity references.
 
-Pure read-time migration accepts schema **1, 2, 3 and 4**. Versions 1–3 receive an empty interior plan without modifying their original geometry or metadata. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
+Schema v5 adds `building.openings`, each with `id`, `type`, a partition/exterior `host`, `offset` and `width`; hinged records also require `hinge` and `swing`. Passages omit hinge/swing. Runtime validation checks references, aperture geometry, clearances and unique IDs.
+
+Pure read-time migration accepts schema **1, 2, 3, 4 and 5**. Versions 1–4 receive an empty opening collection. Populated BG-03A interiors retain every partition/room ID, coordinate and label. Versions 1–3 receive an empty interior plan without modifying their original geometry or metadata. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
 
 The first accepted attachment enters **assembly** mode. Positions then share integer assembly axes anchored at that preserved origin; section quarter turns are relative to the frame axis. The frame's additional `rotation` is applied only for rendering/world transforms, so attachments stay exact. An assembly retains its frame even after its last extension is removed; remaining sections cannot jump, including moved/locked sections. Earlier-phase single-section projects retain their original arbitrary orientation and world-placement controls until attachment.
 
-Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section, connection, partition and room identity** and remap all references, with independent vertex arrays. Exports use v4; v1/v2/v3 imports remain supported, but older app versions cannot open v4 exports. Room geometric keys remain valid after identity rekeying.
+Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section, connection, partition, room and opening identity** and remap section/partition host references, with independent geometry arrays. Exports use v5; v1/v2/v3/v4 imports remain supported, but older app versions cannot open v5 exports. Room geometric keys remain valid after identity rekeying.
 
-Library reads never overwrite old records. A successfully validated legacy record is written as v4 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v4.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
+Library reads never overwrite old records. A successfully validated legacy record is written as v5 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v5.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
 
-## BG-03A implementation map
+## BG-03B implementation map
 
-| Files                                                                                                                  | Responsibility                                                                              |
-| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `src/interior.ts`, `src/interiorBuilding.ts`                                                                           | Exact partitions, room boundaries/areas, topology/label reconciliation and lock-aware edits |
-| `src/InteriorLayer.tsx`, `src/InteriorInspector.tsx`                                                                   | Interior SVG layers, selection, numeric wall editing and room metadata                      |
-| `src/Editor.tsx`, `src/Studio.tsx`, `src/styles.css`                                                                   | Modes, tap/drag transactions, existing camera gestures and portrait page scrolling          |
-| `src/model.ts`, `src/assembly.ts`                                                                                      | Schema v4, duplication, migration and structural edits that preserve/validate interiors     |
-| `schemas/project-v4.schema.json`                                                                                       | Interior structure alongside retained legacy schemas                                        |
-| `src/interior.test.ts`, `src/storage.test.ts`, `src/assembly.test.ts`, `src/polygon.test.ts`                           | Exact areas, topology, migration, persistence and earlier geometry regressions              |
-| `tests/interiors.spec.ts`, `tests/footprints.spec.ts`, `tests/sections.spec.ts`, `tests/fixtures/bg01-project-v4.json` | End-to-end interiors, legacy workflows and schema v4 expectations                           |
-| `src/App.tsx`, `package.json`, `package-lock.json`, `README.md`                                                        | BG-03A / 0.4.0 release and documentation                                                    |
+| Files                                                                                                                | Responsibility                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `src/openings.ts`, `src/openingBuilding.ts`                                                                          | Host geometry, gap validation, anchor preservation, locks, physical areas and swept-leaf warnings |
+| `src/circulation.ts`                                                                                                 | Ground-floor room access graph and entrance reachability                                          |
+| `src/DoorsInspector.tsx`, `src/OpeningsLayer.tsx`                                                                    | Preview/confirm, exact controls, hinge/swing actions, masks, leaves/arcs and access summaries     |
+| `src/Editor.tsx`, `src/Studio.tsx`, `src/InteriorLayer.tsx`, `src/InteriorInspector.tsx`, `src/styles.css`           | Touch selection/dragging, existing camera gestures, room status and portrait scrolling            |
+| `src/model.ts`, `src/assembly.ts`, `src/interiorBuilding.ts`                                                         | Schema v5, identity remapping, lossless migrations and structural edit validation                 |
+| `schemas/project-v5.schema.json`, `tests/fixtures/bg01-project-v5.json`                                              | Versioned schema and migration expectation; older schemas/fixtures remain intact                  |
+| `src/openings.test.ts`, `src/storage.test.ts`, `src/assembly.test.ts`, `src/polygon.test.ts`, `src/interior.test.ts` | Door geometry/access/migration coverage and prior-phase schema expectations                       |
+| `tests/openings.spec.ts`, `tests/footprints.spec.ts`, `tests/interiors.spec.ts`, `tests/sections.spec.ts`            | End-to-end doors, earlier regression workflows and version expectations                           |
+| `src/App.tsx`, `package.json`, `package-lock.json`, `README.md`                                                      | BG-03B / 0.5.0 release and documentation                                                          |
 
-Camera transforms, bounded history and IndexedDB transaction modules are reused. No new runtime dependencies or repository were introduced.
+Existing interior topology, camera transforms, history and IndexedDB modules are reused. No runtime dependency or repository was added.
 
 ## Automated checks
 
@@ -125,9 +143,9 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- --proj
 
 After building, prefix the browser command with **`BG_E2E_PREVIEW=1`** to validate the production bundle through preview. Stop other servers on port 5173 first. For WebKit when available: `npm run test:e2e -- --project=iphone-webkit`.
 
-Tests retain BG-01 through BG-02B.1 workflows and add exact interior/partition areas, corners/T-junctions, concave and multi-section clear regions, unfinished walls, invalid geometry, stable room identity, retained labels, lock protection, structural edit rejection, frame movement/rotation, v1/v2/v3/v4 migration/import/export, persistence, independent duplication, native multi-touch cancellation and mobile scrolling/coordinate mapping.
+Tests retain BG-01 through BG-03A workflows and cover physical wall gaps, exact opening/threshold areas, stable room identities, entrance/multi-hop reachability, passages, hinge/swing geometry, obstruction warnings, invalid hosts/overlaps/junctions, lock protection, host resizing/movement, undo/redo, v1–v5 import/export, independent host references, persistence and native multi-touch cancellation. Mobile scrolling and pointer-to-world regressions remain enabled.
 
-BG-03A validation: **111 unit/storage tests passed**, **35 desktop/mobile Chromium production-browser tests passed**, and **5 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
+BG-03B validation: **139 unit/storage tests passed**, **42 desktop/mobile Chromium production-browser tests passed**, and **6 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
 
 WebKit is not installed in this machine (the official browser CDN was blocked during BG-01 setup). Chromium mobile emulation/native Chromium touch dispatch does **not** verify physical iPhone Safari; run the playtest below on a device.
 
@@ -138,13 +156,13 @@ WebKit is not installed in this machine (the official browser CDN was blocked du
 - Common walls/elevation must agree. A locked section blocks any operation that would modify its stored data. Whole-building rotation is an intentional frame operation and does not unlock/change section records. Undo/redo restores previously committed lock/geometry states.
 - IndexedDB autosaves after 400 ms idle; Saving/Saved/Save Error, retry/export backup and flush-before-leave are retained. Wait for **Saved**. Private browsing, clearing site data, storage pressure, origin changes or OS termination can lose local/unsaved data. Export JSON backups. Persistent storage is requested but not guaranteed.
 - Same-project multi-tab editing has no conflict resolution (last save wins). History/view/grid preferences are session-only. No service worker/offline installation.
-- BG-03A is ground-floor manual planning only. No doors, windows, stairs, upper-floor plans, furniture, automatic room layouts, roofs, 3D, procedural building generation, game conversion or structural engineering. No BG-03B work is included.
+- BG-03B remains ground-floor manual planning. Hinged doors are single leaves with a 90° swing. No windows, stairs, upper-floor editing, furniture, automatic layouts, roofs, 3D, procedural generation, game conversion or structural engineering. No BG-04 work is included.
 
 ## Short iPhone Safari playtest
 
-1. Open old v1/v2/v3 projects at the same HTTPS origin. Verify unchanged footprints, attachments, IDs/measurements and architecture/floor metadata; Interior Planning should initially show an empty plan.
-2. On a default building, Draw Wall from (6, 0.2) to (6, 7.8) m at 0.1 m thickness: verify two 43.70 m² regions and 0.76 m² of partitions. Try tap preview/cancel, grid/Free, numeric edits, corners/T-junctions and rejected crossings/protrusions.
-3. Select and name/type rooms, add notes, move/resize a shared wall, and verify both exact areas update. Merge/split regions; check retained labels, reassignment, deletion confirmations and Undo/Redo. Repeat in an L footprint and across an attached wing.
-4. Lock a section and try interior edits in it. Attempt an exterior resize that would protrude a partition; it must reject without loss. Translate/rotate the whole building, Fit, pan and pinch during a wall drag or unfinished draw; partition coordinates/labels must remain unchanged by camera gestures.
-5. In portrait, swipe through the full Inspector: toolbar/canvas scroll offscreen and return naturally. Collapse/expand, focus inputs with the keyboard open, and expand/retract Safari's address bar. Check safe areas, no nested Inspector scroll trap or horizontal overflow. After scrolling, tap/move/resize using the correct coordinates. Rotate landscape/back and check all tools.
-6. Wait for Saved, reopen Safari, export/import v4 and duplicate the project. Verify partitions, exact dimensions, room labels/notes and independent IDs. Invalid JSON must leave all saved projects intact.
+1. At the same HTTPS origin, reopen legacy v1–v4 projects, including a named BG-03A room plan. Verify unchanged geometry, IDs/labels and empty openings; export backups.
+2. Add a centred partition to the default building and name both regions. Place a 0.9 m interior door and an exterior entrance: preview, adjust, cancel/retry and confirm. Check real gaps, unchanged two 43.70 m² rooms, 0.09 m² threshold, 0.67 m² remaining partition and access to both rooms.
+3. Select by tap/dropdown, drag/move/resize after page scrolling, edit exact width/position, Flip Hinge and Reverse Swing. Test passage openings, swing obstruction warnings, invalid overlaps/junctions/endpoints and locked sections. Invalid operations must leave saved walls/rooms/doors untouched.
+4. Remove the connecting door: the far room should show No entrance path. Undo/Redo, add a passage, and confirm multi-room routes. Resize/move hosts and try invalid host removal/shortening; check preserved anchors or safe rejection. Translate/rotate the whole building, Fit and pan/pinch during a door drag or placement preview; camera gestures must never commit geometry.
+5. In portrait, swipe through the Inspector so canvas/toolbar move offscreen and return. Collapse/expand, use numeric fields with the keyboard open, expand/retract Safari's address bar, and rotate landscape/back. Check safe areas, no nested Inspector scroll trap, no horizontal overflow and accurate taps after scrolling.
+6. Wait for Saved, reopen Safari, export/import v5 and duplicate the project. Verify door dimensions, host references, hinge/swing, room labels/notes and independent IDs. Invalid JSON must preserve all saved data.

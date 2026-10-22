@@ -1,4 +1,9 @@
-import { canonicalVertices, combinedGeometry } from "./assembly";
+import { validateOpenings, reanchorOpenings } from "./openings";
+import {
+  canonicalVertices,
+  combinedGeometry,
+  openingContext,
+} from "./assembly";
 import type { Building } from "./model";
 import {
   containsPoint,
@@ -53,8 +58,16 @@ export function changePartitions(
     }
   }
   const inner = combinedGeometry(b).inner;
-  return {
+  const next = {
     ...b,
     interior: reconcileInterior(inner, b.interior, inner, partitions),
   };
+  if (next.openings.length)
+    next.openings = reanchorOpenings(
+      openingContext(b),
+      openingContext(next),
+      next.openings,
+    );
+  validateOpenings(openingContext(next), next.openings);
+  return next;
 }

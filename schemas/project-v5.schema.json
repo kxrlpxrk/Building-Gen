@@ -1,0 +1,491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:building-generator:project:v5",
+  "title": "Building Generator BG-03B Project",
+  "description": "One main and up to eleven attached ground-level architectural sections. Exact integer-millimetre orthogonal union; runtime validation rejects overlaps, holes, disconnections, invalid wall insets, unequal walls, incompatible section angles, duplicate identities and stale attachment records. Ground-floor interior partitions use building-local integer-mm centrelines and integer-mm thickness. Runtime exact subtraction validates wall containment, joints, clearances and room assignments; ambiguous room assignments are retained with a null regionKey. Schema v5 adds physical openings with source-wall references and local centre offsets; logical rooms remain separated. Runtime validation checks hosts, end/junction clearances, overlap and full side adjacency.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "architecture",
+    "createdAt",
+    "updatedAt",
+    "building"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 5
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "\\S"
+    },
+    "architecture": {
+      "enum": ["Medieval", "Norse", "Mixed"]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "building": {
+      "type": "object",
+      "required": [
+        "id",
+        "mainSectionId",
+        "frame",
+        "sections",
+        "connections",
+        "interior",
+        "openings"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/rectangle"
+              },
+              {
+                "$ref": "#/$defs/polygon"
+              }
+            ]
+          }
+        },
+        "mainSectionId": {
+          "$ref": "#/$defs/id"
+        },
+        "frame": {
+          "type": "object",
+          "required": ["origin", "axis", "rotation", "mode"],
+          "properties": {
+            "origin": {
+              "$ref": "#/$defs/point"
+            },
+            "axis": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMaximum": 360
+            },
+            "rotation": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMaximum": 360
+            },
+            "mode": {
+              "enum": ["legacy", "assembly"]
+            }
+          }
+        },
+        "connections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/connection"
+          }
+        },
+        "interior": {
+          "type": "object",
+          "required": ["partitions", "rooms"],
+          "properties": {
+            "partitions": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "$ref": "#/$defs/partition"
+              }
+            },
+            "rooms": {
+              "type": "array",
+              "maxItems": 512,
+              "items": {
+                "$ref": "#/$defs/room"
+              }
+            }
+          }
+        },
+        "openings": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/opening"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+    },
+    "positionValue": {
+      "type": "integer",
+      "minimum": -10000000,
+      "maximum": 10000000
+    },
+    "dimension": {
+      "type": "integer",
+      "minimum": 500,
+      "maximum": 500000,
+      "description": "Polygon length/width are validated outer extents, not area. Polygon vertices are authoritative."
+    },
+    "rectangle": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/sectionBase"
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "const": "rectangle"
+            }
+          }
+        }
+      ]
+    },
+    "sectionBase": {
+      "type": "object",
+      "required": [
+        "id",
+        "position",
+        "length",
+        "width",
+        "wallThickness",
+        "orientation",
+        "floorCount",
+        "name",
+        "type",
+        "locked"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "position": {
+          "type": "object",
+          "required": ["x", "y", "z"],
+          "properties": {
+            "x": {
+              "$ref": "#/$defs/positionValue"
+            },
+            "y": {
+              "$ref": "#/$defs/positionValue"
+            },
+            "z": {
+              "$ref": "#/$defs/positionValue"
+            }
+          }
+        },
+        "length": {
+          "$ref": "#/$defs/dimension"
+        },
+        "width": {
+          "$ref": "#/$defs/dimension"
+        },
+        "wallThickness": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 249999
+        },
+        "orientation": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 360
+        },
+        "floorCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "\\S"
+        },
+        "type": {
+          "enum": [
+            "Residential Wing",
+            "Workshop",
+            "Storage",
+            "Porch",
+            "Hall Extension",
+            "Tower Footprint",
+            "Custom"
+          ]
+        },
+        "locked": {
+          "type": "boolean"
+        }
+      }
+    },
+    "polygon": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/sectionBase"
+        },
+        {
+          "type": "object",
+          "required": ["kind", "preset", "vertices"],
+          "properties": {
+            "kind": {
+              "const": "polygon"
+            },
+            "preset": {
+              "enum": ["L-shape", "T-shape", "U-shape", "Cross", "Irregular"]
+            },
+            "vertices": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "required": ["x", "y"],
+                "properties": {
+                  "x": {
+                    "type": "integer",
+                    "minimum": -500000,
+                    "maximum": 500000
+                  },
+                  "y": {
+                    "type": "integer",
+                    "minimum": -500000,
+                    "maximum": 500000
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/positionValue"
+        },
+        "y": {
+          "$ref": "#/$defs/positionValue"
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["sectionId", "edge"],
+      "properties": {
+        "sectionId": {
+          "$ref": "#/$defs/id"
+        },
+        "edge": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 63
+        }
+      }
+    },
+    "connection": {
+      "type": "object",
+      "required": ["id", "a", "b", "start", "end", "mode"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "a": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "b": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "start": {
+          "$ref": "#/$defs/point"
+        },
+        "end": {
+          "$ref": "#/$defs/point"
+        },
+        "mode": {
+          "const": "open-plan"
+        }
+      }
+    },
+    "interiorPoint": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": -2000000,
+          "maximum": 2000000
+        },
+        "y": {
+          "type": "integer",
+          "minimum": -2000000,
+          "maximum": 2000000
+        }
+      }
+    },
+    "partition": {
+      "type": "object",
+      "required": ["id", "a", "b", "thickness"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "a": {
+          "$ref": "#/$defs/interiorPoint"
+        },
+        "b": {
+          "$ref": "#/$defs/interiorPoint"
+        },
+        "thickness": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1000
+        }
+      }
+    },
+    "room": {
+      "type": "object",
+      "required": ["id", "regionKey", "name", "type", "notes"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "regionKey": {
+          "type": ["string", "null"],
+          "maxLength": 100000
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "type": {
+          "enum": [
+            "Main Hall",
+            "Bedroom",
+            "Kitchen",
+            "Dining",
+            "Storage",
+            "Workshop",
+            "Bathroom",
+            "Corridor",
+            "Utility",
+            "Custom"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      }
+    },
+    "openingHost": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "partitionId"],
+          "properties": {
+            "kind": {
+              "const": "partition"
+            },
+            "partitionId": {
+              "$ref": "#/$defs/id"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "sectionId", "edge"],
+          "properties": {
+            "kind": {
+              "const": "exterior"
+            },
+            "sectionId": {
+              "$ref": "#/$defs/id"
+            },
+            "edge": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 63
+            }
+          }
+        }
+      ]
+    },
+    "opening": {
+      "type": "object",
+      "required": ["id", "host", "offset", "width", "type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "host": {
+          "$ref": "#/$defs/openingHost"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 400,
+          "maximum": 3000
+        },
+        "type": {
+          "enum": ["interior-door", "exterior-door", "passage"]
+        },
+        "hinge": {
+          "enum": ["left", "right"]
+        },
+        "swing": {
+          "enum": [1, -1]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "passage"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["hinge"]
+                },
+                {
+                  "required": ["swing"]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": ["hinge", "swing"]
+          }
+        }
+      ]
+    }
+  }
+}

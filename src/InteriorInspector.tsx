@@ -1,4 +1,5 @@
 import { useState, useRef, useLayoutEffect, useEffect } from "react";
+import type { ReactNode } from "react";
 import type { Building } from "./model";
 import {
   ROOM_TYPES,
@@ -10,10 +11,15 @@ import {
 } from "./interior";
 import { NumericField } from "./components";
 import { metres } from "./geometry";
-export type InteriorTool = "draw" | "wall" | "room";
+export type InteriorTool = "draw" | "wall" | "room" | "door";
 export type InteriorSelection =
-  { kind: "wall"; id: string } | { kind: "room"; key: string } | null;
+  | { kind: "wall"; id: string }
+  | { kind: "room"; key: string }
+  | { kind: "opening"; id: string }
+  | null;
 type Props = {
+  doors?: ReactNode;
+  roomAccess?: boolean;
   building: Building;
   regions: Region[];
   partitionArea: number;
@@ -106,6 +112,8 @@ function RoomFields({
   );
 }
 export default function InteriorInspector({
+  doors,
+  roomAccess,
   building,
   regions,
   partitionArea,
@@ -145,6 +153,7 @@ export default function InteriorInspector({
     onWalls(plan.partitions.map((p) => (p.id === w.id ? w : p)));
   return (
     <div className="interior-inspector">
+      {doors}
       <section className="inspector-section">
         <h2>Whole-building placement</h2>
         <NumericField
@@ -186,7 +195,7 @@ export default function InteriorInspector({
             <dd>{(usableArea / 1e6).toFixed(2)} m²</dd>
           </div>
           <div>
-            <dt>Partition footprint</dt>
+            <dt>Logical partition footprint</dt>
             <dd data-testid="partition-area">
               {(partitionArea / 1e6).toFixed(2)} m²
             </dd>
@@ -350,6 +359,12 @@ export default function InteriorInspector({
         </label>
         {region && (
           <>
+            <p
+              data-testid="selected-room-access"
+              className={roomAccess ? "access-reachable" : "field-error"}
+            >
+              {roomAccess ? "Accessible" : "No entrance path"}
+            </p>
             <p data-testid="room-area">
               Net area: {(region.area / 1e6).toFixed(2)} m²
             </p>
