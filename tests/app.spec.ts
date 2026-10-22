@@ -334,6 +334,7 @@ test("native multi-touch cancels an in-progress drag and never edits during pinc
   expect(box).toBeTruthy();
   const x = box!.x + box!.width / 2,
     y = box!.y + box!.height / 2;
+  const scrollBeforePinch = await page.evaluate(() => scrollY);
   const client = await page.context().newCDPSession(page);
   const touch = (id: number, px: number, py: number) => ({
     id,
@@ -380,6 +381,6 @@ test("native multi-touch cancels an in-progress drag and never edits during pinc
     "translate(0 0) rotate(0)",
   );
   await expect(page.getByLabel("Undo", { exact: true })).toBeDisabled();
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforePinch);
   await client.detach();
 });

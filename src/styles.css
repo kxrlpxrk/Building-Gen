@@ -671,7 +671,7 @@ h3 {
   line-height: 1.6;
   margin: 24px 0;
 }
-/* The studio occupies the visual viewport; only its inspector scrolls. */
+/* Desktop and landscape use a viewport workspace; portrait flows below. */
 .studio-shell {
   height: 100vh;
   height: 100dvh;
@@ -1865,5 +1865,40 @@ h3 {
   }
   .sections-panel h2 {
     font-size: 12px;
+  }
+}
+
+/* Portrait is one document: only the canvas captures editing gestures.
+   svh keeps its editing height stable as Safari's address bar retracts. */
+@media (max-width: 650px) and (orientation: portrait) {
+  .studio-shell {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: visible;
+  }
+  .studio-workspace {
+    flex: none;
+    min-height: auto;
+  }
+  .editor-main {
+    flex: none;
+    height: 420px;
+    height: clamp(320px, 55svh, 520px);
+  }
+  .inspector,
+  .inspector-closed .inspector {
+    flex: none;
+    min-height: auto;
+  }
+  .inspector-content {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
+  .inspector .section-list {
+    max-height: none;
+    overflow: visible;
   }
 }

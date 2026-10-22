@@ -48,7 +48,7 @@ test("all presets, exact edges, validation, undo, reload, duplicate and v2 JSON 
   page,
 }) => {
   await create(page, "Polygon hall");
-  await expect(page.getByText("BG-02B", { exact: true })).toBeVisible();
+  await expect(page.getByText("BG-02B.1", { exact: true })).toBeVisible();
   for (const shape of [
     "L-shape",
     "T-shape",
@@ -285,6 +285,7 @@ test("native polygon pinch cancels a vertex drag without changing geometry", asy
     .selectOption("L-shape");
   await page.getByRole("button", { name: "Toggle inspector" }).click();
   await page.getByRole("button", { name: "Fit", exact: true }).click();
+  const scrollBeforePinch = await page.evaluate(() => scrollY);
   const original = await outer(page).getAttribute("d"),
     box = await page.locator('[data-corner="3"] circle').boundingBox();
   expect(box).toBeTruthy();
@@ -328,12 +329,12 @@ test("native polygon pinch cancels a vertex drag without changing geometry", asy
     touchPoints: [],
   });
   expect(await outer(page).getAttribute("d")).toBe(original);
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforePinch);
   // Only the preset transaction exists; one undo must restore the BG-01 rectangle.
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Toggle inspector" }).click();
   await expect(page.getByLabel("Footprint Shape", { exact: true })).toHaveValue(
     "Rectangle",
   );
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await client.detach();
 });

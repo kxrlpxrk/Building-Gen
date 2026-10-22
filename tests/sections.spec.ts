@@ -316,6 +316,7 @@ test("native multi-touch leaves all section geometry and attachments unchanged",
   const canvas = page.getByRole("application"),
     box = await canvas.boundingBox();
   expect(box).toBeTruthy();
+  const scrollBeforePinch = await page.evaluate(() => scrollY);
   const client = await page.context().newCDPSession(page),
     x = box!.x + box!.width / 2,
     y = box!.y + box!.height / 2,
@@ -351,7 +352,7 @@ test("native multi-touch leaves all section geometry and attachments unchanged",
     touchPoints: [],
   });
   expect((await records(page))[0]).toEqual(before);
-  expect(await page.evaluate(() => scrollY)).toBe(0);
+  expect(await page.evaluate(() => scrollY)).toBe(scrollBeforePinch);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await saved(page);
   expect((await records(page))[0].building.sections).toHaveLength(1);

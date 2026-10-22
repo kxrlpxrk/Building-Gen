@@ -1,6 +1,6 @@
-# Building Generator · BG-02B
+# Building Generator · BG-02B.1
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-02B adds connected architectural wings/extensions to BG-01 and BG-02A. No BG-03 features are implemented.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-02B adds connected architectural wings/extensions to BG-01 and BG-02A. BG-02B.1 makes mobile portrait a single scrolling Studio page. No BG-03 features are implemented.
 
 ## Run, validate and deploy
 
@@ -44,7 +44,9 @@ Vertex edits adjust their two neighbours to keep orthogonal edges. Edge drags mo
 
 Independent display-grid and snap toggles; **0.25 / 0.5 / 1 / 2 m** presets and **Free**. Vertex/edge snapping uses local section axes; section movement uses shared assembly axes. Free retains 1 mm precision. Display grid thins at distant zoom and reports its visible spacing. Grid changes never change geometry.
 
-Edit/Pan tools, anchored zoom, wheel/pinch, Fit, collapsible desktop panels and mobile bottom/landscape side inspector are retained. Pointer previews commit once on release; cancellation or a second finger rolls back the preview before pinch starts. A remaining finger cannot accidentally resume editing. Undo history retains the last 100 transactions in the active session.
+In mobile portrait (up to 650 CSS pixels), the Studio scrolls as one document: swiping the Inspector moves the toolbar and canvas offscreen, and scrolling back reveals them. Inspector contents and the architectural section list expand to their full height, with no nested scroll areas. Collapse/expand is retained. The canvas has a stable `clamp(320px, 55svh, 520px)` editing height (420px fallback), so Safari's dynamic address bar does not resize it during scrolling. Safe-area padding is retained; there are no sticky workspace elements. Desktop and landscape retain their viewport workspace with a scrolling side Inspector.
+
+Canvas-specific touch capture stays on the SVG; Inspector inputs use ordinary page scrolling. Pointer mapping reads the current canvas screen bounds on each event, including after document scrolling. Edit/Pan tools, anchored zoom, wheel/pinch and Fit are retained. Pointer previews commit once on release; cancellation or a second finger rolls back the preview before pinch starts. A remaining finger cannot accidentally resume editing. Undo history retains the last 100 transactions in the active session.
 
 Keyboard: **V** Edit, **H** Pan, **⌘/Ctrl Z** Undo, **⌘/Ctrl Shift Z / Ctrl Y** Redo, **⌘/Ctrl S** Save. Focus canvas and use arrows to move the selected unlocked section by its snap step (0.1 m for Free/snap-off; Shift ×10). Enter commits exact inputs; Escape restores a numeric field or cancels/deselects a canvas gesture.
 
@@ -109,7 +111,9 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- --proj
 
 After building, prefix the browser command with **`BG_E2E_PREVIEW=1`** to validate the production bundle through preview. Stop other servers on port 5173 first. For WebKit when available: `npm run test:e2e -- --project=iphone-webkit`.
 
-Tests cover the 120 m² wing acceptance case, no doubled join walls, multiple/partial attachments, all templates, invalid overlaps/holes/disconnections, compatible rotations, lock isolation, connector removal, twelve-section limit, frame stability after removing the last extension, undo/redo, complete duplication, v1/v2 migrations, persistence, v3 JSON, adjoining touch regions and native multi-touch isolation. Earlier BG-01/BG-02A workflows are retained; only schema/version expectations change to v3/BG-02B. Final validation: **78 unit/storage tests passed**, **25 desktop/mobile Chromium production-browser tests passed**, and **3 desktop-inapplicable native touch tests were intentionally skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
+Tests cover the 120 m² wing acceptance case, no doubled join walls, multiple/partial attachments, all templates, invalid overlaps/holes/disconnections, compatible rotations, lock isolation, connector removal, twelve-section limit, frame stability after removing the last extension, undo/redo, complete duplication, v1/v2 migrations, persistence, v3 JSON, adjoining touch regions and native multi-touch isolation. Earlier BG-01/BG-02A workflows are retained; schema v3 is unchanged in BG-02B.1. Additional browser regressions cover document scrolling, focused inputs, collapse/expand, native Inspector swipes, camera/geometry isolation and exact movement/resizing after scrolling. Native gesture tests compare document scroll before/after pinch rather than assuming a viewport-locked page.
+
+BG-02B.1 validation: **78 unit/storage tests passed**, **30 desktop/mobile Chromium production-browser tests passed**, and **4 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
 
 WebKit is not installed in this machine (the official browser CDN was blocked during BG-01 setup). Chromium mobile emulation/native Chromium touch dispatch does **not** verify physical iPhone Safari; run the playtest below on a device.
 
@@ -129,4 +133,6 @@ WebKit is not installed in this machine (the official browser CDN was blocked du
 3. Select adjoining sections near shared-edge handles and via the panel/dropdown. Slide, resize and edit dimensions to millimetre precision. Attempt overlap/disconnection and oversized walls; verify rejection without moving neighbours.
 4. Rename, lock/unlock, duplicate and remove sections. Lock a wing, edit the main, and verify the locked record stays unchanged. Try removing a connector and the main. Undo/redo accepted operations.
 5. Rotate the whole building by **37.5°**, then Fit, pan and pinch during an active section drag. Geometry/connections must remain unchanged by pinch. Remove the last extension and verify the main does not jump.
-6. Rotate portrait/landscape, scroll/collapse inspector, and use the virtual keyboard. Check safe areas, canvas usability, no horizontal overflow or clipped controls. Wait for Saved, reopen Safari, and roundtrip v1/v2/v3 JSON and independent project/section copies.
+6. In portrait, swipe up over Inspector controls: the toolbar/canvas should move offscreen and every field/section should remain accessible. Swipe down to return to the canvas. Collapse/expand the Inspector; check there is no internal scroll trap or horizontal overflow.
+7. Focus a numeric input with the iOS keyboard open; scroll to other fields, dismiss the keyboard, and return to the canvas. Expand/retract Safari's address bar and verify a stable editing height and safe areas. After scrolling, move/resize precisely, pan, zoom, Fit and pinch; page scrolling alone must not change geometry or camera.
+8. Rotate to landscape and back; check side Inspector scrolling and accessible controls. Wait for Saved, reopen Safari, and roundtrip v1/v2/v3 JSON and independent project/section copies.
