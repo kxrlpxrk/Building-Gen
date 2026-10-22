@@ -19,6 +19,9 @@ import {
   polygonPath,
 } from "./polygon";
 import { withVertices, type Part } from "./footprint";
+import { combinedGeometry, displaySection, storedSection } from "./assembly";
+import { attachmentBase } from "./attachments";
+import type { Building } from "./model";
 import type { Section } from "./model";
 import {
   fitCamera,
@@ -31,6 +34,15 @@ import {
 } from "./transforms";
 type Props = {
   section: Section;
+  building: Building;
+  placement: {
+    candidate: Section;
+    building?: Building;
+    error: string | null;
+    edge?: number;
+  } | null;
+  onSectionSelect: (id: string) => void;
+  validateChange: (s: Section) => string | null;
   onChange: (s: Section) => void;
   grid: number | null;
   snapEnabled: boolean;
@@ -60,6 +72,10 @@ const midpoint = (a: Point, b: Point): Point => ({
 });
 export default function Editor({
   section,
+  building,
+  placement,
+  onSectionSelect,
+  validateChange,
   onChange,
   grid,
   snapEnabled,
@@ -91,6 +107,50 @@ export default function Editor({
   const initialized = useRef(false);
   const patternId = useId().replace(/:/g, "");
   const display = draft || section;
+  const draftBuilding = draft
+    ? {
+        ...building,
+        sections: building.sections.map((s) =>
+          s.id === draft.id ? storedSection(draft, building) : s,
+        ),
+      }
+    : building;
+  const merged = combinedGeometry(draftBuilding);
+  const others = building.sections
+    .filter((s) => s.id !== section.id)
+    .map((s) => displaySection(s, building));
+  const placementSection = placement
+    ? displaySection(placement.candidate, {
+        ...attachmentBase(building),
+        sections: [...building.sections, placement.candidate],
+      })
+    : null;
+  function fitEnvelope() {
+    if (placement?.building)
+      return combinedGeometry(placement.building).envelope;
+    if (
+      placement &&
+      placementSection &&
+      !validateFootprint(placement.candidate)
+    )
+      return {
+        ...merged.envelope,
+        position: { x: 0, y: 0, z: 0 },
+        orientation: 0,
+        vertices: [...corners(merged.envelope), ...corners(placementSection)],
+      };
+    return merged.envelope;
+  }
+  useEffect(() => {
+    if (placement) setCamera(fitCamera(fitEnvelope(), viewportRef.current));
+  }, [placement?.candidate.id]);
+  // External changes (undo, inspector edits, selection) cancel stale pointer snapshots.
+  const modelKey = JSON.stringify([building, section.id]);
+  useEffect(() => {
+    preview(null);
+    gesture.current = pointers.current.size ? { kind: "blocked" } : null;
+    setGeometryError("");
+  }, [modelKey]);
   function preview(s: Section | null) {
     draftRef.current = s;
     setDraft(s);
@@ -105,7 +165,7 @@ export default function Editor({
       if (!v.width || !v.height) return;
       setViewport(v);
       if (!initialized.current) {
-        setCamera(fitCamera(section, v));
+        setCamera(fitCamera(combinedGeometry(building).envelope, v));
         initialized.current = true;
       }
     });
@@ -154,11 +214,59 @@ export default function Editor({
       };
       return;
     }
+    const world = screenToWorld(p, cameraRef.current, viewportRef.current);
+    // Exclusive interiors win over transparent handles belonging to neighbours.
+    // Shared-edge ambiguity retains the current selection; the section panel also
+    // offers an exact, touch-friendly selector.
+    function interior(s: Section) {
+      const q = rotate(
+          { x: world.x - s.position.x, y: world.y - s.position.y },
+          -s.orientation,
+        ),
+        v = footprintVertices(s);
+      let inside = false;
+      for (let i = 0, j = v.length - 1; i < v.length; j = i++) {
+        const a = v[i],
+          b = v[j];
+        if (
+          (a.x === b.x &&
+            q.x === a.x &&
+            q.y >= Math.min(a.y, b.y) &&
+            q.y <= Math.max(a.y, b.y)) ||
+          (a.y === b.y &&
+            q.y === a.y &&
+            q.x >= Math.min(a.x, b.x) &&
+            q.x <= Math.max(a.x, b.x))
+        )
+          return false;
+        if (
+          a.y > q.y !== b.y > q.y &&
+          q.x < ((b.x - a.x) * (q.y - a.y)) / (b.y - a.y) + a.x
+        )
+          inside = !inside;
+      }
+      return inside;
+    }
+    if (tool === "edit" && !placement) {
+      const hit = others.find(interior);
+      if (hit) {
+        onSectionSelect(hit.id);
+        onSelect(true);
+        onPartSelect(null);
+        gesture.current = { kind: "blocked" };
+        return;
+      }
+    }
     const target = (e.target as Element).closest("[data-building]");
-    if (tool === "pan" || e.button === 1)
+    if (tool === "pan" || e.button === 1 || placement)
       gesture.current = { kind: "pan", start: p, camera: cameraRef.current };
     else if (target) {
       onSelect(true);
+      if (section.locked) {
+        setGeometryError("This section is locked. Unlock it to edit geometry.");
+        gesture.current = { kind: "blocked" };
+        return;
+      }
       const handle = (e.target as Element)
         .closest("[data-corner]")
         ?.getAttribute("data-corner");
@@ -216,8 +324,13 @@ export default function Editor({
       const step = snapEnabled ? grid : null;
       const delta = { x: current.x - start.x, y: current.y - start.y };
       let result: Section;
-      const vertices = footprintVertices(g.section);
+      const base = storedSection(g.section, building);
+      const vertices = footprintVertices(base);
       const localDelta = rotate(delta, -g.section.orientation);
+      const assemblyDelta =
+        building.frame.mode === "assembly"
+          ? rotate(delta, -building.frame.axis - building.frame.rotation)
+          : delta;
       const quantize = (n: number) =>
         step ? Math.round(n / step) * step : Math.round(n);
       if (g.edge != null) {
@@ -225,7 +338,7 @@ export default function Editor({
           b = vertices[(g.edge + 1) % vertices.length];
         const axis = a.x === b.x ? "x" : "y";
         result = withVertices(
-          g.section,
+          base,
           dragEdge(
             vertices,
             g.edge,
@@ -235,26 +348,34 @@ export default function Editor({
       } else if (g.corner != null && g.section.kind === "polygon") {
         const a = vertices[g.corner];
         result = withVertices(
-          g.section,
+          base,
           dragVertex(vertices, g.corner, {
             x: quantize(a.x + localDelta.x),
             y: quantize(a.y + localDelta.y),
           }),
         );
       } else if (g.corner != null) {
-        const anchor = corners(g.section)[g.corner];
+        const editBase = {
+          ...base,
+          orientation:
+            building.frame.mode === "assembly"
+              ? (base.orientation - building.frame.axis + 360) % 360
+              : base.orientation + building.frame.rotation,
+        };
+        const anchor = corners(editBase)[g.corner];
         result = {
-          ...g.section,
+          ...base,
           ...resizeRectangle(
-            g.section,
+            editBase,
             g.corner,
-            { x: anchor.x + delta.x, y: anchor.y + delta.y },
+            { x: anchor.x + assemblyDelta.x, y: anchor.y + assemblyDelta.y },
             step,
           ),
+          orientation: base.orientation,
         };
-      } else
-        result = { ...g.section, ...moveRectangle(g.section, delta, step) };
-      const error = validateFootprint(result);
+      } else result = { ...base, ...moveRectangle(base, assemblyDelta, step) };
+      result = displaySection(result, building);
+      const error = validateChange(result);
       setGeometryError(error || "");
       preview(error ? null : result);
     }
@@ -307,6 +428,8 @@ export default function Editor({
           };
           if (
             selected &&
+            !section.locked &&
+            !placement &&
             tool === "edit" &&
             arrows[e.key] &&
             !pointers.current.size
@@ -315,12 +438,16 @@ export default function Editor({
             const step =
                 (snapEnabled && grid ? grid : 100) * (e.shiftKey ? 10 : 1),
               d = arrows[e.key];
+            const base = storedSection(section, building);
             const result = moveRectangle(
-              section,
+              base,
               { x: d.x * step, y: d.y * step },
               null,
             );
-            if (!validateFootprint(result)) onChange({ ...section, ...result });
+            const next = displaySection({ ...base, ...result }, building),
+              error = validateChange(next);
+            if (!error) onChange(next);
+            else setGeometryError(error);
           }
         }}
       >
@@ -351,7 +478,22 @@ export default function Editor({
               fill={`url(#${patternId})`}
             />
           )}
+          {others.map((other) => (
+            <g
+              key={other.id}
+              data-section-id={other.id}
+              transform={`translate(${other.position.x} ${other.position.y}) rotate(${other.orientation})`}
+            >
+              <path
+                d={polygonPath(footprintVertices(other))}
+                fill={other.locked ? "#e9debf" : "#dae6d9"}
+                stroke={other.locked ? "#a68649" : "#91a58b"}
+                strokeWidth={1 / s}
+              />
+            </g>
+          ))}
           <g
+            data-section-id={display.id}
             transform={`translate(${display.position.x} ${display.position.y}) rotate(${display.orientation})`}
             data-building="true"
           >
@@ -367,22 +509,24 @@ export default function Editor({
             )}
             <path
               d={path}
-              fill="#46655e"
+              fill={building.sections.length > 1 ? "none" : "#46655e"}
               fillRule="evenodd"
-              stroke="#23463e"
+              stroke={building.sections.length > 1 ? "none" : "#23463e"}
               strokeWidth={1.25 / s}
             />
             {selected && (
               <path
                 d={outerPath}
                 fill="none"
-                stroke="#b27b31"
+                stroke={section.locked ? "#8b633a" : "#b27b31"}
                 strokeWidth={2 / s}
                 strokeDasharray={`${5 / s} ${4 / s}`}
                 pointerEvents="none"
               />
             )}
             {selected &&
+              !section.locked &&
+              !placement &&
               tool === "edit" &&
               vertices.map((a, i) => {
                 const b = vertices[(i + 1) % vertices.length],
@@ -432,21 +576,25 @@ export default function Editor({
               })}
             {display.kind === "rectangle" && (
               <>
+                {display.length * s > 190 && (
+                  <text
+                    x={box.minX + display.length / 2}
+                    y={box.minY + display.width / 2 - 6 / s}
+                    textAnchor="middle"
+                    fontSize={13 / s}
+                    fill="#315448"
+                    pointerEvents="none"
+                  >
+                    RECTANGULAR SECTION
+                  </text>
+                )}
                 <text
                   x={box.minX + display.length / 2}
-                  y={box.minY + display.width / 2 - 6 / s}
-                  textAnchor="middle"
-                  fontSize={13 / s}
-                  fill="#315448"
-                  pointerEvents="none"
-                >
-                  {display.kind === "rectangle"
-                    ? "RECTANGULAR SECTION"
-                    : "POLYGON FOOTPRINT"}
-                </text>
-                <text
-                  x={box.minX + display.length / 2}
-                  y={box.minY + display.width / 2 + 15 / s}
+                  y={
+                    box.minY +
+                    display.width / 2 +
+                    (display.length * s > 190 ? 15 : 4) / s
+                  }
                   textAnchor="middle"
                   fontSize={12 / s}
                   fill="#60776d"
@@ -487,7 +635,55 @@ export default function Editor({
               {metres(display.width)} m
             </text>
           </g>
+          {building.sections.length > 1 && (
+            <g
+              data-combined-wall="true"
+              transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
+              pointerEvents="none"
+            >
+              <path
+                d={`${polygonPath(merged.vertices)} ${polygonPath(merged.inner)}`}
+                fill="#46655e"
+                fillRule="evenodd"
+                stroke="#23463e"
+                strokeWidth={1.25 / s}
+              />
+            </g>
+          )}
+          {placement?.edge != null && merged.vertices[placement.edge] && (
+            <g
+              transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
+              pointerEvents="none"
+            >
+              <path
+                data-attachment-edge="true"
+                d={`M ${merged.vertices[placement.edge].x} ${merged.vertices[placement.edge].y} L ${merged.vertices[(placement.edge + 1) % merged.vertices.length].x} ${merged.vertices[(placement.edge + 1) % merged.vertices.length].y}`}
+                stroke="#3b80a0"
+                strokeWidth={5 / s}
+                fill="none"
+              />
+            </g>
+          )}
+          {placementSection &&
+            placement &&
+            !validateFootprint(placement.candidate) && (
+              <g
+                data-placement-preview="true"
+                transform={`translate(${placementSection.position.x} ${placementSection.position.y}) rotate(${placementSection.orientation})`}
+                pointerEvents="none"
+              >
+                <path
+                  d={polygonPath(footprintVertices(placementSection))}
+                  fill={placement?.error ? "#cc635c66" : "#5a9d7966"}
+                  stroke={placement?.error ? "#b43d35" : "#26704e"}
+                  strokeWidth={2 / s}
+                  strokeDasharray={`${7 / s} ${4 / s}`}
+                />
+              </g>
+            )}
           {selected &&
+            !section.locked &&
+            !placement &&
             tool === "edit" &&
             pts.map((p, i) => (
               <g
@@ -549,7 +745,7 @@ export default function Editor({
         >
           +
         </button>
-        <button onClick={() => setCamera(fitCamera(display, viewport))}>
+        <button onClick={() => setCamera(fitCamera(fitEnvelope(), viewport))}>
           Fit
         </button>
       </div>

@@ -1,10 +1,10 @@
-# Building Generator · BG-02A
+# Building Generator · BG-02B
 
-A mobile-first architectural studio for medieval, Norse and grounded-fantasy building plans. React + TypeScript + Vite, with browser-local project storage and no backend, account, external fonts or runtime API. This repository is independent of Hearthlands. BG-02A adds advanced footprints to BG-01; BG-02B is not implemented.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-02B adds connected architectural wings/extensions to BG-01 and BG-02A. No BG-03 features are implemented.
 
 ## Run, validate and deploy
 
-Use Node **22.12+** (`.nvmrc`: Node 24).
+Node **22.12+** (`.nvmrc`: Node 24).
 
 ```sh
 npm ci
@@ -15,100 +15,118 @@ npm run preview
 npm run format:check
 ```
 
-For a cloud sandbox with a read-only home directory, use `npm ci --cache /tmp/bg-npm-cache`. Use this checkout; no separate worktree is required. Development uses port 5173 and production preview uses 4173. Access through the environment's forwarded-port UI or run locally. Deploy **dist/** to an HTTPS static host; there are no server routes or environment secrets. For a subdirectory deployment: `npm run build -- --base=/your-path/`.
+For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
-Use **HTTPS for iPhone/device testing**, or localhost for desktop development. UUID creation uses secure-context Web Crypto. Keep the same protocol, host and port between visits: IndexedDB is origin-scoped. No deployment is performed by these commands.
+Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
 
-## Studio workflow
+## Architectural sections and attachments
 
-- Dashboard and searchable library: create, open, rename, independent duplicate, confirmed delete, JSON import/export.
-- Start with a **12 × 8 m** rectangle and **0.2 m** exterior walls: **96 m²** exterior and **88.16 m²** clear interior.
-- Choose **Rectangle, L-shape, T-shape, U-shape, Cross or Irregular** in the inspector. Each preset is a single connected outline. Presets replace local geometry, preserving position, rotation, walls, IDs and metadata; Undo restores the prior outline. Invalid preset/wall combinations are rejected. The default L is 12 × 8 m minus a 4 × 3 m corner: **84 m²**, or **76.16 m²** inside 0.2 m walls.
-- Edit exact metre inputs (up to three decimal places). Polygon Length/Width describe **outer extents**, and changing them scales that local axis with integer-millimetre rounding. Exterior and usable interior areas always use actual polygons, never bounding-box area.
-- In Edit, drag inside the footprint to move it. Drag a vertex to reposition it and its orthogonal neighbours. Drag an edge perpendicular to itself. Vertices and edges have 44+ CSS-pixel hit targets and highlight when selected.
-- Use **Vertices & edges → Select a part** to select without dragging, then enter exact edge length or local vertex X/Y. An exact edge-length edit fixes its start and moves its end and the following perpendicular edge. Numbering follows the stored vertex order. Short-edge labels show their number at distant zoom; selecting an edge or zooming in reveals its exact length. Enter commits numeric fields; Escape restores their current value.
-- A valid preview commits once on pointer release, making one undo transaction. Invalid previews show an error and cannot commit; no invalid measurement is replaced by an estimate. Adding a second finger cancels a geometry preview before starting pinch/pan. After one finger lifts, the remaining finger cannot accidentally edit geometry.
-- Independent display-grid and snap toggles; presets **0.25, 0.5, 1, 2 m**, plus **Free**. Numeric edits ignore snapping. For rotated polygons, vertex/edge snapping follows the local unrotated axes; whole-footprint movement snaps world position. Free retains millimetre precision and uses a 0.5 m display grid when visible. At distant zoom, grid lines are thinned to a larger labelled spacing. Grid changes never alter geometry.
-- Edit/Pan tools, mouse wheel and touch pinch, anchored zoom, Fit, and arrow-key movement use the existing BG-01 camera and history. Fit uses the rotated footprint vertices. Collapsible desktop panels; scrollable bottom inspector in portrait and side inspector in landscape, with safe areas.
-- Architecture (Medieval/Norse/Mixed), XYZ origin, clockwise orientation and floors (1–4). Floors and Z elevation remain metadata only.
+- Keep the main footprint and add up to **11 extensions**, for **12 sections total**. Types: Residential Wing, Workshop, Storage, Porch, Hall Extension, Tower Footprint and Custom. Every section has an ID, name, type, lock flag, exact dimensions and placement. Tower footprints are only ground-level shapes; floors remain metadata.
+- Use **Architectural Sections** to select a section. The panel is on the desktop's left, and inside the mobile inspector. A second selected-section dropdown offers exact selection on small screens. Locked sections use a different tint/dashed outline and have disabled geometry/metadata controls.
+- **Add Section / Attach Extension** opens a translucent preview without changing the saved project. Choose an external combined-footprint edge, template, type, shape, dimensions and along-edge offset. A selected exterior section edge is honoured; otherwise the first compatible exterior segment is suggested without changing the chosen dimensions. Internal-only selected edges cannot be attachment points.
+- Templates: **Small side wing, Rear extension, Corner wing, Workshop attachment, Entrance porch, Square tower footprint, Custom dimensions**. They are editable starting geometry, not finished buildings. All six BG-02A footprint shapes are available for new extensions.
+- The candidate's first polygon edge aligns to the external edge with opposing filled sides. Partial edge sharing, different lengths and negative/positive along-edge offsets are allowed. A join needs at least **0.1 m** of shared boundary. The blue edge is the selected attachment segment; green/red preview and validation text explain whether it can be accepted. Fit includes the preview, including a valid-shaped candidate with an invalid connection.
+- **Accept extension** commits one undo transaction. **Cancel attachment** discards it. Pinch, pan, zoom and Fit continue to work during preview; existing geometry cannot be dragged while placement is active.
+- Select and drag a section's interior to move it; drag its vertices/edges/corners to edit, or use the inspector's exact metre inputs. Every preview/edit validates the **whole assembly**, not just the selected shape. Invalid edits return to the committed geometry and show the reason. Valid edits may slide along a shared edge or alter its extent, but may not disconnect, overlap, create a hole or invalidate the wall inset.
+- Rename and change the selected section type under Building details. **Duplicate section** deep-copies the source geometry and opens placement for a new attached copy; choose its external edge/offset before accepting. Copies are initially unlocked. **Remove section** asks for confirmation, refuses locked/main sections, and refuses removal of a connector if it strands another section. Undo restores accepted changes.
+- Locked sections are never repositioned, resized, renamed or removed by other edits. Changing the common wall thickness is an explicit all-section operation and is rejected while a locked section would change. Whole-building rotation intentionally changes the assembly's frame, without changing any section or connection records.
+- **Building rotation** rotates the entire assembly about its frame origin at any angle without coordinate rounding or broken attachments. Joined section orientations must be quarter-turn compatible in that frame. Exact XYZ position inputs describe the shared assembly axes; the inspector states the origin. Use whole-building rotation for arbitrary angles after attachment.
 
-Keyboard: **V** Edit, **H** Pan, **⌘/Ctrl Z** undo, **⌘/Ctrl Shift Z** or **Ctrl Y** redo, **⌘/Ctrl S** save. Focus the canvas and use arrows to move the whole footprint by the snap step (0.1 m for Free/snap-off); Shift multiplies by 10. Escape cancels/deselects. Session history retains the last 100 transactions.
+Example: a **6 × 4 m** wing sharing an edge with a **12 × 8 m** building yields **120 m²** exterior area, and **110.56 m²** clear interior at 0.2 m walls for the default attachment. The merged wall path removes the shared internal wall. Connections are **open-plan only**; no partition, doorway or door generation is claimed.
 
-## Geometry and wall rules
+## Preserved footprint editor
 
-Master coordinates are **integer millimetres**. X/Y form the overhead plane (screen Y increases downward); positive orientation is clockwise. Position is the world location of the local origin, not necessarily a polygon's bounding-box corner. Local edges remain orthogonal before rotation.
+Rectangle, L-shape, T-shape, U-shape, Cross and Irregular are genuine polygon outlines. The default rectangle is 12 × 8 m with 0.2 m walls: **96 m² exterior / 88.16 m² interior**. The default L removes a 4 × 3 m corner: **84 / 76.16 m²**. Presets replace the selected outline; Undo restores it, and assembly validation rejects invalid replacements.
 
-- One simple ring, **4–64 vertices**, with alternating horizontal and vertical edges. No holes, self-crossings, self-touching, redundant collinear/reversing vertices or zero edges. Polygon edges must be at least **0.1 m**.
-- Outer extents: **0.5–500 m**; local vertex coordinates: **±500 m**; world XYZ origin: **±10,000 m**; orientation: **0° ≤ angle < 360°**.
-- Walls: at least **0.01 m**, with a valid positive clear interior. Shoelace area computes the exact exterior area. Clear area comes from an **orthogonal mitered inward offset** at the specified wall thickness, using integer arithmetic for its vertices. Both source windings are supported.
-- An offset is rejected if it reverses an edge, self-intersects, leaves the exterior, collapses, or changes topology. Thin-neck shapes whose clear interior would split into separate islands are not accepted in BG-02A. There is no bounding-box subtraction fallback or silently estimated area.
-- The wall band rendered with an even-odd SVG path is exactly the outer ring minus this validated inner ring. Geometry is separate from rendering and has no polygon dependency.
+Master coordinates use integer millimetres. Exact numeric metre inputs accept three decimal places and ignore grid snapping. Polygon length/width are validated outer extents; changing them scales that local axis with explicit millimetre rounding. Areas always use actual boundary polygons. Irregular starts with an eight-vertex stepped ring; insertion/removal/freehand drawing are not included, but imported sections can contain 4–64 vertices.
 
-Irregular starts with an editable eight-vertex stepped ring. Editing a polygon marks its preset as Irregular. Vertex insertion/removal and freehand drawing are not included; imported valid orthogonal rings can have up to 64 vertices.
+Vertex edits adjust their two neighbours to keep orthogonal edges. Edge drags move perpendicular to themselves; exact edge length fixes its start and shifts its end/following perpendicular edge. Selection highlights vertices/edges. An adjoining section's actual interior wins over transparent handle hit regions; boundary ambiguity retains the selected section, and the section list/dropdown is always available. Handles are at least 44 CSS pixels.
 
-## Schema v2 and BG-01 migration
+Independent display-grid and snap toggles; **0.25 / 0.5 / 1 / 2 m** presets and **Free**. Vertex/edge snapping uses local section axes; section movement uses shared assembly axes. Free retains 1 mm precision. Display grid thins at distant zoom and reports its visible spacing. Grid changes never change geometry.
 
-`schemaVersion: 2` supports a rectangle section (BG-01's original fields) or polygon section (`kind: "polygon"`, `preset`, `vertices`). For polygons, vertices are authoritative; `length` and `width` are validated outer-extent fields for existing dimension controls. A mismatch is rejected, not silently repaired. One building/one editable section remains the only supported structure.
+Edit/Pan tools, anchored zoom, wheel/pinch, Fit, collapsible desktop panels and mobile bottom/landscape side inspector are retained. Pointer previews commit once on release; cancellation or a second finger rolls back the preview before pinch starts. A remaining finger cannot accidentally resume editing. Undo history retains the last 100 transactions in the active session.
 
-**BG-01 storage and JSON remain readable.** The database stays `building-generator-bg01`, version 1, with the same `projects` store. A pure read-time migration validates a schema-v1 rectangle and reconstructs schema v2 **without changing IDs, name, architecture, timestamps, measurements, position, orientation or floor count**. Retaining rectangle sections avoids any coordinate rounding or geometry conversion loss.
+Keyboard: **V** Edit, **H** Pan, **⌘/Ctrl Z** Undo, **⌘/Ctrl Shift Z / Ctrl Y** Redo, **⌘/Ctrl S** Save. Focus canvas and use arrows to move the selected unlocked section by its snap step (0.1 m for Free/snap-off; Shift ×10). Enter commits exact inputs; Escape restores a numeric field or cancels/deselects a canvas gesture.
 
-Migration does not rewrite the database during library loading. A validated project is saved as v2 on its next edit, explicit save or exit from the studio. Invalid and unsupported records are left untouched and reported as unreadable. Imports validate completely before writing. Both v1 and v2 imports are supported; exports use v2. BG-01 cannot read v2 exports. The v1 schema remains available; the v2 schema documents the new structure and the runtime validator enforces geometric cross-field rules.
+## Deterministic geometry and limits
 
-Importing an existing ID creates fresh project/building/section IDs while preserving the imported name, timestamps, geometry and metadata. Existing records are never replaced by an import. Duplication deep-copies all vertices and metadata. The 1 MB import limit and safe unknown-field reconstruction remain in place.
+`orthogonalUnion.ts` uses **coordinate compression and a vertical sweep**. Slabs are delimited by actual integer edge coordinates; they are exact cells, not a sampled raster. Occupied intervals form the union. Positive-area overlaps are detected, internal edges are removed, the exterior boundary is traced, and collinear segments are simplified. Multiple boundary loops or branching/touching contours are rejected, so holes/disconnections are never silently repaired. Results are deterministic across input order/winding.
 
-## Files and responsibilities
+Each section uses a simple orthogonal ring before rotation, with 4–64 vertices, alternating horizontal/vertical edges and at least 0.1 m per edge. Section/combined extents are limited to 0.5–500 m, source local vertices to ±500 m, and stored section/frame positions to ±10,000 m. The merged ring supports up to 768 vertices. Sections must share one ground-level Z value and common wall thickness. Z and floor counts remain metadata, not structural levels.
 
-| File                                                               | Responsibility                                                                        |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `src/App.tsx`                                                      | Dashboard/library, actual polygon previews, import and project management             |
-| `src/Studio.tsx`                                                   | Active project, autosave queue, history, preset selector and exact inspector          |
-| `src/Editor.tsx`                                                   | Existing SVG/pointer state machine extended with edge and vertex interaction          |
-| `src/polygon.ts`                                                   | Orthogonal validation, shoelace area, inward wall offset, six presets and part edits  |
-| `src/geometry.ts`                                                  | BG-01 geometry plus footprint dispatch, area and validation                           |
-| `src/footprint.ts`                                                 | Typed preset application, polygon extent updates and axis scaling                     |
-| `src/transforms.ts`, `src/history.ts`                              | Reused BG-01 camera transforms and bounded transaction history                        |
-| `src/model.ts`                                                     | Schema-v2 validation, pure BG-01 migration, serialization and independent duplication |
-| `src/storage.ts`                                                   | Reused IndexedDB transactions; validator performs safe read-time migration            |
-| `src/components.tsx`, `src/styles.css`, `src/main.tsx`             | Shared UI, responsive styles, error boundary                                          |
-| `schemas/project-v1.schema.json`, `schemas/project-v2.schema.json` | Legacy and current JSON schemas                                                       |
-| `src/*.test.ts`                                                    | Original BG-01 regressions plus polygon, migration and persistence tests              |
-| `tests/app.spec.ts`, `tests/footprints.spec.ts`                    | Original and new browser workflows and native mobile touch checks                     |
-| `tests/fixtures/bg01-project.json`                                 | Actual schema-v1 fixture with precise non-default measurements and metadata           |
+Shoelace area computes exact exterior area. Clear area and the continuous rendered external wall band use the **validated mitered inward offset of the merged boundary**, not sums of section interiors or bounding-box estimates. The offset must remain one positive connected ring, not reverse edges, cross boundaries or intrude within the wall clearance. Too-thick walls, tiny jogs, collapsing necks, split interiors, overlapping interiors, holes, corner-only contacts and detached sections are rejected. Common exterior walls must be at least 0.01 m. No invalid measurement is replaced by an estimated value.
 
-## Browser tests and results
+## Schema v3 and migration
+
+The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 3` adds:
+
+- `building.mainSectionId` and up to twelve `sections`.
+- Section `name`, `type`, `locked`, with the original rectangle or polygon geometry fields.
+- `building.frame`: `origin` (integer XY), `axis`, `rotation`, `mode`.
+- Explicit connections: stable `id`, endpoint section IDs and edge indices, shared integer segment `start`/`end`, `mode: "open-plan"`.
+
+Pure read-time migration accepts schema **1, 2 and 3**. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
+
+The first accepted attachment enters **assembly** mode. Positions then share integer assembly axes anchored at that preserved origin; section quarter turns are relative to the frame axis. The frame's additional `rotation` is applied only for rendering/world transforms, so attachments stay exact. An assembly retains its frame even after its last extension is removed; remaining sections cannot jump, including moved/locked sections. Earlier-phase single-section projects retain their original arbitrary orientation and world-placement controls until attachment.
+
+Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section and connection** and remap all references, with independent vertex arrays. Exports use v3; v1/v2 imports remain supported, but older app versions cannot open v3 exports.
+
+Library reads never overwrite old records. A successfully validated legacy record is written as v3 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v3.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
+
+## Files changed / implementation map
+
+| File                                                                     | Responsibility                                                                              |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `src/orthogonalUnion.ts`                                                 | Exact deterministic orthogonal union and boundary tracing                                   |
+| `src/assembly.ts`                                                        | Shared frames, contacts, connected merged geometry, wall areas, lock-aware edits            |
+| `src/attachments.ts`                                                     | Seven templates, edge-aligned placement preview, removal constraints                        |
+| `src/SectionsPanel.tsx`, `src/ExtensionPanel.tsx`                        | Section list/actions and configurable preview inspector                                     |
+| `src/Studio.tsx`                                                         | Section selection, undoable assembly operations, common walls, whole-building rotation      |
+| `src/Editor.tsx`                                                         | Section hit testing, assembly-aware drags, merged walls, preview and reused camera gestures |
+| `src/model.ts`                                                           | Schema v3, lossless migrations, relationship validation, complete identity remapping        |
+| `src/App.tsx`                                                            | Combined dashboard previews, dimensions/area, import/export/project management              |
+| `src/polygon.ts`, `src/footprint.ts`                                     | Reused polygon operations extended for merged rings; preserve section metadata              |
+| `src/styles.css`                                                         | Section, lock, preview and responsive control styles                                        |
+| `schemas/project-v3.schema.json`                                         | Multi-section/connection/frame schema                                                       |
+| `src/assembly.test.ts`, `src/storage.test.ts`, `src/polygon.test.ts`     | Union/attachment/migration/locking regressions and updated v3 expectations                  |
+| `tests/sections.spec.ts`, `tests/footprints.spec.ts`, `tests/fixtures/*` | New assembly browser coverage plus prior-phase migrations and regressions                   |
+| `package.json`, `package-lock.json`, `README.md`                         | Version 0.3.0 and workflow documentation                                                    |
+
+Camera transforms, bounded history and IndexedDB transaction modules are reused. No new runtime dependencies or repository were introduced.
+
+## Automated checks
 
 ```sh
 npx playwright install chromium webkit
 npm run test:e2e
 ```
 
-Linux may need Playwright system dependencies (`npx playwright install-deps`, with administrator permission). Browser downloads require access to Playwright's official CDN. If Chromium is already installed:
+Linux may require Playwright system dependencies (`npx playwright install-deps`, with administrator permission). Browser installation needs the official CDN. With preinstalled Chromium:
 
 ```sh
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- --project=desktop-chromium --project=iphone-chromium
 ```
 
-After `npm run build`, prefix the browser command with **`BG_E2E_PREVIEW=1`** to test `dist/` through Vite preview. Stop any other server using port 5173 first. To test Safari's engine when WebKit is available:
+After building, prefix the browser command with **`BG_E2E_PREVIEW=1`** to validate the production bundle through preview. Stop other servers on port 5173 first. For WebKit when available: `npm run test:e2e -- --project=iphone-webkit`.
 
-```sh
-npm run test:e2e -- --project=iphone-webkit
-```
+Tests cover the 120 m² wing acceptance case, no doubled join walls, multiple/partial attachments, all templates, invalid overlaps/holes/disconnections, compatible rotations, lock isolation, connector removal, twelve-section limit, frame stability after removing the last extension, undo/redo, complete duplication, v1/v2 migrations, persistence, v3 JSON, adjoining touch regions and native multi-touch isolation. Earlier BG-01/BG-02A workflows are retained; only schema/version expectations change to v3/BG-02B. Final validation: **78 unit/storage tests passed**, **25 desktop/mobile Chromium production-browser tests passed**, and **3 desktop-inapplicable native touch tests were intentionally skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
 
-The original BG-01 tests remain unchanged and passing. Added checks cover six preset rings, known concave areas and wall insets, vertex/edge editing, invalid geometry, exact measurements versus grid, rotated movement/fit, undo/redo, deep duplication, pure v1 migration, real v1 database/JSON reads, v2 save/reload/import/export, invalid record preservation, responsive overflow, and pinch isolation. Validation: **50 unit/storage tests passed**, **18 desktop/mobile Chromium browser tests passed against the production build**, two desktop-inapplicable native touch tests intentionally skipped. TypeScript/Vite build and formatting checks passed. WebKit is not installed in this cloud machine (its official CDN download was blocked during BG-01 setup). Physical iPhone Safari remains a required manual playtest; Chromium emulation does not establish Safari compatibility.
+WebKit is not installed in this machine (the official browser CDN was blocked during BG-01 setup). Chromium mobile emulation/native Chromium touch dispatch does **not** verify physical iPhone Safari; run the playtest below on a device.
 
-## Data safety and known limits
+## Known limitations and data safety
 
-- IndexedDB autosaves after 400 ms idle, with **Saving / Saved / Save Error**, retry and JSON backup. Leaving flushes before navigation; a failed flush needs confirmation to leave unsaved. Loading errors never create fallback projects.
-- Wait for **Saved** before closing. Safari private browsing, clearing site data, OS storage pressure and origin changes can remove or hide local data. Persistent storage is requested after create/import but is not guaranteed. Export backups. Mobile termination can interrupt an in-flight save, even with the background flush attempt.
-- Same-project multi-tab editing has no conflict resolution (last save wins). View/grid preferences and undo history are session-only.
-- The legacy rectangle corner-resize clamp remains for BG-01 compatibility; polygon and exact measurement edits reject invalid geometry. Polygon axis scaling rounds to whole millimetres and validates the result. Rotated rectangle origin rounding can displace the opposite corner by less than 1 mm per resize transaction.
-- Single orthogonal outline only: no vertex insertion/removal, holes, split interior offsets, architectural wings, multi-section editing, rooms, procedural generation, roofs, 3D, interiors, game conversion, accounts, cloud sync or AI. No BG-02B. No offline service worker.
+- Strict edge-to-edge, **open-plan** joins only; all positive-area overlaps are rejected. Attachment aligns the candidate's first local edge; change the external segment, offset or shape to choose another placement. No partitioned joins, door/room systems, holes, split interior offsets, slanted local edges, vertex insertion/removal or freehand drawing.
+- One main building cannot be removed. Section count max 12; combined dimensions max 500 m. No automatic movement of neighbours to “fix” an invalid edit. A duplicated section must be placed on a valid external edge before acceptance.
+- Common walls/elevation must agree. A locked section blocks any operation that would modify its stored data. Whole-building rotation is an intentional frame operation and does not unlock/change section records. Undo/redo restores previously committed lock/geometry states.
+- IndexedDB autosaves after 400 ms idle; Saving/Saved/Save Error, retry/export backup and flush-before-leave are retained. Wait for **Saved**. Private browsing, clearing site data, storage pressure, origin changes or OS termination can lose local/unsaved data. Export JSON backups. Persistent storage is requested but not guaranteed.
+- Same-project multi-tab editing has no conflict resolution (last save wins). History/view/grid preferences are session-only. No service worker/offline installation.
+- No BG-03: rooms, doors, stairs, furnished interiors, roofs, 3D, procedural buildings, game conversion or structural engineering are not implemented.
 
 ## Short iPhone Safari playtest
 
-1. Open an HTTPS deployment at the same origin used for BG-01. Reopen a legacy plan; verify precise measurements, IDs via export, architecture, position, rotation and floors survive. Export a backup.
-2. Try all six presets. Check the default L shows **84 m² exterior / 76.16 m² clear interior**. Change grid and Free without changing existing dimensions.
-3. Select/drag each concave vertex and edge. Edit an edge to **3.251 m** and local vertex X/Y numerically. Try a negative edge length, crossing edit and oversized walls; confirm visible rejection and unchanged saved geometry. Undo/redo each valid transaction.
-4. Move/rotate the footprint; zoom, Fit, pan and pinch during an active vertex drag. Pinch must cancel the drag, leave geometry unchanged and add no undo step. Lifting one finger must not resume editing.
-5. Rotate portrait/landscape, open/collapse/scroll inspector, and use the virtual keyboard. Verify no page scroll during canvas touches, horizontal overflow, clipped controls or unsafe-area overlap.
-6. Wait for Saved, refresh and reopen Safari. Duplicate and edit independently; export/import v1 and v2 JSON, try invalid JSON and cancel/confirm deletion. Existing projects must remain intact.
+1. At the same HTTPS origin, reopen one BG-01 rectangle and one BG-02A polygon. Verify original measurements, geometry, architecture, position, rotation and floor metadata, then export backups.
+2. Attach a **6 × 4 m** wing to the default main and confirm **120 m² exterior**, a single continuous external wall, and no separating wall at the join. Try each template and partial/negative offsets; verify green/red previews and safe cancel.
+3. Select adjoining sections near shared-edge handles and via the panel/dropdown. Slide, resize and edit dimensions to millimetre precision. Attempt overlap/disconnection and oversized walls; verify rejection without moving neighbours.
+4. Rename, lock/unlock, duplicate and remove sections. Lock a wing, edit the main, and verify the locked record stays unchanged. Try removing a connector and the main. Undo/redo accepted operations.
+5. Rotate the whole building by **37.5°**, then Fit, pan and pinch during an active section drag. Geometry/connections must remain unchanged by pinch. Remove the last extension and verify the main does not jump.
+6. Rotate portrait/landscape, scroll/collapse inspector, and use the virtual keyboard. Check safe areas, canvas usability, no horizontal overflow or clipped controls. Wait for Saved, reopen Safari, and roundtrip v1/v2/v3 JSON and independent project/section copies.

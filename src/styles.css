@@ -1769,3 +1769,101 @@ h3 {
 .footprint-parts select {
   text-overflow: ellipsis;
 }
+.sections-panel h2 {
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+  letter-spacing: 0;
+}
+.sections-panel h2 small {
+  font-size: 10px;
+  color: #8b987e;
+}
+.section-list {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  max-height: 45dvh;
+  overflow: auto;
+}
+.section-list .section-button {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+.section-list .section-button > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.section-button.locked {
+  border-style: dashed;
+  border-color: #c4ae80;
+  background: #f0e7d3;
+}
+.sections-panel > button {
+  width: 100%;
+}
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.section-actions button {
+  flex: 1 1 44%;
+  font-size: 10px;
+  min-height: 44px;
+  padding: 8px;
+}
+.section-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.section-fields:disabled .input-unit,
+.section-fields:disabled select {
+  opacity: 0.6;
+}
+.mobile-sections {
+  display: none;
+}
+.extension-panel {
+  background: #edf3e6;
+  border: 1px solid #c3d4b2;
+}
+.placement-status {
+  font-size: 11px;
+  line-height: 1.7;
+  border-radius: 6px;
+  padding: 9px;
+  margin: 12px 0;
+}
+.valid-preview {
+  color: #2b6543;
+  background: #dcebd7;
+}
+.invalid-preview {
+  color: #914334;
+  background: #f5dfd6;
+}
+.section-management h2 {
+  overflow-wrap: anywhere;
+}
+.section-management h2 span {
+  color: #a37a45;
+  font-size: 9px;
+}
+@media (max-width: 900px) {
+  .mobile-sections {
+    display: block;
+  }
+  .section-list {
+    max-height: 170px;
+  }
+  .sections-panel h2 {
+    font-size: 12px;
+  }
+}

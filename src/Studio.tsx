@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  areas,
   MIN_SIZE,
   MAX_SIZE,
   footprintVertices,
@@ -27,6 +26,24 @@ import {
 } from "./polygon";
 import { saveProject } from "./storage";
 import Editor from "./Editor";
+import SectionsPanel from "./SectionsPanel";
+import ExtensionPanel from "./ExtensionPanel";
+import {
+  combinedGeometry,
+  prepareBuilding,
+  replaceSection,
+  displaySection,
+  storedSection,
+  canonicalVertices,
+  SECTION_TYPES,
+} from "./assembly";
+import {
+  attachmentBase,
+  attachmentPreview,
+  EXTENSION_TEMPLATES,
+  removeSection,
+  type AttachmentConfig,
+} from "./attachments";
 import { Brand, downloadProject, Modal, NumericField } from "./components";
 type Props = {
   project: Project;
@@ -36,6 +53,8 @@ type Props = {
 export default function Studio({ project, onBack, onSaved }: Props) {
   const [history, setHistory] = useState(() => initialHistory(project));
   const current = history.present;
+  const historyRef = useRef(history);
+  historyRef.current = history;
   const currentRef = useRef(current);
   currentRef.current = current;
   const saved = useRef(JSON.stringify(project));
@@ -48,6 +67,12 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     [leaveError, setLeaveError] = useState(false);
   const [tool, setTool] = useState<"edit" | "pan">("edit");
   const [selected, setSelected] = useState(true);
+  const [selectedId, setSelectedId] = useState(project.building.mainSectionId);
+  const [attachment, setAttachment] = useState<{
+    config: AttachmentConfig;
+    source?: Section;
+  } | null>(null);
+  const [removeId, setRemoveId] = useState<string | null>(null);
   const [part, setPart] = useState<Part>(null);
   const [geometryError, setGeometryError] = useState("");
   const [grid, setGrid] = useState<number | null>(500),
@@ -55,8 +80,92 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     [gridVisible, setGridVisible] = useState(true);
   const [leftOpen, setLeftOpen] = useState(true),
     [inspectorOpen, setInspectorOpen] = useState(true);
-  const section = current.building.sections[0],
-    area = areas(section);
+  const section =
+    current.building.sections.find((s) => s.id === selectedId) ??
+    current.building.sections.find(
+      (s) => s.id === current.building.mainSectionId,
+    )!;
+  const assembly = useMemo(
+    () => combinedGeometry(current.building),
+    [current.building],
+  );
+  const area = assembly;
+  const placement = useMemo(
+    () =>
+      attachment
+        ? attachmentPreview(
+            current.building,
+            attachment.config,
+            attachment.source,
+          )
+        : null,
+    [current.building, attachment],
+  );
+  function selectSection(id: string) {
+    setSelectedId(id);
+    setSelected(true);
+    setPart(null);
+  }
+  function openAttachment(source?: Section) {
+    if (current.building.sections.length >= 12) {
+      setGeometryError("Maximum 12 sections reached.");
+      return;
+    }
+    let edge = 0;
+    if (activePart?.kind === "edge") {
+      const b = attachmentBase(current.building),
+        v = canonicalVertices(section, b),
+        a = v[activePart.index],
+        z = v[(activePart.index + 1) % v.length];
+      edge = combinedGeometry(b).vertices.findIndex((p, i, all) => {
+        const q = all[(i + 1) % all.length];
+        return a.x === z.x
+          ? p.x === a.x &&
+              q.x === a.x &&
+              Math.max(Math.min(a.y, z.y), Math.min(p.y, q.y)) <
+                Math.min(Math.max(a.y, z.y), Math.max(p.y, q.y))
+          : p.y === a.y &&
+              q.y === a.y &&
+              Math.max(Math.min(a.x, z.x), Math.min(p.x, q.x)) <
+                Math.min(Math.max(a.x, z.x), Math.max(p.x, q.x));
+      });
+      if (edge < 0) {
+        setGeometryError(
+          "That edge is internal. Choose an external building edge for attachment.",
+        );
+        return;
+      }
+    }
+    const t = EXTENSION_TEMPLATES[0];
+    const config: AttachmentConfig = {
+      id: crypto.randomUUID(),
+      name: source ? `${source.name.slice(0, 93)} (copy)` : t.name,
+      type: source?.type ?? t.type,
+      length: source?.length ?? t.length,
+      width: source?.width ?? t.width,
+      shape: source ? shapeName(source) : t.shape,
+      edge,
+      offset: 0,
+    };
+    // Honour an explicitly selected edge. Otherwise begin on the first valid
+    // exterior segment without changing the requested dimensions or shape.
+    if (activePart?.kind !== "edge") {
+      const outline = combinedGeometry(
+        attachmentBase(current.building),
+      ).vertices;
+      for (let i = 0; i < outline.length; i++)
+        if (
+          !attachmentPreview(current.building, { ...config, edge: i }, source)
+            .error
+        ) {
+          config.edge = i;
+          break;
+        }
+    }
+    setAttachment({ source, config });
+    setInspectorOpen(true);
+    setGeometryError("");
+  }
   const vertices = footprintVertices(section);
   const activePart =
     selected && part && part.index < vertices.length ? part : null;
@@ -115,16 +224,27 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     };
   }, [persist]);
   function edit(next: Project) {
+    if (JSON.stringify(currentRef.current) !== JSON.stringify(next))
+      setSaveState("Saving");
     setHistory((h) => {
       if (JSON.stringify(h.present) === JSON.stringify(next)) return h;
       return commit(h, { ...next, updatedAt: new Date().toISOString() });
     });
   }
-  function changeSection(s: Section) {
-    const error = validateFootprint(s);
-    setGeometryError(error || "");
-    if (error) return;
-    edit({ ...current, building: { ...current.building, sections: [s] } });
+  function validateSectionChange(s: Section): string | null {
+    try {
+      replaceSection(current.building, s);
+      return null;
+    } catch (e) {
+      return (e as Error).message;
+    }
+  }
+  function changeSection(s: Section, report = true) {
+    const error = validateSectionChange(s);
+    setGeometryError(report ? error || "" : "");
+    if (error) return error;
+    edit({ ...current, building: replaceSection(current.building, s) });
+    return null;
   }
   function dimension(
     key: "length" | "width" | "wallThickness" | "orientation" | "floorCount",
@@ -135,6 +255,24 @@ export default function Studio({ project, onBack, onSaved }: Props) {
       (!Number.isSafeInteger(value) || value < MIN_SIZE || value > MAX_SIZE)
     )
       return "Length and width must be between 0.5 and 500 m.";
+    if (key === "wallThickness" && current.building.sections.length > 1) {
+      try {
+        const building = prepareBuilding(
+          {
+            ...current.building,
+            sections: current.building.sections.map((s) => ({
+              ...s,
+              wallThickness: value,
+            })),
+          },
+          current.building,
+        );
+        edit({ ...current, building });
+        return null;
+      } catch (e) {
+        return (e as Error).message;
+      }
+    }
     const next =
       key === "length" || key === "width"
         ? scaleFootprint(section, key, value)
@@ -142,8 +280,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     const error = validateFootprint(next);
     if (error) return error;
     if (![1, 2, 3, 4].includes(next.floorCount)) return "Choose 1–4 floors.";
-    changeSection(next);
-    return null;
+    return changeSection(next, false);
   }
   function position(key: "x" | "y" | "z", value: number) {
     const next = {
@@ -152,10 +289,11 @@ export default function Studio({ project, onBack, onSaved }: Props) {
       },
       error = validateFootprint(next);
     if (error) return error;
-    changeSection(next);
-    return null;
+    return changeSection(next, false);
   }
   function travel(action: (h: History<Project>) => History<Project>) {
+    if (action(historyRef.current) === historyRef.current) return;
+    setSaveState("Saving");
     setHistory((h) => {
       const next = action(h);
       return next === h
@@ -229,7 +367,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-02A</span>
+        <span className="version">BG-02B</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -338,38 +476,29 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           </button>
           {leftOpen && (
             <div className="structure-content">
-              <p className="eyebrow">BUILDING STRUCTURE</p>
-              <button
-                className={`section-button ${selected ? "selected" : ""}`}
-                onClick={() => setSelected(true)}
-              >
-                <span>▱</span>
-                <span>
-                  {shapeName(section)} footprint
-                  <small>
-                    {metres(section.length)} × {metres(section.width)} m
-                  </small>
-                </span>
-              </button>
-              <p className="panel-note">
-                One precise footprint.
-                <br />A foundation for what comes next.
-              </p>
-              <div className="project-spec">
-                <span>{current.architecture} architecture</span>
-                <span>
-                  {section.floorCount}{" "}
-                  {section.floorCount === 1 ? "floor" : "floors"} · metadata
-                  only
-                </span>
-              </div>
+              <SectionsPanel
+                building={current.building}
+                selectedId={section.id}
+                onSelect={selectSection}
+                onAdd={() => openAttachment()}
+              />
             </div>
           )}
         </aside>
         <main className="editor-main">
           <Editor
-            section={section}
-            onChange={changeSection}
+            section={displaySection(section, current.building)}
+            building={current.building}
+            placement={
+              placement && attachment
+                ? { ...placement, edge: attachment.config.edge }
+                : null
+            }
+            onSectionSelect={selectSection}
+            validateChange={(s) =>
+              validateSectionChange(storedSection(s, current.building))
+            }
+            onChange={(s) => changeSection(storedSection(s, current.building))}
             grid={grid}
             snapEnabled={snapEnabled}
             gridVisible={gridVisible}
@@ -406,8 +535,128 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           </button>
           {inspectorOpen && (
             <div className="inspector-content">
-              {selected ? (
-                <>
+              <div className="mobile-sections inspector-section">
+                <SectionsPanel
+                  building={current.building}
+                  selectedId={section.id}
+                  onSelect={selectSection}
+                  onAdd={() => openAttachment()}
+                />
+              </div>
+              {attachment && placement && (
+                <ExtensionPanel
+                  building={current.building}
+                  config={attachment.config}
+                  source={attachment.source}
+                  error={placement.error}
+                  onChange={(config) =>
+                    setAttachment({ ...attachment, config })
+                  }
+                  onCancel={() => setAttachment(null)}
+                  onAccept={() => {
+                    if (placement.building) {
+                      edit({ ...current, building: placement.building });
+                      selectSection(placement.candidate.id);
+                      setAttachment(null);
+                    }
+                  }}
+                />
+              )}
+              <div className="inspector-section section-management">
+                <h2>
+                  {section.name} {section.locked && <span>LOCKED</span>}
+                </h2>
+                <label className="field">
+                  <span>Selected section</span>
+                  <select
+                    aria-label="Selected section"
+                    value={section.id}
+                    onChange={(e) => selectSection(e.target.value)}
+                  >
+                    {current.building.sections.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                        {s.locked ? " · Locked" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="section-actions">
+                  <button
+                    onClick={() => openAttachment()}
+                    disabled={
+                      !!attachment || current.building.sections.length >= 12
+                    }
+                  >
+                    Attach Extension
+                  </button>
+                  <button
+                    onClick={() => {
+                      const building = prepareBuilding(
+                        {
+                          ...current.building,
+                          sections: current.building.sections.map((s) =>
+                            s.id === section.id
+                              ? { ...s, locked: !s.locked }
+                              : s,
+                          ),
+                        },
+                        current.building,
+                      );
+                      edit({ ...current, building });
+                    }}
+                  >
+                    {section.locked ? "Unlock section" : "Lock section"}
+                  </button>
+                  <button
+                    onClick={() => openAttachment(section)}
+                    disabled={
+                      !!attachment || current.building.sections.length >= 12
+                    }
+                  >
+                    Duplicate section
+                  </button>
+                  <button
+                    className="text-danger"
+                    onClick={() => setRemoveId(section.id)}
+                    disabled={
+                      section.locked ||
+                      section.id === current.building.mainSectionId ||
+                      !!attachment
+                    }
+                  >
+                    Remove section
+                  </button>
+                </div>
+                <NumericField
+                  label="Building rotation"
+                  unit="°"
+                  value={current.building.frame.rotation}
+                  onCommit={(rotation) => {
+                    if (
+                      !Number.isFinite(rotation) ||
+                      rotation < 0 ||
+                      rotation >= 360
+                    )
+                      return "Rotation must be from 0° up to 360° exclusive.";
+                    edit({
+                      ...current,
+                      building: {
+                        ...current.building,
+                        frame: { ...current.building.frame, rotation },
+                      },
+                    });
+                    return null;
+                  }}
+                />
+                {geometryError && (
+                  <p role="alert" className="field-error">
+                    {geometryError}
+                  </p>
+                )}
+              </div>
+              {selected && !attachment ? (
+                <fieldset className="section-fields" disabled={section.locked}>
                   <div className="inspector-section">
                     <label className="field">
                       <span>Footprint Shape</span>
@@ -437,11 +686,6 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                       Presets replace the outline. Undo restores the previous
                       footprint.
                     </p>
-                    {geometryError && (
-                      <p className="field-error" role="alert">
-                        {geometryError}
-                      </p>
-                    )}
                     <h2>
                       Dimensions{" "}
                       <span>
@@ -469,6 +713,10 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                     />
                     <p className="field-hint">
                       Exact inputs ignore snapping. Up to 0.001 m precision.
+                    </p>
+                    <p className="field-hint">
+                      Combined building · {current.building.sections.length}{" "}
+                      section(s) · Open-plan joins
                     </p>
                     <div className="area-summary">
                       <div>
@@ -540,8 +788,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                             ),
                             error = validateFootprint(next);
                           if (error) return error;
-                          changeSection(next);
-                          return null;
+                          return changeSection(next, false);
                         }}
                       />
                     )}
@@ -563,8 +810,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                                 ),
                                 error = validateFootprint(next);
                               if (error) return error;
-                              changeSection(next);
-                              return null;
+                              return changeSection(next, false);
                             }}
                           />
                         ))}
@@ -612,11 +858,15 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                       />
                     </div>
                     <p className="field-hint">
-                      X/Y: local-origin position in the plan. Z: elevation.
-                      Floors (1–4) are metadata only.
+                      X/Y use the shared assembly axes anchored at{" "}
+                      {metres(current.building.frame.origin.x)},{" "}
+                      {metres(current.building.frame.origin.y)} m. Joined
+                      orientations must differ by quarter turns; use Building
+                      rotation to rotate the whole design. Z and floors (1–4)
+                      are metadata only.
                     </p>
                   </div>
-                </>
+                </fieldset>
               ) : (
                 <div className="inspector-section empty-inspector">
                   <p>Select the building to edit measurements and placement.</p>
@@ -627,6 +877,42 @@ export default function Studio({ project, onBack, onSaved }: Props) {
               )}
               <div className="inspector-section">
                 <h2>Building details</h2>
+                <label className="field">
+                  <span>Section name</span>
+                  <input
+                    aria-label="Section name"
+                    key={`${section.id}:${section.name}`}
+                    defaultValue={section.name}
+                    maxLength={100}
+                    disabled={section.locked}
+                    onBlur={(e) => {
+                      const name = e.target.value.trim();
+                      if (name) changeSection({ ...section, name });
+                      else e.target.value = section.name;
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                    }}
+                  />
+                </label>
+                <label className="field">
+                  <span>Section type</span>
+                  <select
+                    aria-label="Section type"
+                    value={section.type}
+                    disabled={section.locked}
+                    onChange={(e) =>
+                      changeSection({
+                        ...section,
+                        type: e.target.value as Section["type"],
+                      })
+                    }
+                  >
+                    {SECTION_TYPES.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                </label>
                 <label className="field">
                   <span>Project name</span>
                   <input
@@ -672,6 +958,36 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           )}
         </aside>
       </div>
+      {removeId && (
+        <Modal
+          title="Remove architectural section?"
+          onClose={() => setRemoveId(null)}
+        >
+          <p>
+            This removes the selected section. The remaining building must stay
+            connected. Undo can restore a successful removal.
+          </p>
+          <div className="modal-actions">
+            <button onClick={() => setRemoveId(null)}>Cancel</button>
+            <button
+              className="danger"
+              onClick={() => {
+                try {
+                  const building = removeSection(current.building, removeId);
+                  edit({ ...current, building });
+                  selectSection(current.building.mainSectionId);
+                  setRemoveId(null);
+                } catch (e) {
+                  setGeometryError((e as Error).message);
+                  setRemoveId(null);
+                }
+              }}
+            >
+              Confirm remove section
+            </button>
+          </div>
+        </Modal>
+      )}
       {leaveError && (
         <Modal title="Your latest edits are not saved" onClose={closeLeave}>
           <p>

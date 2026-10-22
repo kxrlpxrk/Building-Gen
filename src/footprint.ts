@@ -21,25 +21,10 @@ export function withVertices(
 export function applyPreset(s: Section, shape: Shape): Section {
   // Presets replace local geometry but retain the world origin and metadata.
   if (shape === "Rectangle") {
-    const {
-      id,
-      position,
-      length,
-      width,
-      wallThickness,
-      orientation,
-      floorCount,
-    } = s;
-    return {
-      id,
-      kind: "rectangle",
-      position: { ...position },
-      length,
-      width,
-      wallThickness,
-      orientation,
-      floorCount,
-    };
+    const copy = { ...s, kind: "rectangle" as const };
+    if ("vertices" in copy) delete (copy as Partial<typeof copy>).vertices;
+    if ("preset" in copy) delete (copy as Partial<typeof copy>).preset;
+    return copy;
   }
   return {
     ...withVertices(s, presetVertices(shape, s.length, s.width)),

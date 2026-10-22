@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "id": "legacy-v2-project",
+  "name": "BG-02A legacy L",
+  "architecture": "Mixed",
+  "createdAt": "2026-10-22T12:00:00.000Z",
+  "updatedAt": "2026-10-22T13:00:00.000Z",
+  "building": {
+    "id": "legacy-v2-building",
+    "sections": [
+      {
+        "id": "legacy-v2-section",
+        "kind": "polygon",
+        "position": {
+          "x": -1251,
+          "y": 2837,
+          "z": 950
+        },
+        "length": 12000,
+        "width": 8000,
+        "wallThickness": 200,
+        "orientation": 37.5,
+        "floorCount": 4,
+        "preset": "L-shape",
+        "vertices": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 12000,
+            "y": 0
+          },
+          {
+            "x": 12000,
+            "y": 5000
+          },
+          {
+            "x": 8000,
+            "y": 5000
+          },
+          {
+            "x": 8000,
+            "y": 8000
+          },
+          {
+            "x": 0,
+            "y": 8000
+          }
+        ]
+      }
+    ]
+  }
+}

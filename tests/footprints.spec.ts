@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import legacy from "./fixtures/bg01-project.json" with { type: "json" };
+import expectedV3 from "./fixtures/bg01-project-v3.json" with { type: "json" };
 async function create(page: Page, name: string) {
   await page.goto("/");
   await page
@@ -47,7 +48,7 @@ test("all presets, exact edges, validation, undo, reload, duplicate and v2 JSON 
   page,
 }) => {
   await create(page, "Polygon hall");
-  await expect(page.getByText("BG-02A", { exact: true })).toBeVisible();
+  await expect(page.getByText("BG-02B", { exact: true })).toBeVisible();
   for (const shape of [
     "L-shape",
     "T-shape",
@@ -144,7 +145,7 @@ test("all presets, exact edges, validation, undo, reload, duplicate and v2 JSON 
   await back(page);
   const records = await raw(page);
   expect(records).toHaveLength(3);
-  expect(records.every((p) => p.schemaVersion === 2)).toBe(true);
+  expect(records.every((p) => p.schemaVersion === 3)).toBe(true);
   expect(new Set(records.map((p) => p.id)).size).toBe(3);
 });
 test("real edge and vertex drags remain orthogonal and undo as whole transactions", async ({
@@ -252,7 +253,7 @@ test("legacy database and JSON migrate without resetting invalid or unsupported 
   expect((await raw(page)).find((p) => p.id === legacy.id)).toEqual(legacy);
   await back(page);
   const migrated = (await raw(page)).find((p) => p.id === legacy.id);
-  expect(migrated).toEqual({ ...legacy, schemaVersion: 2 });
+  expect(migrated).toEqual(expectedV3);
   expect((await raw(page)).find((p) => p.id === unsupported.id)).toEqual(
     unsupported,
   );

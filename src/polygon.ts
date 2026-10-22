@@ -53,16 +53,18 @@ function intersects(a: Point, b: Point, c: Point, d: Point) {
 export function validatePolygon(
   v: readonly Point[],
   minEdge = MIN_EDGE,
+  maxVertices = MAX_VERTICES,
+  maxCoordinate = 500000,
 ): string | null {
-  if (v.length < 4 || v.length > MAX_VERTICES)
-    return `A footprint requires 4–${MAX_VERTICES} vertices.`;
+  if (v.length < 4 || v.length > maxVertices)
+    return `A footprint requires 4–${maxVertices} vertices.`;
   if (
     v.some(
       (p) =>
         !Number.isSafeInteger(p.x) ||
         !Number.isSafeInteger(p.y) ||
-        Math.abs(p.x) > 500000 ||
-        Math.abs(p.y) > 500000,
+        Math.abs(p.x) > maxCoordinate ||
+        Math.abs(p.y) > maxCoordinate,
     )
   )
     return "Vertices must use whole millimetres within ±500 m of the local origin.";
@@ -100,8 +102,13 @@ function inside(p: Point, v: readonly Point[]) {
 }
 /** Exact mitered inward offset for an orthogonal ring. Topology-changing offsets
  * are rejected, never replaced by bounding-box or area estimates. */
-export function insetPolygon(v: readonly Point[], thickness: number): Point[] {
-  const sourceError = validatePolygon(v);
+export function insetPolygon(
+  v: readonly Point[],
+  thickness: number,
+  maxVertices = MAX_VERTICES,
+  maxCoordinate = 500000,
+): Point[] {
+  const sourceError = validatePolygon(v, MIN_EDGE, maxVertices, maxCoordinate);
   if (sourceError) throw new Error(sourceError);
   if (!Number.isSafeInteger(thickness) || thickness < 10)
     throw new Error("Walls must be at least 0.01 m and use whole millimetres.");
@@ -123,7 +130,7 @@ export function insetPolygon(v: readonly Point[], thickness: number): Point[] {
     };
   });
   const invalid =
-    validatePolygon(inner, 1) ||
+    validatePolygon(inner, 1, maxVertices, maxCoordinate) ||
     Math.sign(signedArea(inner)) !== direction ||
     inner.some((a, i) => {
       const b = inner[(i + 1) % inner.length],

@@ -213,7 +213,7 @@ it("rejects negative exact lengths and scaling instead of reflecting the footpri
   expect(() => scaleFootprint(s, "length", -12000)).toThrow(/between/);
   expect(() => scaleFootprint(s, "width", 499)).toThrow(/between/);
 });
-describe("schema v2 and lossless BG-01 migration", () => {
+describe("schema v3 and lossless BG-01 migration", () => {
   const legacy = () => {
     const p = createProject("Preserved BG-01 hall");
     Object.assign(p.building.sections[0], {
@@ -226,14 +226,29 @@ describe("schema v2 and lossless BG-01 migration", () => {
     });
     return { ...p, schemaVersion: 1, architecture: "Mixed" };
   };
-  it("migrates v1 records and JSON, preserving every field except schemaVersion", () => {
+  it("migrates v1 records and JSON, preserving original fields and adding assembly metadata", () => {
     const old = legacy(),
       before = structuredClone(old),
       migrated = validateProject(old);
-    expect(migrated).toEqual({ ...old, schemaVersion: 2 });
+    expect(migrated).toEqual({
+      ...old,
+      schemaVersion: 3,
+      building: {
+        ...old.building,
+        frame: {
+          origin: {
+            x: old.building.sections[0].position.x,
+            y: old.building.sections[0].position.y,
+          },
+          axis: old.building.sections[0].orientation,
+          rotation: 0,
+          mode: "legacy",
+        },
+      },
+    });
     expect(old).toEqual(before);
     expect(parseProject(JSON.stringify(old))).toEqual(migrated);
-    expect(serializeProject(migrated)).toContain('"schemaVersion": 2');
+    expect(serializeProject(migrated)).toContain('"schemaVersion": 3');
   });
   it.each(SHAPES)(
     "roundtrips %s polygons, metadata, extents and stable IDs",
@@ -258,7 +273,7 @@ describe("schema v2 and lossless BG-01 migration", () => {
   });
   it("rejects invalid v1/v2 and unsupported versions without replacing data", () => {
     const old = legacy();
-    expect(() => validateProject({ ...old, schemaVersion: 3 })).toThrow(
+    expect(() => validateProject({ ...old, schemaVersion: 4 })).toThrow(
       /Unsupported/,
     );
     const invalid = structuredClone(old);

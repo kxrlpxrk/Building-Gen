@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { areas, metres, footprintVertices } from "./geometry";
+import { metres } from "./geometry";
 import {
   createProject,
   duplicateProject,
@@ -15,7 +15,8 @@ import {
 } from "./storage";
 import { Brand, Modal } from "./components";
 import Studio from "./Studio";
-import { bounds, insetPolygon, polygonPath } from "./polygon";
+import { bounds, polygonPath } from "./polygon";
+import { combinedGeometry } from "./assembly";
 import { shapeName } from "./footprint";
 type Dialog =
   | { kind: "new" }
@@ -208,14 +209,14 @@ export default function App() {
             <br />
             with a considered plan.
           </p>
-          <span className="version">BG-02A</span>
+          <span className="version">BG-02B</span>
         </div>
       </aside>
       <div className="library-body">
         <header className="library-topbar">
           <span>YOUR DESIGN WORKSPACE</span>
           <span className="local-badge">● Local storage</span>
-          <span className="version mobile-version">BG-02A</span>
+          <span className="version mobile-version">BG-02B</span>
         </header>
         <main className="dashboard">
           <section className="welcome">
@@ -387,14 +388,16 @@ export default function App() {
                         <h3>{p.name}</h3>
                         <p>
                           {shapeName(p.building.sections[0])} ·{" "}
-                          {metres(p.building.sections[0].length)} ×{" "}
-                          {metres(p.building.sections[0].width)} m{" "}
-                          <span>·</span>{" "}
-                          {areas(
-                            p.building.sections[0],
-                          ).exterior.toLocaleString(undefined, {
-                            maximumFractionDigits: 3,
-                          })}{" "}
+                          {metres(combinedGeometry(p.building).envelope.length)}{" "}
+                          ×{" "}
+                          {metres(combinedGeometry(p.building).envelope.width)}{" "}
+                          m <span>·</span>{" "}
+                          {combinedGeometry(p.building).exterior.toLocaleString(
+                            undefined,
+                            {
+                              maximumFractionDigits: 3,
+                            },
+                          )}{" "}
                           m²
                         </p>
                         <time dateTime={p.updatedAt}>
@@ -449,7 +452,7 @@ export default function App() {
           </section>
           <footer className="library-footer">
             <span>
-              BUILDING GENERATOR <b> / </b> BG-02A
+              BUILDING GENERATOR <b> / </b> BG-02B
             </span>
             <span>
               Saved on this device. Export your plans to keep a backup.
@@ -536,7 +539,8 @@ export default function App() {
 }
 function MiniPlan({ project }: { project: Project }) {
   const section = project.building.sections[0],
-    vertices = footprintVertices(section),
+    geometry = combinedGeometry(project.building),
+    vertices = geometry.vertices,
     box = bounds(vertices);
   const scale = Math.min(170 / box.length, 85 / box.width);
   return (
@@ -545,7 +549,7 @@ function MiniPlan({ project }: { project: Project }) {
     >
       <g transform={`scale(${scale}) translate(${-box.minX} ${-box.minY})`}>
         <path
-          d={`${polygonPath(vertices)} ${polygonPath(insetPolygon(vertices, section.wallThickness))}`}
+          d={`${polygonPath(vertices)} ${polygonPath(geometry.inner)}`}
           fill="currentColor"
           fillRule="evenodd"
           opacity=".8"
@@ -558,7 +562,10 @@ function MiniPlan({ project }: { project: Project }) {
         fill="currentColor"
         fontSize="9"
       >
-        {metres(box.length)} m · {shapeName(section)}
+        {metres(box.length)} m ·{" "}
+        {project.building.sections.length > 1
+          ? `${project.building.sections.length} sections`
+          : shapeName(section)}
       </text>
     </g>
   );
