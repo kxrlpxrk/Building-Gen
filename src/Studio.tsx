@@ -1,3 +1,9 @@
+import InteriorInspector, {
+  type InteriorTool,
+  type InteriorSelection,
+} from "./InteriorInspector";
+import { changePartitions } from "./interiorBuilding";
+import { deriveInterior, type Partition, type RoomRecord } from "./interior";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MIN_SIZE,
@@ -30,6 +36,7 @@ import SectionsPanel from "./SectionsPanel";
 import ExtensionPanel from "./ExtensionPanel";
 import {
   combinedGeometry,
+  translateBuilding,
   prepareBuilding,
   replaceSection,
   displaySection,
@@ -65,6 +72,11 @@ export default function Studio({ project, onBack, onSaved }: Props) {
   const [saveError, setSaveError] = useState("");
   const [leaving, setLeaving] = useState(false),
     [leaveError, setLeaveError] = useState(false);
+  const [mode, setMode] = useState<"footprint" | "interior">("footprint");
+  const [interiorTool, setInteriorTool] = useState<InteriorTool>("wall");
+  const [interiorSelection, setInteriorSelection] =
+    useState<InteriorSelection>(null);
+  const [partitionThickness, setPartitionThickness] = useState(100);
   const [tool, setTool] = useState<"edit" | "pan">("edit");
   const [selected, setSelected] = useState(true);
   const [selectedId, setSelectedId] = useState(project.building.mainSectionId);
@@ -90,6 +102,48 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     [current.building],
   );
   const area = assembly;
+  const interiorGeometry = useMemo(
+    () => deriveInterior(assembly.inner, current.building.interior.partitions),
+    [assembly, current.building.interior.partitions],
+  );
+  function interiorWalls(walls: Partition[], preview = false): string | null {
+    try {
+      const building = changePartitions(current.building, walls);
+      if (!preview) {
+        edit({ ...current, building });
+        setGeometryError("");
+      }
+      return null;
+    } catch (e) {
+      return (e as Error).message;
+    }
+  }
+  function roomMetadata(room: RoomRecord) {
+    const rooms = current.building.interior.rooms;
+    const existing = rooms.find(
+      (r) => r.regionKey !== null && r.regionKey === room.regionKey,
+    );
+    if (!existing && rooms.length >= 512) {
+      setGeometryError(
+        "Remove an unused retained room label before adding another assignment (512 record limit).",
+      );
+      return;
+    }
+    setGeometryError("");
+    const record = { ...room, id: existing?.id ?? room.id };
+    edit({
+      ...current,
+      building: {
+        ...current.building,
+        interior: {
+          ...current.building.interior,
+          rooms: existing
+            ? rooms.map((r) => (r.id === existing.id ? record : r))
+            : [...rooms, record],
+        },
+      },
+    });
+  }
   const placement = useMemo(
     () =>
       attachment
@@ -326,8 +380,10 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           e.preventDefault();
           void persist(currentRef.current);
         }
-      } else if (e.key.toLowerCase() === "v") setTool("edit");
-      else if (e.key.toLowerCase() === "h") setTool("pan");
+      } else if (e.key.toLowerCase() === "v") {
+        setTool("edit");
+        setInteriorTool("wall");
+      } else if (e.key.toLowerCase() === "h") setTool("pan");
     }
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
@@ -367,7 +423,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-02B.1</span>
+        <span className="version">BG-03A</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -384,11 +440,71 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           </button>
         </div>
       )}
+      {current.building.interior.rooms.some((r) => r.regionKey === null) && (
+        <div className="interior-notice" role="status">
+          Previous room labels are retained for reassignment in Interior
+          Planning.
+        </div>
+      )}
+      {mode === "interior" && geometryError && (
+        <div className="error-banner" role="alert">
+          {geometryError}
+        </div>
+      )}
+      <div className="studio-modes" aria-label="Studio planning modes">
+        <button
+          aria-pressed={mode === "footprint"}
+          onClick={() => {
+            setMode("footprint");
+            setTool("edit");
+          }}
+        >
+          Footprint
+        </button>
+        <button
+          aria-pressed={mode === "interior"}
+          onClick={() => {
+            setMode("interior");
+            setTool("edit");
+            setAttachment(null);
+          }}
+        >
+          Interior Planning
+        </button>
+        {mode === "interior" && (
+          <>
+            <button
+              aria-pressed={tool === "edit" && interiorTool === "draw"}
+              onClick={() => {
+                setInteriorTool("draw");
+                setTool("edit");
+              }}
+            >
+              Draw Wall
+            </button>
+            <button
+              aria-pressed={tool === "edit" && interiorTool === "room"}
+              onClick={() => {
+                setInteriorTool("room");
+                setTool("edit");
+              }}
+            >
+              Select Room
+            </button>
+          </>
+        )}
+      </div>
       <div className="studio-toolbar">
         <div className="tool-group">
           <button
-            aria-pressed={tool === "edit"}
-            onClick={() => setTool("edit")}
+            aria-pressed={
+              tool === "edit" &&
+              (mode === "footprint" || interiorTool === "wall")
+            }
+            onClick={() => {
+              setTool("edit");
+              setInteriorTool("wall");
+            }}
             title="Edit (V)"
           >
             <svg
@@ -402,7 +518,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             >
               <path d="m5 3 14 9-7 1-3 7Z" />
             </svg>{" "}
-            <span>Edit</span>
+            <span>{mode === "interior" ? "Select Wall" : "Edit"}</span>
           </button>
           <button
             aria-pressed={tool === "pan"}
@@ -476,17 +592,52 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           </button>
           {leftOpen && (
             <div className="structure-content">
-              <SectionsPanel
-                building={current.building}
-                selectedId={section.id}
-                onSelect={selectSection}
-                onAdd={() => openAttachment()}
-              />
+              {mode === "footprint" ? (
+                <SectionsPanel
+                  building={current.building}
+                  selectedId={section.id}
+                  onSelect={selectSection}
+                  onAdd={() => openAttachment()}
+                />
+              ) : (
+                <div className="interior-overview">
+                  <h2>Ground floor</h2>
+                  <p>
+                    Plan partitions and assign labels to clear regions. Exterior
+                    sections are edited in Footprint mode.
+                  </p>
+                  {interiorGeometry.regions.map((r, i) => (
+                    <button
+                      key={r.key}
+                      onClick={() =>
+                        setInteriorSelection({ kind: "room", key: r.key })
+                      }
+                    >
+                      {current.building.interior.rooms.find(
+                        (m) => m.regionKey === r.key,
+                      )?.name || `Unassigned ${i + 1}`}{" "}
+                      · {(r.area / 1e6).toFixed(2)} m²
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </aside>
         <main className="editor-main">
           <Editor
+            interior={
+              mode === "interior"
+                ? {
+                    tool: interiorTool,
+                    selection: interiorSelection,
+                    thickness: partitionThickness,
+                    onSelect: setInteriorSelection,
+                    onWalls: interiorWalls,
+                    validate: (walls) => interiorWalls(walls, true),
+                  }
+                : undefined
+            }
             section={displaySection(section, current.building)}
             building={current.building}
             placement={
@@ -510,10 +661,21 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           />
           <footer className="editor-status">
             <span>
-              {selected ? "Section selected" : "No selection"} ·{" "}
-              {tool === "edit"
-                ? "Drag to move · corners resize"
-                : "Drag to pan"}
+              {mode === "interior"
+                ? "Ground-floor interior"
+                : selected
+                  ? "Section selected"
+                  : "No selection"}{" "}
+              ·{" "}
+              {tool === "pan"
+                ? "Drag to pan"
+                : mode === "footprint"
+                  ? "Drag to move · corners resize"
+                  : interiorTool === "draw"
+                    ? "Tap start · tap end"
+                    : interiorTool === "wall"
+                      ? "Drag wall · endpoints resize"
+                      : "Tap a clear region"}
             </span>
             <span>Millimetre precision</span>
           </footer>
@@ -528,425 +690,501 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             <span>
               INSPECTOR{" "}
               <small>
-                {selected ? `${shapeName(section)} footprint` : "Project"}
+                {mode === "interior"
+                  ? "Interior Planning"
+                  : selected
+                    ? `${shapeName(section)} footprint`
+                    : "Project"}
               </small>
             </span>
             <span>{inspectorOpen ? "−" : "+"}</span>
           </button>
           {inspectorOpen && (
             <div className="inspector-content">
-              <div className="mobile-sections inspector-section">
-                <SectionsPanel
+              {mode === "interior" ? (
+                <InteriorInspector
                   building={current.building}
-                  selectedId={section.id}
-                  onSelect={selectSection}
-                  onAdd={() => openAttachment()}
-                />
-              </div>
-              {attachment && placement && (
-                <ExtensionPanel
-                  building={current.building}
-                  config={attachment.config}
-                  source={attachment.source}
-                  error={placement.error}
-                  onChange={(config) =>
-                    setAttachment({ ...attachment, config })
-                  }
-                  onCancel={() => setAttachment(null)}
-                  onAccept={() => {
-                    if (placement.building) {
-                      edit({ ...current, building: placement.building });
-                      selectSection(placement.candidate.id);
-                      setAttachment(null);
-                    }
-                  }}
-                />
-              )}
-              <div className="inspector-section section-management">
-                <h2>
-                  {section.name} {section.locked && <span>LOCKED</span>}
-                </h2>
-                <label className="field">
-                  <span>Selected section</span>
-                  <select
-                    aria-label="Selected section"
-                    value={section.id}
-                    onChange={(e) => selectSection(e.target.value)}
-                  >
-                    {current.building.sections.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                        {s.locked ? " · Locked" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="section-actions">
-                  <button
-                    onClick={() => openAttachment()}
-                    disabled={
-                      !!attachment || current.building.sections.length >= 12
-                    }
-                  >
-                    Attach Extension
-                  </button>
-                  <button
-                    onClick={() => {
-                      const building = prepareBuilding(
-                        {
-                          ...current.building,
-                          sections: current.building.sections.map((s) =>
-                            s.id === section.id
-                              ? { ...s, locked: !s.locked }
-                              : s,
-                          ),
-                        },
-                        current.building,
-                      );
-                      edit({ ...current, building });
-                    }}
-                  >
-                    {section.locked ? "Unlock section" : "Lock section"}
-                  </button>
-                  <button
-                    onClick={() => openAttachment(section)}
-                    disabled={
-                      !!attachment || current.building.sections.length >= 12
-                    }
-                  >
-                    Duplicate section
-                  </button>
-                  <button
-                    className="text-danger"
-                    onClick={() => setRemoveId(section.id)}
-                    disabled={
-                      section.locked ||
-                      section.id === current.building.mainSectionId ||
-                      !!attachment
-                    }
-                  >
-                    Remove section
-                  </button>
-                </div>
-                <NumericField
-                  label="Building rotation"
-                  unit="°"
-                  value={current.building.frame.rotation}
-                  onCommit={(rotation) => {
-                    if (
-                      !Number.isFinite(rotation) ||
-                      rotation < 0 ||
-                      rotation >= 360
-                    )
-                      return "Rotation must be from 0° up to 360° exclusive.";
+                  regions={interiorGeometry.regions}
+                  partitionArea={interiorGeometry.partitionArea}
+                  usableArea={interiorGeometry.usableArea}
+                  selection={interiorSelection}
+                  onSelect={setInteriorSelection}
+                  onWalls={interiorWalls}
+                  onRoom={roomMetadata}
+                  onForget={(id) =>
                     edit({
                       ...current,
                       building: {
                         ...current.building,
-                        frame: { ...current.building.frame, rotation },
+                        interior: {
+                          ...current.building.interior,
+                          rooms: current.building.interior.rooms.filter(
+                            (r) => r.id !== id,
+                          ),
+                        },
                       },
-                    });
-                    return null;
+                    })
+                  }
+                  thickness={partitionThickness}
+                  onPlacement={(key, value) => {
+                    try {
+                      if (
+                        key === "rotation" &&
+                        (!Number.isFinite(value) || value < 0 || value >= 360)
+                      )
+                        return "Use an angle from 0 to less than 360°.";
+                      const building =
+                        key === "rotation"
+                          ? {
+                              ...current.building,
+                              frame: {
+                                ...current.building.frame,
+                                rotation: value,
+                              },
+                            }
+                          : translateBuilding(current.building, {
+                              ...current.building.frame.origin,
+                              [key]: value,
+                            });
+                      edit({ ...current, building });
+                      return null;
+                    } catch (e) {
+                      return (e as Error).message;
+                    }
                   }}
+                  onThickness={setPartitionThickness}
                 />
-                {geometryError && (
-                  <p role="alert" className="field-error">
-                    {geometryError}
-                  </p>
-                )}
-              </div>
-              {selected && !attachment ? (
-                <fieldset className="section-fields" disabled={section.locked}>
-                  <div className="inspector-section">
+              ) : (
+                <>
+                  <div className="mobile-sections inspector-section">
+                    <SectionsPanel
+                      building={current.building}
+                      selectedId={section.id}
+                      onSelect={selectSection}
+                      onAdd={() => openAttachment()}
+                    />
+                  </div>
+                  {attachment && placement && (
+                    <ExtensionPanel
+                      building={current.building}
+                      config={attachment.config}
+                      source={attachment.source}
+                      error={placement.error}
+                      onChange={(config) =>
+                        setAttachment({ ...attachment, config })
+                      }
+                      onCancel={() => setAttachment(null)}
+                      onAccept={() => {
+                        if (placement.building) {
+                          edit({ ...current, building: placement.building });
+                          selectSection(placement.candidate.id);
+                          setAttachment(null);
+                        }
+                      }}
+                    />
+                  )}
+                  <div className="inspector-section section-management">
+                    <h2>
+                      {section.name} {section.locked && <span>LOCKED</span>}
+                    </h2>
                     <label className="field">
-                      <span>Footprint Shape</span>
+                      <span>Selected section</span>
                       <select
-                        aria-label="Footprint Shape"
-                        value={shapeName(section)}
-                        onChange={(e) => {
-                          const next = applyPreset(
-                              section,
-                              e.target.value as Shape,
-                            ),
-                            error = validateFootprint(next);
-                          setGeometryError(error || "");
-                          if (!error) {
-                            changeSection(next);
-                            setPart(null);
-                            setSelected(true);
-                          }
-                        }}
+                        aria-label="Selected section"
+                        value={section.id}
+                        onChange={(e) => selectSection(e.target.value)}
                       >
-                        {SHAPES.map((shape) => (
-                          <option key={shape}>{shape}</option>
+                        {current.building.sections.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                            {s.locked ? " · Locked" : ""}
+                          </option>
                         ))}
                       </select>
                     </label>
-                    <p className="field-hint">
-                      Presets replace the outline. Undo restores the previous
-                      footprint.
-                    </p>
-                    <h2>
-                      Dimensions{" "}
-                      <span>
-                        {section.kind === "polygon"
-                          ? "OUTER EXTENTS"
-                          : "EXTERIOR"}
-                      </span>
-                    </h2>
-                    <div className="field-row">
-                      <NumericField
-                        label="Length"
-                        value={section.length}
-                        onCommit={(v) => dimension("length", v)}
-                      />
-                      <NumericField
-                        label="Width"
-                        value={section.width}
-                        onCommit={(v) => dimension("width", v)}
-                      />
+                    <div className="section-actions">
+                      <button
+                        onClick={() => openAttachment()}
+                        disabled={
+                          !!attachment || current.building.sections.length >= 12
+                        }
+                      >
+                        Attach Extension
+                      </button>
+                      <button
+                        onClick={() => {
+                          const building = prepareBuilding(
+                            {
+                              ...current.building,
+                              sections: current.building.sections.map((s) =>
+                                s.id === section.id
+                                  ? { ...s, locked: !s.locked }
+                                  : s,
+                              ),
+                            },
+                            current.building,
+                          );
+                          edit({ ...current, building });
+                        }}
+                      >
+                        {section.locked ? "Unlock section" : "Lock section"}
+                      </button>
+                      <button
+                        onClick={() => openAttachment(section)}
+                        disabled={
+                          !!attachment || current.building.sections.length >= 12
+                        }
+                      >
+                        Duplicate section
+                      </button>
+                      <button
+                        className="text-danger"
+                        onClick={() => setRemoveId(section.id)}
+                        disabled={
+                          section.locked ||
+                          section.id === current.building.mainSectionId ||
+                          !!attachment
+                        }
+                      >
+                        Remove section
+                      </button>
                     </div>
                     <NumericField
-                      label="Wall thickness"
-                      value={section.wallThickness}
-                      onCommit={(v) => dimension("wallThickness", v)}
+                      label="Building rotation"
+                      unit="°"
+                      value={current.building.frame.rotation}
+                      onCommit={(rotation) => {
+                        if (
+                          !Number.isFinite(rotation) ||
+                          rotation < 0 ||
+                          rotation >= 360
+                        )
+                          return "Rotation must be from 0° up to 360° exclusive.";
+                        edit({
+                          ...current,
+                          building: {
+                            ...current.building,
+                            frame: { ...current.building.frame, rotation },
+                          },
+                        });
+                        return null;
+                      }}
                     />
-                    <p className="field-hint">
-                      Exact inputs ignore snapping. Up to 0.001 m precision.
-                    </p>
-                    <p className="field-hint">
-                      Combined building · {current.building.sections.length}{" "}
-                      section(s) · Open-plan joins
-                    </p>
-                    <div className="area-summary">
-                      <div>
-                        <span>Exterior area</span>
-                        <strong>
-                          {area.exterior.toLocaleString(undefined, {
-                            maximumFractionDigits: 6,
-                          })}
-                          <small> m²</small>
-                        </strong>
-                      </div>
-                      <div>
-                        <span>Usable interior</span>
-                        <strong>
-                          {area.interior.toLocaleString(undefined, {
-                            maximumFractionDigits: 6,
-                          })}
-                          <small> m²</small>
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="inspector-section footprint-parts">
-                    <h2>Vertices & edges</h2>
-                    <label className="field">
-                      <span>Select a part</span>
-                      <select
-                        aria-label="Select footprint part"
-                        value={
-                          activePart
-                            ? `${activePart.kind}:${activePart.index}`
-                            : ""
-                        }
-                        onChange={(e) => {
-                          if (!e.target.value) setPart(null);
-                          else {
-                            const [kind, index] = e.target.value.split(":");
-                            setPart({
-                              kind: kind as "vertex" | "edge",
-                              index: Number(index),
-                            });
-                          }
-                        }}
-                      >
-                        <option value="">Whole footprint</option>
-                        {vertices.map((_, i) => (
-                          <option key={`e${i}`} value={`edge:${i}`}>
-                            Edge {i + 1} · {metres(edgeLength(vertices, i))} m
-                          </option>
-                        ))}
-                        {vertices.map((_, i) => (
-                          <option key={`v${i}`} value={`vertex:${i}`}>
-                            Vertex {i + 1}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {activePart?.kind === "edge" && (
-                      <NumericField
-                        key={`e${activePart.index}`}
-                        label={`Edge ${activePart.index + 1} length`}
-                        value={edgeLength(vertices, activePart.index)}
-                        onCommit={(value) => {
-                          if (value < MIN_EDGE)
-                            return "Edge length must be at least 0.1 m.";
-                          const next = withVertices(
-                              section,
-                              setEdgeLength(vertices, activePart.index, value),
-                            ),
-                            error = validateFootprint(next);
-                          if (error) return error;
-                          return changeSection(next, false);
-                        }}
-                      />
+                    {geometryError && (
+                      <p role="alert" className="field-error">
+                        {geometryError}
+                      </p>
                     )}
-                    {activePart?.kind === "vertex" && (
-                      <div className="field-row">
-                        {(["x", "y"] as const).map((axis) => (
-                          <NumericField
-                            key={`${activePart.index}${axis}`}
-                            label={`Vertex ${activePart.index + 1} ${axis.toUpperCase()}`}
-                            value={vertices[activePart.index][axis]}
-                            onCommit={(value) => {
-                              const point = {
-                                  ...vertices[activePart.index],
-                                  [axis]: value,
-                                },
-                                next = withVertices(
+                  </div>
+                  {selected && !attachment ? (
+                    <fieldset
+                      className="section-fields"
+                      disabled={section.locked}
+                    >
+                      <div className="inspector-section">
+                        <label className="field">
+                          <span>Footprint Shape</span>
+                          <select
+                            aria-label="Footprint Shape"
+                            value={shapeName(section)}
+                            onChange={(e) => {
+                              const next = applyPreset(
                                   section,
-                                  dragVertex(vertices, activePart.index, point),
+                                  e.target.value as Shape,
+                                ),
+                                error = validateFootprint(next);
+                              setGeometryError(error || "");
+                              if (!error) {
+                                changeSection(next);
+                                setPart(null);
+                                setSelected(true);
+                              }
+                            }}
+                          >
+                            {SHAPES.map((shape) => (
+                              <option key={shape}>{shape}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <p className="field-hint">
+                          Presets replace the outline. Undo restores the
+                          previous footprint.
+                        </p>
+                        <h2>
+                          Dimensions{" "}
+                          <span>
+                            {section.kind === "polygon"
+                              ? "OUTER EXTENTS"
+                              : "EXTERIOR"}
+                          </span>
+                        </h2>
+                        <div className="field-row">
+                          <NumericField
+                            label="Length"
+                            value={section.length}
+                            onCommit={(v) => dimension("length", v)}
+                          />
+                          <NumericField
+                            label="Width"
+                            value={section.width}
+                            onCommit={(v) => dimension("width", v)}
+                          />
+                        </div>
+                        <NumericField
+                          label="Wall thickness"
+                          value={section.wallThickness}
+                          onCommit={(v) => dimension("wallThickness", v)}
+                        />
+                        <p className="field-hint">
+                          Exact inputs ignore snapping. Up to 0.001 m precision.
+                        </p>
+                        <p className="field-hint">
+                          Combined building · {current.building.sections.length}{" "}
+                          section(s) · Open-plan joins
+                        </p>
+                        <div className="area-summary">
+                          <div>
+                            <span>Exterior area</span>
+                            <strong>
+                              {area.exterior.toLocaleString(undefined, {
+                                maximumFractionDigits: 6,
+                              })}
+                              <small> m²</small>
+                            </strong>
+                          </div>
+                          <div>
+                            <span>Usable interior</span>
+                            <strong>
+                              {area.interior.toLocaleString(undefined, {
+                                maximumFractionDigits: 6,
+                              })}
+                              <small> m²</small>
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="inspector-section footprint-parts">
+                        <h2>Vertices & edges</h2>
+                        <label className="field">
+                          <span>Select a part</span>
+                          <select
+                            aria-label="Select footprint part"
+                            value={
+                              activePart
+                                ? `${activePart.kind}:${activePart.index}`
+                                : ""
+                            }
+                            onChange={(e) => {
+                              if (!e.target.value) setPart(null);
+                              else {
+                                const [kind, index] = e.target.value.split(":");
+                                setPart({
+                                  kind: kind as "vertex" | "edge",
+                                  index: Number(index),
+                                });
+                              }
+                            }}
+                          >
+                            <option value="">Whole footprint</option>
+                            {vertices.map((_, i) => (
+                              <option key={`e${i}`} value={`edge:${i}`}>
+                                Edge {i + 1} · {metres(edgeLength(vertices, i))}{" "}
+                                m
+                              </option>
+                            ))}
+                            {vertices.map((_, i) => (
+                              <option key={`v${i}`} value={`vertex:${i}`}>
+                                Vertex {i + 1}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {activePart?.kind === "edge" && (
+                          <NumericField
+                            key={`e${activePart.index}`}
+                            label={`Edge ${activePart.index + 1} length`}
+                            value={edgeLength(vertices, activePart.index)}
+                            onCommit={(value) => {
+                              if (value < MIN_EDGE)
+                                return "Edge length must be at least 0.1 m.";
+                              const next = withVertices(
+                                  section,
+                                  setEdgeLength(
+                                    vertices,
+                                    activePart.index,
+                                    value,
+                                  ),
                                 ),
                                 error = validateFootprint(next);
                               if (error) return error;
                               return changeSection(next, false);
                             }}
                           />
-                        ))}
+                        )}
+                        {activePart?.kind === "vertex" && (
+                          <div className="field-row">
+                            {(["x", "y"] as const).map((axis) => (
+                              <NumericField
+                                key={`${activePart.index}${axis}`}
+                                label={`Vertex ${activePart.index + 1} ${axis.toUpperCase()}`}
+                                value={vertices[activePart.index][axis]}
+                                onCommit={(value) => {
+                                  const point = {
+                                      ...vertices[activePart.index],
+                                      [axis]: value,
+                                    },
+                                    next = withVertices(
+                                      section,
+                                      dragVertex(
+                                        vertices,
+                                        activePart.index,
+                                        point,
+                                      ),
+                                    ),
+                                    error = validateFootprint(next);
+                                  if (error) return error;
+                                  return changeSection(next, false);
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <p className="field-hint">
+                          Drag an edge perpendicular to itself. Moving a vertex
+                          adjusts its two neighbours to keep right angles. Exact
+                          edge length keeps its start fixed and moves the
+                          following edge. Vertex coordinates are local, before
+                          rotation.
+                        </p>
                       </div>
-                    )}
-                    <p className="field-hint">
-                      Drag an edge perpendicular to itself. Moving a vertex
-                      adjusts its two neighbours to keep right angles. Exact
-                      edge length keeps its start fixed and moves the following
-                      edge. Vertex coordinates are local, before rotation.
-                    </p>
-                  </div>
+                      <div className="inspector-section">
+                        <h2>Placement</h2>
+                        <div className="field-row">
+                          <NumericField
+                            label="Position X"
+                            value={section.position.x}
+                            onCommit={(v) => position("x", v)}
+                          />
+                          <NumericField
+                            label="Position Y"
+                            value={section.position.y}
+                            onCommit={(v) => position("y", v)}
+                          />
+                        </div>
+                        <NumericField
+                          label="Elevation Z"
+                          value={section.position.z}
+                          onCommit={(v) => position("z", v)}
+                        />
+                        <div className="field-row">
+                          <NumericField
+                            label="Orientation"
+                            unit="°"
+                            value={section.orientation}
+                            onCommit={(v) => dimension("orientation", v)}
+                          />
+                          <NumericField
+                            label="Floors"
+                            unit=""
+                            integer
+                            value={section.floorCount}
+                            onCommit={(v) => dimension("floorCount", v)}
+                          />
+                        </div>
+                        <p className="field-hint">
+                          X/Y use the shared assembly axes anchored at{" "}
+                          {metres(current.building.frame.origin.x)},{" "}
+                          {metres(current.building.frame.origin.y)} m. Joined
+                          orientations must differ by quarter turns; use
+                          Building rotation to rotate the whole design. Z and
+                          floors (1–4) are metadata only.
+                        </p>
+                      </div>
+                    </fieldset>
+                  ) : (
+                    <div className="inspector-section empty-inspector">
+                      <p>
+                        Select the building to edit measurements and placement.
+                      </p>
+                      <button onClick={() => setSelected(true)}>
+                        Select section
+                      </button>
+                    </div>
+                  )}
                   <div className="inspector-section">
-                    <h2>Placement</h2>
-                    <div className="field-row">
-                      <NumericField
-                        label="Position X"
-                        value={section.position.x}
-                        onCommit={(v) => position("x", v)}
+                    <h2>Building details</h2>
+                    <label className="field">
+                      <span>Section name</span>
+                      <input
+                        aria-label="Section name"
+                        key={`${section.id}:${section.name}`}
+                        defaultValue={section.name}
+                        maxLength={100}
+                        disabled={section.locked}
+                        onBlur={(e) => {
+                          const name = e.target.value.trim();
+                          if (name) changeSection({ ...section, name });
+                          else e.target.value = section.name;
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                        }}
                       />
-                      <NumericField
-                        label="Position Y"
-                        value={section.position.y}
-                        onCommit={(v) => position("y", v)}
+                    </label>
+                    <label className="field">
+                      <span>Section type</span>
+                      <select
+                        aria-label="Section type"
+                        value={section.type}
+                        disabled={section.locked}
+                        onChange={(e) =>
+                          changeSection({
+                            ...section,
+                            type: e.target.value as Section["type"],
+                          })
+                        }
+                      >
+                        {SECTION_TYPES.map((t) => (
+                          <option key={t}>{t}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Project name</span>
+                      <input
+                        aria-label="Project name"
+                        key={current.name}
+                        defaultValue={current.name}
+                        maxLength={100}
+                        onBlur={(e) => {
+                          const name = e.target.value.trim();
+                          if (name) edit({ ...current, name });
+                          else e.target.value = current.name;
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                        }}
                       />
-                    </div>
-                    <NumericField
-                      label="Elevation Z"
-                      value={section.position.z}
-                      onCommit={(v) => position("z", v)}
-                    />
-                    <div className="field-row">
-                      <NumericField
-                        label="Orientation"
-                        unit="°"
-                        value={section.orientation}
-                        onCommit={(v) => dimension("orientation", v)}
-                      />
-                      <NumericField
-                        label="Floors"
-                        unit=""
-                        integer
-                        value={section.floorCount}
-                        onCommit={(v) => dimension("floorCount", v)}
-                      />
-                    </div>
-                    <p className="field-hint">
-                      X/Y use the shared assembly axes anchored at{" "}
-                      {metres(current.building.frame.origin.x)},{" "}
-                      {metres(current.building.frame.origin.y)} m. Joined
-                      orientations must differ by quarter turns; use Building
-                      rotation to rotate the whole design. Z and floors (1–4)
-                      are metadata only.
-                    </p>
+                    </label>
+                    <label className="field">
+                      <span>Architecture</span>
+                      <select
+                        value={current.architecture}
+                        onChange={(e) =>
+                          edit({
+                            ...current,
+                            architecture: e.target.value as Architecture,
+                          })
+                        }
+                      >
+                        <option>Medieval</option>
+                        <option>Norse</option>
+                        <option>Mixed</option>
+                      </select>
+                    </label>
                   </div>
-                </fieldset>
-              ) : (
-                <div className="inspector-section empty-inspector">
-                  <p>Select the building to edit measurements and placement.</p>
-                  <button onClick={() => setSelected(true)}>
-                    Select section
-                  </button>
-                </div>
+                </>
               )}
-              <div className="inspector-section">
-                <h2>Building details</h2>
-                <label className="field">
-                  <span>Section name</span>
-                  <input
-                    aria-label="Section name"
-                    key={`${section.id}:${section.name}`}
-                    defaultValue={section.name}
-                    maxLength={100}
-                    disabled={section.locked}
-                    onBlur={(e) => {
-                      const name = e.target.value.trim();
-                      if (name) changeSection({ ...section, name });
-                      else e.target.value = section.name;
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                    }}
-                  />
-                </label>
-                <label className="field">
-                  <span>Section type</span>
-                  <select
-                    aria-label="Section type"
-                    value={section.type}
-                    disabled={section.locked}
-                    onChange={(e) =>
-                      changeSection({
-                        ...section,
-                        type: e.target.value as Section["type"],
-                      })
-                    }
-                  >
-                    {SECTION_TYPES.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Project name</span>
-                  <input
-                    aria-label="Project name"
-                    key={current.name}
-                    defaultValue={current.name}
-                    maxLength={100}
-                    onBlur={(e) => {
-                      const name = e.target.value.trim();
-                      if (name) edit({ ...current, name });
-                      else e.target.value = current.name;
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                    }}
-                  />
-                </label>
-                <label className="field">
-                  <span>Architecture</span>
-                  <select
-                    value={current.architecture}
-                    onChange={(e) =>
-                      edit({
-                        ...current,
-                        architecture: e.target.value as Architecture,
-                      })
-                    }
-                  >
-                    <option>Medieval</option>
-                    <option>Norse</option>
-                    <option>Mixed</option>
-                  </select>
-                </label>
-              </div>
               <div className="inspector-footnote">
                 LOCAL WORKSPACE
                 <br />

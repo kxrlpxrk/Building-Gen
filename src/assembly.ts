@@ -1,3 +1,4 @@
+import { reconcileInterior, validateInterior } from "./interior";
 import {
   footprintVertices,
   rotate,
@@ -209,7 +210,29 @@ export function prepareBuilding(b: Building, previous?: Building): Building {
       b.connections.find((old) => connectionKey(old) === connectionKey(c))
         ?.id ?? crypto.randomUUID(),
   }));
-  return { ...b, connections };
+  try {
+    const previousInner = previous ? combinedGeometry(previous).inner : null;
+    const unchanged =
+      previous &&
+      JSON.stringify(previousInner) === JSON.stringify(geometry.inner) &&
+      JSON.stringify(previous.interior.partitions) ===
+        JSON.stringify(b.interior.partitions);
+    const interior =
+      previous && !unchanged
+        ? reconcileInterior(
+            previousInner!,
+            previous.interior,
+            geometry.inner,
+            b.interior.partitions,
+          )
+        : b.interior;
+    validateInterior(geometry.inner, interior);
+    return { ...b, connections, interior };
+  } catch (e) {
+    throw new Error(
+      `Interior plan: ${(e as Error).message} Footprint edit rejected; partitions and room labels were preserved.`,
+    );
+  }
 }
 export function replaceSection(b: Building, s: Section): Building {
   let next = {
@@ -244,4 +267,29 @@ export function validateConnections(b: Building): void {
     )
   )
     throw new Error("Attachment records do not match the actual shared edges.");
+}
+
+/** Translate all sections and the shared origin equally; local interiors do not move. */
+export function translateBuilding(b: Building, origin: Point): Building {
+  if (
+    ![origin.x, origin.y].every(
+      (n) => Number.isSafeInteger(n) && Math.abs(n) <= 10000000,
+    )
+  )
+    throw new Error(
+      "Building placement requires integer millimetres within ±10,000 m.",
+    );
+  const dx = origin.x - b.frame.origin.x,
+    dy = origin.y - b.frame.origin.y;
+  return prepareBuilding(
+    {
+      ...b,
+      frame: { ...b.frame, origin },
+      sections: b.sections.map((s) => ({
+        ...s,
+        position: { ...s.position, x: s.position.x + dx, y: s.position.y + dy },
+      })),
+    },
+    b,
+  );
 }

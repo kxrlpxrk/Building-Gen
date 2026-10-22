@@ -43,7 +43,7 @@ describe("IndexedDB project persistence", () => {
 });
 
 import legacyProject from "../tests/fixtures/bg01-project.json";
-import expectedV3 from "../tests/fixtures/bg01-project-v3.json";
+import expectedV4 from "../tests/fixtures/bg01-project-v4.json";
 import { applyPreset } from "./footprint";
 import { validateProject } from "./model";
 it("reads BG-01 from the original database and upgrades only when saved", async () => {
@@ -65,7 +65,7 @@ it("reads BG-01 from the original database and upgrades only when saved", async 
       tx.oncomplete = () => resolve(req.result);
     });
   const migrated = await loadProject(legacyProject.id);
-  expect(migrated).toEqual(expectedV3);
+  expect(migrated).toEqual(expectedV4);
   expect(await raw()).toEqual(legacyProject);
   await saveProject(migrated);
   expect(await raw()).toEqual(migrated);
@@ -116,7 +116,7 @@ it("loads BG-02A from existing IndexedDB without rewriting it or unsupported nei
     tx.onabort = () => reject(tx.error);
   });
   const migrated = await loadProject(legacyV2.id);
-  expect(migrated).toMatchObject({ ...legacyV2, schemaVersion: 3 });
+  expect(migrated).toMatchObject({ ...legacyV2, schemaVersion: 4 });
   expect(await read(legacyV2.id)).toEqual(legacyV2);
   expect((await listProjects()).invalidCount).toBe(1);
   await saveProject(migrated);
@@ -147,4 +147,29 @@ it("persists sections and explicit joins and rejects invalid writes without dama
   await expect(saveProject(bad)).rejects.toThrow(/Attachment/);
   expect(await loadProject(p.id)).toEqual(p);
   await deleteProject(p.id);
+});
+
+import { changePartitions } from "./interiorBuilding";
+it("saves and reopens v4 partitions/labels independently and rejects corrupt interiors", async () => {
+  const p = createProject("Interior persistence");
+  p.building = changePartitions(p.building, [
+    {
+      id: crypto.randomUUID(),
+      a: { x: 6000, y: 200 },
+      b: { x: 6000, y: 7800 },
+      thickness: 100,
+    },
+  ]);
+  p.building.interior.rooms[0].name = "Hall";
+  const copy = duplicateProject(p, "Copied interior");
+  await saveProject(p);
+  await saveProject(copy);
+  expect(await loadProject(p.id)).toEqual(p);
+  expect(await loadProject(copy.id)).toEqual(copy);
+  const invalid = structuredClone(p);
+  invalid.building.interior.partitions[0].a.y = 0;
+  await expect(saveProject(invalid)).rejects.toThrow(/protrudes/);
+  expect(await loadProject(p.id)).toEqual(p);
+  await deleteProject(p.id);
+  await deleteProject(copy.id);
 });

@@ -1,3 +1,11 @@
+import {
+  emptyInterior,
+  ROOM_TYPES,
+  validateInterior,
+  type InteriorPlan,
+  type RoomType,
+} from "./interior";
+import { combinedGeometry } from "./assembly";
 import { validateFootprint, type Rectangle, type Point } from "./geometry";
 import { SHAPES, type Shape } from "./polygon";
 import {
@@ -37,9 +45,10 @@ export type Building = {
   };
   sections: Section[];
   connections: Connection[];
+  interior: InteriorPlan;
 };
 export type Project = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   id: string;
   name: string;
   architecture: Architecture;
@@ -51,7 +60,7 @@ export function createProject(name = "Untitled building"): Project {
   const now = new Date().toISOString(),
     sectionId = crypto.randomUUID();
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: crypto.randomUUID(),
     name,
     architecture: "Norse",
@@ -62,6 +71,7 @@ export function createProject(name = "Untitled building"): Project {
       mainSectionId: sectionId,
       frame: { origin: { x: 0, y: 0 }, axis: 0, rotation: 0, mode: "legacy" },
       connections: [],
+      interior: emptyInterior(),
       sections: [
         {
           id: sectionId,
@@ -115,7 +125,7 @@ function section(value: unknown, version: number): Section {
   )
     throw new Error("Invalid building section.");
   if (
-    version === 3 &&
+    version >= 3 &&
     (!validName(value.name) ||
       !SECTION_TYPES.includes(value.type as SectionType) ||
       typeof value.locked !== "boolean")
@@ -134,9 +144,9 @@ function section(value: unknown, version: number): Section {
       throw new Error("Geometry measurements must be numbers.");
   let s: Section = {
     id: value.id,
-    name: version === 3 ? (value.name as string).trim() : "Main building",
-    type: version === 3 ? (value.type as SectionType) : "Custom",
-    locked: version === 3 ? (value.locked as boolean) : false,
+    name: version >= 3 ? (value.name as string).trim() : "Main building",
+    type: version >= 3 ? (value.type as SectionType) : "Custom",
+    locked: version >= 3 ? (value.locked as boolean) : false,
     kind: "rectangle",
     length: value.length as number,
     width: value.width as number,
@@ -169,11 +179,55 @@ function section(value: unknown, version: number): Section {
   if (error) throw new Error(error);
   return s;
 }
+function readInterior(value: unknown): InteriorPlan {
+  if (
+    !object(value) ||
+    !Array.isArray(value.partitions) ||
+    !Array.isArray(value.rooms) ||
+    value.partitions.length > 64 ||
+    value.rooms.length > 512
+  )
+    throw new Error("Invalid ground-floor interior plan.");
+  const partitions = value.partitions.map((w: unknown) => {
+    if (!object(w) || !validId(w.id) || !Number.isSafeInteger(w.thickness))
+      throw new Error("Invalid partition record.");
+    return {
+      id: w.id,
+      a: point(w.a),
+      b: point(w.b),
+      thickness: w.thickness as number,
+    };
+  });
+  const rooms = value.rooms.map((r: unknown) => {
+    if (
+      !object(r) ||
+      !validId(r.id) ||
+      !(
+        r.regionKey === null ||
+        (typeof r.regionKey === "string" && r.regionKey.length <= 100000)
+      ) ||
+      typeof r.name !== "string" ||
+      r.name.length > 100 ||
+      !ROOM_TYPES.includes(r.type as RoomType) ||
+      typeof r.notes !== "string" ||
+      r.notes.length > 2000
+    )
+      throw new Error("Invalid room metadata.");
+    return {
+      id: r.id,
+      regionKey: r.regionKey as string | null,
+      name: r.name,
+      type: r.type as RoomType,
+      notes: r.notes,
+    };
+  });
+  return { partitions, rooms };
+}
 /** Pure, lossless read-time migration. Existing geometry fields are not rewritten. */
 export function validateProject(value: unknown): Project {
-  if (!object(value) || ![1, 2, 3].includes(value.schemaVersion as number))
+  if (!object(value) || ![1, 2, 3, 4].includes(value.schemaVersion as number))
     throw new Error(
-      "Unsupported project schema. BG-02B accepts schemaVersion 1, 2 or 3.",
+      "Unsupported project schema. BG-03A accepts schemaVersion 1, 2, 3 or 4.",
     );
   const version = value.schemaVersion as number;
   if (
@@ -189,7 +243,7 @@ export function validateProject(value: unknown): Project {
     !validId(value.building.id) ||
     !Array.isArray(value.building.sections) ||
     value.building.sections.length < 1 ||
-    value.building.sections.length > (version === 3 ? 12 : 1)
+    value.building.sections.length > (version >= 3 ? 12 : 1)
   )
     throw new Error(
       "A building requires 1–12 sections (legacy schemas require exactly one).",
@@ -205,7 +259,7 @@ export function validateProject(value: unknown): Project {
     },
     mainSectionId = first.id,
     connections: Connection[] = [];
-  if (version === 3) {
+  if (version >= 3) {
     if (
       !object(source.frame) ||
       !validAngle(source.frame.axis) ||
@@ -262,10 +316,21 @@ export function validateProject(value: unknown): Project {
     frame,
     sections,
     connections,
+    interior: version === 4 ? readInterior(source.interior) : emptyInterior(),
   };
   validateConnections(building);
+  validateInterior(combinedGeometry(building).inner, building.interior);
+  const interiorIds = [
+    ...building.interior.partitions,
+    ...building.interior.rooms,
+  ].map((v) => v.id);
+  if (
+    new Set([...ids, ...interiorIds]).size !==
+    ids.length + interiorIds.length
+  )
+    throw new Error("All project and interior IDs must be distinct.");
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: value.id,
     name: value.name.trim(),
     architecture: value.architecture as Architecture,
@@ -308,6 +373,13 @@ export function duplicateProject(
     id: crypto.randomUUID(),
     a: { ...c.a, sectionId: ids.get(c.a.sectionId)! },
     b: { ...c.b, sectionId: ids.get(c.b.sectionId)! },
+  }));
+  copy.building.interior.partitions = copy.building.interior.partitions.map(
+    (w) => ({ ...w, id: crypto.randomUUID() }),
+  );
+  copy.building.interior.rooms = copy.building.interior.rooms.map((r) => ({
+    ...r,
+    id: crypto.randomUUID(),
   }));
   copy.name = name;
   copy.createdAt = now;

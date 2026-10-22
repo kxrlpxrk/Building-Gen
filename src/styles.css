@@ -1902,3 +1902,103 @@ h3 {
     overflow: visible;
   }
 }
+
+.studio-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+  background: #f5f7ef;
+}
+.studio-modes button {
+  min-height: 44px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.studio-modes button[aria-pressed="true"] {
+  background: #244f40;
+  color: white;
+}
+.interior-help,
+.interior-overview p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #64756a;
+  overflow-wrap: anywhere;
+}
+.interior-totals {
+  font-size: 12px;
+}
+.interior-totals div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.interior-totals dd {
+  margin: 0;
+  font-weight: 600;
+}
+.interior-inspector .field > input,
+.interior-inspector textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #ccd5c7;
+  border-radius: 6px;
+  background: #fffef8;
+  font: inherit;
+  font-size: 16px;
+}
+.interior-inspector textarea {
+  resize: vertical;
+  overflow: hidden;
+}
+.interior-inspector button {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+}
+.retained-label {
+  margin-top: 14px;
+  padding: 12px;
+  background: #f1e6ce;
+  overflow-wrap: anywhere;
+}
+.retained-label button,
+.interior-overview button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+.interior-overview h2 {
+  font-size: 14px;
+}
+@media (max-width: 650px) {
+  .studio-modes button {
+    flex: 1 1 40%;
+  }
+}
+
+.cancel-wall {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  min-height: 44px;
+  max-width: calc(100% - 100px);
+  padding: 8px 12px;
+  font-size: 12px;
+  z-index: 1;
+}
+
+.interior-notice {
+  padding: 10px 14px;
+  background: #f1e6ce;
+  color: #6c552f;
+  font-size: 12px;
+  flex-shrink: 0;
+}

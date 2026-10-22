@@ -1,3 +1,12 @@
+import { useMemo } from "react";
+import InteriorLayer from "./InteriorLayer";
+import {
+  deriveInterior,
+  snapInteriorPoint,
+  wallBox,
+  type Partition,
+} from "./interior";
+import type { InteriorSelection, InteriorTool } from "./InteriorInspector";
 import { useEffect, useId, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
@@ -33,6 +42,14 @@ import {
   type Viewport,
 } from "./transforms";
 type Props = {
+  interior?: {
+    tool: InteriorTool;
+    selection: InteriorSelection;
+    thickness: number;
+    onSelect: (s: InteriorSelection) => void;
+    onWalls: (walls: Partition[]) => string | null;
+    validate: (walls: Partition[]) => string | null;
+  };
   section: Section;
   building: Building;
   placement: {
@@ -62,6 +79,14 @@ type Gesture =
       edge: number | null;
       camera: Camera;
     }
+  | {
+      kind: "interior";
+      start: Point;
+      camera: Camera;
+      wall: Partition;
+      handle: number | null;
+    }
+  | { kind: "draw"; start: Point; local: Point }
   | { kind: "pan"; start: Point; camera: Camera }
   | { kind: "pinch"; start: Point; distance: number; camera: Camera }
   | { kind: "blocked" };
@@ -71,6 +96,7 @@ const midpoint = (a: Point, b: Point): Point => ({
   y: (a.y + b.y) / 2,
 });
 export default function Editor({
+  interior,
   section,
   building,
   placement,
@@ -102,6 +128,35 @@ export default function Editor({
   viewportRef.current = viewport;
   const [draft, setDraft] = useState<Section | null>(null);
   const draftRef = useRef<Section | null>(null);
+  const [drawStart, setDrawStart] = useState<Point | null>(null);
+  const drawStartRef = useRef<Point | null>(null);
+  const [wallPreview, setWallPreview] = useState<Partition | null>(null);
+  const wallPreviewRef = useRef<Partition | null>(null);
+  const wallValid = useRef(false);
+  const interiorGeometry = useMemo(
+    () =>
+      deriveInterior(
+        combinedGeometry(building).inner,
+        building.interior.partitions,
+      ),
+    [building],
+  );
+  function startWall(p: Point | null) {
+    drawStartRef.current = p;
+    setDrawStart(p);
+  }
+  function previewWall(w: Partition | null) {
+    wallPreviewRef.current = w;
+    setWallPreview(w);
+    const issue = w
+      ? interior?.validate([
+          ...building.interior.partitions.filter((p) => p.id !== w.id),
+          w,
+        ])
+      : null;
+    wallValid.current = !!w && !issue;
+    setGeometryError(issue ?? "");
+  }
   const pointers = useRef(new Map<number, Point>());
   const gesture = useRef<Gesture | null>(null);
   const initialized = useRef(false);
@@ -150,7 +205,9 @@ export default function Editor({
     preview(null);
     gesture.current = pointers.current.size ? { kind: "blocked" } : null;
     setGeometryError("");
-  }, [modelKey]);
+    startWall(null);
+    previewWall(null);
+  }, [modelKey, interior?.tool, !!interior]);
   function preview(s: Section | null) {
     draftRef.current = s;
     setDraft(s);
@@ -195,6 +252,30 @@ export default function Editor({
     const box = e.currentTarget.getBoundingClientRect();
     return { x: e.clientX - box.left, y: e.clientY - box.top };
   }
+  function local(world: Point): Point {
+    const envelope = combinedGeometry(building).envelope;
+    return rotate(
+      { x: world.x - envelope.position.x, y: world.y - envelope.position.y },
+      -envelope.orientation,
+    );
+  }
+  function snapped(p: Point, exclude?: string): Point {
+    return snapInteriorPoint(
+      p,
+      merged.inner,
+      building.interior.partitions.filter((w) => w.id !== exclude),
+      snapEnabled ? grid : null,
+      snapEnabled ? 10 / cameraRef.current.scale : 0,
+    );
+  }
+  function drawn(p: Point): Partition | null {
+    const a = drawStartRef.current;
+    if (!a || !interior) return null;
+    const b = snapped(p);
+    if (Math.abs(b.x - a.x) > Math.abs(b.y - a.y)) b.y = a.y;
+    else b.x = a.x;
+    return { id: "wall-preview", a, b, thickness: interior.thickness };
+  }
   function down(e: ReactPointerEvent<SVGSVGElement>) {
     if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 1) return;
     e.preventDefault();
@@ -204,6 +285,8 @@ export default function Editor({
     const p = point(e);
     pointers.current.set(e.pointerId, p);
     if (pointers.current.size >= 2) {
+      startWall(null);
+      previewWall(null);
       preview(null); // An interrupted drag is rolled back before any pinch can edit geometry.
       const [a, b] = [...pointers.current.values()];
       gesture.current = {
@@ -215,10 +298,58 @@ export default function Editor({
       return;
     }
     const world = screenToWorld(p, cameraRef.current, viewportRef.current);
+    if (interior && tool !== "pan" && e.button !== 1) {
+      const q = local(world);
+      if (interior.tool === "draw") {
+        gesture.current = { kind: "draw", start: p, local: snapped(q) };
+        if (drawStartRef.current) previewWall(drawn(q));
+      } else if (interior.tool === "room") {
+        const hit = (e.target as Element)
+          .closest("[data-room-key]")
+          ?.getAttribute("data-room-key");
+        interior.onSelect(hit ? { kind: "room", key: hit } : null);
+        gesture.current = { kind: "blocked" };
+      } else {
+        const actual = building.interior.partitions.filter((w) => {
+          const b = wallBox(w);
+          return (
+            q.x >= b.x &&
+            q.x <= b.x + b.width &&
+            q.y >= b.y &&
+            q.y <= b.y + b.height
+          );
+        });
+        const hit = (e.target as Element)
+          .closest("[data-partition-id]")
+          ?.getAttribute("data-partition-id");
+        const wall =
+          actual.find(
+            (w) =>
+              interior.selection?.kind === "wall" &&
+              w.id === interior.selection.id,
+          ) ??
+          actual[0] ??
+          building.interior.partitions.find((w) => w.id === hit);
+        interior.onSelect(wall ? { kind: "wall", id: wall.id } : null);
+        const handle = (e.target as Element)
+          .closest("[data-wall-end]")
+          ?.getAttribute("data-wall-end");
+        gesture.current = wall
+          ? {
+              kind: "interior",
+              start: p,
+              camera: cameraRef.current,
+              wall: structuredClone(wall),
+              handle: hit === wall.id && handle != null ? Number(handle) : null,
+            }
+          : { kind: "blocked" };
+      }
+      return;
+    }
     // Exclusive interiors win over transparent handles belonging to neighbours.
     // Shared-edge ambiguity retains the current selection; the section panel also
     // offers an exact, touch-friendly selector.
-    function interior(s: Section) {
+    function sectionInterior(s: Section) {
       const q = rotate(
           { x: world.x - s.position.x, y: world.y - s.position.y },
           -s.orientation,
@@ -248,7 +379,7 @@ export default function Editor({
       return inside;
     }
     if (tool === "edit" && !placement) {
-      const hit = others.find(interior);
+      const hit = others.find(sectionInterior);
       if (hit) {
         onSectionSelect(hit.id);
         onSelect(true);
@@ -295,7 +426,22 @@ export default function Editor({
     }
   }
   function move(e: ReactPointerEvent<SVGSVGElement>) {
-    if (!pointers.current.has(e.pointerId)) return;
+    if (!pointers.current.has(e.pointerId)) {
+      if (
+        interior?.tool === "draw" &&
+        tool !== "pan" &&
+        drawStartRef.current &&
+        !pointers.current.size
+      )
+        previewWall(
+          drawn(
+            local(
+              screenToWorld(point(e), cameraRef.current, viewportRef.current),
+            ),
+          ),
+        );
+      return;
+    }
     e.preventDefault();
     const p = point(e);
     pointers.current.set(e.pointerId, p);
@@ -313,6 +459,38 @@ export default function Editor({
             viewport,
           ),
         );
+    } else if (g.kind === "draw") {
+      if (drawStartRef.current)
+        previewWall(
+          drawn(
+            local(screenToWorld(p, cameraRef.current, viewportRef.current)),
+          ),
+        );
+    } else if (g.kind === "interior") {
+      if (distance(p, g.start) < 4 && !wallPreviewRef.current) return;
+      const a = local(screenToWorld(g.start, g.camera, viewport)),
+        b = local(screenToWorld(p, g.camera, viewport)),
+        delta = { x: b.x - a.x, y: b.y - a.y };
+      const w = g.wall;
+      let next: Partition;
+      if (g.handle !== null) {
+        const endpoint = g.handle === 0 ? "a" : "b",
+          q = snapped(
+            { x: w[endpoint].x + delta.x, y: w[endpoint].y + delta.y },
+            w.id,
+          );
+        if (w.a.x === w.b.x) q.x = w.a.x;
+        else q.y = w.a.y;
+        next = { ...w, [endpoint]: q };
+      } else {
+        const q = snapped({ x: w.a.x + delta.x, y: w.a.y + delta.y }, w.id);
+        next = {
+          ...w,
+          a: q,
+          b: { x: w.b.x + q.x - w.a.x, y: w.b.y + q.y - w.a.y },
+        };
+      }
+      previewWall(next);
     } else if (g.kind === "pan")
       setCamera(
         panCamera(g.camera, { x: p.x - g.start.x, y: p.y - g.start.y }),
@@ -385,6 +563,46 @@ export default function Editor({
     const g = gesture.current;
     if (!cancelled && g?.kind === "drag" && draftRef.current)
       onChange(draftRef.current);
+    if (
+      interior &&
+      !cancelled &&
+      g?.kind === "interior" &&
+      wallPreviewRef.current &&
+      wallValid.current
+    ) {
+      const issue = interior.onWalls(
+        building.interior.partitions.map((w) =>
+          w.id === g.wall.id ? wallPreviewRef.current! : w,
+        ),
+      );
+      setGeometryError(issue ?? "");
+    }
+    if (
+      interior &&
+      !cancelled &&
+      g?.kind === "draw" &&
+      distance(point(e), g.start) < 12
+    ) {
+      if (!drawStartRef.current) startWall(g.local);
+      else {
+        const candidate = drawn(
+          local(
+            screenToWorld(point(e), cameraRef.current, viewportRef.current),
+          ),
+        );
+        if (candidate) {
+          const issue = interior.onWalls([
+            ...building.interior.partitions,
+            { ...candidate, id: crypto.randomUUID() },
+          ]);
+          setGeometryError(issue ?? "");
+          if (!issue) startWall(null);
+        }
+      }
+    }
+    if (cancelled) startWall(null);
+    wallPreviewRef.current = null;
+    setWallPreview(null);
     preview(null);
     pointers.current.delete(e.pointerId);
     gesture.current = pointers.current.size ? { kind: "blocked" } : null;
@@ -406,7 +624,11 @@ export default function Editor({
         ref={svg}
         className={`plan-canvas tool-${tool}`}
         role="application"
-        aria-label="Building plan. Edit tool: drag building to move, drag corners to resize. Pan tool: drag canvas. Pinch or scroll to zoom. Arrow keys move selected building."
+        aria-label={
+          interior
+            ? "Ground-floor interior plan. Draw Wall: tap start, then end. Select Wall: drag body or endpoint. Select Room: tap clear space. Pan tool: drag canvas. Pinch or scroll to zoom."
+            : "Building plan. Edit tool: drag building to move, drag corners to resize. Pan tool: drag canvas. Pinch or scroll to zoom. Arrow keys move selected building."
+        }
         tabIndex={0}
         viewBox={`0 0 ${viewport.width} ${viewport.height}`}
         onPointerDown={down}
@@ -416,6 +638,9 @@ export default function Editor({
         onLostPointerCapture={(e) => finish(e, true)}
         onKeyDown={(e) => {
           if (e.key === "Escape") {
+            interior?.onSelect(null);
+            startWall(null);
+            previewWall(null);
             preview(null);
             gesture.current = { kind: "blocked" };
             onSelect(false);
@@ -427,6 +652,7 @@ export default function Editor({
             ArrowDown: { x: 0, y: 1 },
           };
           if (
+            !interior &&
             selected &&
             !section.locked &&
             !placement &&
@@ -478,243 +704,275 @@ export default function Editor({
               fill={`url(#${patternId})`}
             />
           )}
-          {others.map((other) => (
+          {interior ? (
             <g
-              key={other.id}
-              data-section-id={other.id}
-              transform={`translate(${other.position.x} ${other.position.y}) rotate(${other.orientation})`}
+              transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
             >
-              <path
-                d={polygonPath(footprintVertices(other))}
-                fill={other.locked ? "#e9debf" : "#dae6d9"}
-                stroke={other.locked ? "#a68649" : "#91a58b"}
-                strokeWidth={1 / s}
+              <InteriorLayer
+                inner={merged.inner}
+                outer={merged.vertices}
+                plan={building.interior}
+                regions={interiorGeometry.regions}
+                scale={s}
+                selection={interior.selection}
+                tool={interior.tool}
+                preview={wallPreview}
+                invalid={!wallValid.current}
+                start={drawStart}
               />
             </g>
-          ))}
-          <g
-            data-section-id={display.id}
-            transform={`translate(${display.position.x} ${display.position.y}) rotate(${display.orientation})`}
-            data-building="true"
-          >
-            {display.kind === "rectangle" ? (
-              <rect
-                width={display.length}
-                height={display.width}
-                fill="#f7f5ea"
-                stroke="none"
-              />
-            ) : (
-              <path d={outerPath} fill="#f7f5ea" stroke="none" />
-            )}
-            <path
-              d={path}
-              fill={building.sections.length > 1 ? "none" : "#46655e"}
-              fillRule="evenodd"
-              stroke={building.sections.length > 1 ? "none" : "#23463e"}
-              strokeWidth={1.25 / s}
-            />
-            {selected && (
-              <path
-                d={outerPath}
-                fill="none"
-                stroke={section.locked ? "#8b633a" : "#b27b31"}
-                strokeWidth={2 / s}
-                strokeDasharray={`${5 / s} ${4 / s}`}
-                pointerEvents="none"
-              />
-            )}
-            {selected &&
-              !section.locked &&
-              !placement &&
-              tool === "edit" &&
-              vertices.map((a, i) => {
-                const b = vertices[(i + 1) % vertices.length],
-                  active = part?.kind === "edge" && part.index === i;
-                return (
+          ) : (
+            <>
+              {others.map((other) => (
+                <g
+                  key={other.id}
+                  data-section-id={other.id}
+                  transform={`translate(${other.position.x} ${other.position.y}) rotate(${other.orientation})`}
+                >
+                  <path
+                    d={polygonPath(footprintVertices(other))}
+                    fill={other.locked ? "#e9debf" : "#dae6d9"}
+                    stroke={other.locked ? "#a68649" : "#91a58b"}
+                    strokeWidth={1 / s}
+                  />
+                </g>
+              ))}
+              <g
+                data-section-id={display.id}
+                transform={`translate(${display.position.x} ${display.position.y}) rotate(${display.orientation})`}
+                data-building="true"
+              >
+                {display.kind === "rectangle" ? (
+                  <rect
+                    width={display.length}
+                    height={display.width}
+                    fill="#f7f5ea"
+                    stroke="none"
+                  />
+                ) : (
+                  <path d={outerPath} fill="#f7f5ea" stroke="none" />
+                )}
+                <path
+                  d={path}
+                  fill={building.sections.length > 1 ? "none" : "#46655e"}
+                  fillRule="evenodd"
+                  stroke={building.sections.length > 1 ? "none" : "#23463e"}
+                  strokeWidth={1.25 / s}
+                />
+                {selected && (
+                  <path
+                    d={outerPath}
+                    fill="none"
+                    stroke={section.locked ? "#8b633a" : "#b27b31"}
+                    strokeWidth={2 / s}
+                    strokeDasharray={`${5 / s} ${4 / s}`}
+                    pointerEvents="none"
+                  />
+                )}
+                {selected &&
+                  !section.locked &&
+                  !placement &&
+                  tool === "edit" &&
+                  vertices.map((a, i) => {
+                    const b = vertices[(i + 1) % vertices.length],
+                      active = part?.kind === "edge" && part.index === i;
+                    return (
+                      <g
+                        key={i}
+                        data-building="true"
+                        data-edge={i}
+                        className="edge-handle"
+                      >
+                        <path
+                          d={`M ${a.x} ${a.y} L ${b.x} ${b.y}`}
+                          stroke="transparent"
+                          strokeWidth={44 / s}
+                          fill="none"
+                        />
+                        {active && (
+                          <path
+                            d={`M ${a.x} ${a.y} L ${b.x} ${b.y}`}
+                            stroke="#c37b1d"
+                            strokeWidth={4 / s}
+                            fill="none"
+                            pointerEvents="none"
+                          />
+                        )}
+                        {display.kind === "polygon" && (
+                          <text
+                            transform={
+                              a.x === b.x
+                                ? `translate(${a.x - 12 / s} ${(a.y + b.y) / 2}) rotate(-90)`
+                                : `translate(${(a.x + b.x) / 2} ${a.y - 12 / s})`
+                            }
+                            className="dimension-text"
+                            textAnchor="middle"
+                            fontSize={11 / s}
+                            pointerEvents="none"
+                          >
+                            E{i + 1}
+                            {active || edgeLength(vertices, i) * s > 95
+                              ? ` · ${metres(edgeLength(vertices, i))} m`
+                              : ""}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                {display.kind === "rectangle" && (
+                  <>
+                    {display.length * s > 190 && (
+                      <text
+                        x={box.minX + display.length / 2}
+                        y={box.minY + display.width / 2 - 6 / s}
+                        textAnchor="middle"
+                        fontSize={13 / s}
+                        fill="#315448"
+                        pointerEvents="none"
+                      >
+                        RECTANGULAR SECTION
+                      </text>
+                    )}
+                    <text
+                      x={box.minX + display.length / 2}
+                      y={
+                        box.minY +
+                        display.width / 2 +
+                        (display.length * s > 190 ? 15 : 4) / s
+                      }
+                      textAnchor="middle"
+                      fontSize={12 / s}
+                      fill="#60776d"
+                      pointerEvents="none"
+                    >
+                      {metres(display.length)} × {metres(display.width)} m
+                    </text>
+                  </>
+                )}
+                <g
+                  stroke="#748c80"
+                  strokeWidth={1 / s}
+                  fill="none"
+                  pointerEvents="none"
+                >
+                  <path
+                    d={`M ${box.minX} ${box.minY - 14 / s} V ${box.minY - 40 / s} M ${box.maxX} ${box.minY - 14 / s} V ${box.minY - 40 / s} M ${box.minX} ${box.minY - 32 / s} H ${box.maxX}`}
+                  />
+                  <path
+                    d={`M ${box.minX - 14 / s} ${box.minY} H ${box.minX - 40 / s} M ${box.minX - 14 / s} ${box.maxY} H ${box.minX - 40 / s} M ${box.minX - 32 / s} ${box.minY} V ${box.maxY}`}
+                  />
+                </g>
+                <text
+                  className="dimension-text"
+                  x={box.minX + display.length / 2}
+                  y={box.minY - 40 / s}
+                  textAnchor="middle"
+                  fontSize={13 / s}
+                >
+                  {metres(display.length)} m
+                </text>
+                <text
+                  className="dimension-text"
+                  transform={`translate(${box.minX - 42 / s} ${box.minY + display.width / 2}) rotate(-90)`}
+                  textAnchor="middle"
+                  fontSize={13 / s}
+                >
+                  {metres(display.width)} m
+                </text>
+              </g>
+              {building.sections.length > 1 && (
+                <g
+                  data-combined-wall="true"
+                  transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
+                  pointerEvents="none"
+                >
+                  <path
+                    d={`${polygonPath(merged.vertices)} ${polygonPath(merged.inner)}`}
+                    fill="#46655e"
+                    fillRule="evenodd"
+                    stroke="#23463e"
+                    strokeWidth={1.25 / s}
+                  />
+                </g>
+              )}
+              {placement?.edge != null && merged.vertices[placement.edge] && (
+                <g
+                  transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
+                  pointerEvents="none"
+                >
+                  <path
+                    data-attachment-edge="true"
+                    d={`M ${merged.vertices[placement.edge].x} ${merged.vertices[placement.edge].y} L ${merged.vertices[(placement.edge + 1) % merged.vertices.length].x} ${merged.vertices[(placement.edge + 1) % merged.vertices.length].y}`}
+                    stroke="#3b80a0"
+                    strokeWidth={5 / s}
+                    fill="none"
+                  />
+                </g>
+              )}
+              {placementSection &&
+                placement &&
+                !validateFootprint(placement.candidate) && (
+                  <g
+                    data-placement-preview="true"
+                    transform={`translate(${placementSection.position.x} ${placementSection.position.y}) rotate(${placementSection.orientation})`}
+                    pointerEvents="none"
+                  >
+                    <path
+                      d={polygonPath(footprintVertices(placementSection))}
+                      fill={placement?.error ? "#cc635c66" : "#5a9d7966"}
+                      stroke={placement?.error ? "#b43d35" : "#26704e"}
+                      strokeWidth={2 / s}
+                      strokeDasharray={`${7 / s} ${4 / s}`}
+                    />
+                  </g>
+                )}
+              {selected &&
+                !section.locked &&
+                !placement &&
+                tool === "edit" &&
+                pts.map((p, i) => (
                   <g
                     key={i}
                     data-building="true"
-                    data-edge={i}
-                    className="edge-handle"
+                    data-corner={i}
+                    className="resize-handle"
                   >
-                    <path
-                      d={`M ${a.x} ${a.y} L ${b.x} ${b.y}`}
-                      stroke="transparent"
-                      strokeWidth={44 / s}
-                      fill="none"
+                    <circle cx={p.x} cy={p.y} r={23 / s} fill="transparent" />
+                    <rect
+                      x={p.x - 6 / s}
+                      y={p.y - 6 / s}
+                      width={12 / s}
+                      height={12 / s}
+                      rx={2 / s}
+                      fill={
+                        part?.kind === "vertex" && part.index === i
+                          ? "#c37b1d"
+                          : "#fffaf0"
+                      }
+                      stroke="#a66e26"
+                      strokeWidth={2 / s}
+                      pointerEvents="none"
                     />
-                    {active && (
-                      <path
-                        d={`M ${a.x} ${a.y} L ${b.x} ${b.y}`}
-                        stroke="#c37b1d"
-                        strokeWidth={4 / s}
-                        fill="none"
-                        pointerEvents="none"
-                      />
-                    )}
-                    {display.kind === "polygon" && (
-                      <text
-                        transform={
-                          a.x === b.x
-                            ? `translate(${a.x - 12 / s} ${(a.y + b.y) / 2}) rotate(-90)`
-                            : `translate(${(a.x + b.x) / 2} ${a.y - 12 / s})`
-                        }
-                        className="dimension-text"
-                        textAnchor="middle"
-                        fontSize={11 / s}
-                        pointerEvents="none"
-                      >
-                        E{i + 1}
-                        {active || edgeLength(vertices, i) * s > 95
-                          ? ` · ${metres(edgeLength(vertices, i))} m`
-                          : ""}
-                      </text>
-                    )}
                   </g>
-                );
-              })}
-            {display.kind === "rectangle" && (
-              <>
-                {display.length * s > 190 && (
-                  <text
-                    x={box.minX + display.length / 2}
-                    y={box.minY + display.width / 2 - 6 / s}
-                    textAnchor="middle"
-                    fontSize={13 / s}
-                    fill="#315448"
-                    pointerEvents="none"
-                  >
-                    RECTANGULAR SECTION
-                  </text>
-                )}
-                <text
-                  x={box.minX + display.length / 2}
-                  y={
-                    box.minY +
-                    display.width / 2 +
-                    (display.length * s > 190 ? 15 : 4) / s
-                  }
-                  textAnchor="middle"
-                  fontSize={12 / s}
-                  fill="#60776d"
-                  pointerEvents="none"
-                >
-                  {metres(display.length)} × {metres(display.width)} m
-                </text>
-              </>
-            )}
-            <g
-              stroke="#748c80"
-              strokeWidth={1 / s}
-              fill="none"
-              pointerEvents="none"
-            >
-              <path
-                d={`M ${box.minX} ${box.minY - 14 / s} V ${box.minY - 40 / s} M ${box.maxX} ${box.minY - 14 / s} V ${box.minY - 40 / s} M ${box.minX} ${box.minY - 32 / s} H ${box.maxX}`}
-              />
-              <path
-                d={`M ${box.minX - 14 / s} ${box.minY} H ${box.minX - 40 / s} M ${box.minX - 14 / s} ${box.maxY} H ${box.minX - 40 / s} M ${box.minX - 32 / s} ${box.minY} V ${box.maxY}`}
-              />
-            </g>
-            <text
-              className="dimension-text"
-              x={box.minX + display.length / 2}
-              y={box.minY - 40 / s}
-              textAnchor="middle"
-              fontSize={13 / s}
-            >
-              {metres(display.length)} m
-            </text>
-            <text
-              className="dimension-text"
-              transform={`translate(${box.minX - 42 / s} ${box.minY + display.width / 2}) rotate(-90)`}
-              textAnchor="middle"
-              fontSize={13 / s}
-            >
-              {metres(display.width)} m
-            </text>
-          </g>
-          {building.sections.length > 1 && (
-            <g
-              data-combined-wall="true"
-              transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
-              pointerEvents="none"
-            >
-              <path
-                d={`${polygonPath(merged.vertices)} ${polygonPath(merged.inner)}`}
-                fill="#46655e"
-                fillRule="evenodd"
-                stroke="#23463e"
-                strokeWidth={1.25 / s}
-              />
-            </g>
+                ))}
+            </>
           )}
-          {placement?.edge != null && merged.vertices[placement.edge] && (
-            <g
-              transform={`translate(${merged.envelope.position.x} ${merged.envelope.position.y}) rotate(${merged.envelope.orientation})`}
-              pointerEvents="none"
-            >
-              <path
-                data-attachment-edge="true"
-                d={`M ${merged.vertices[placement.edge].x} ${merged.vertices[placement.edge].y} L ${merged.vertices[(placement.edge + 1) % merged.vertices.length].x} ${merged.vertices[(placement.edge + 1) % merged.vertices.length].y}`}
-                stroke="#3b80a0"
-                strokeWidth={5 / s}
-                fill="none"
-              />
-            </g>
-          )}
-          {placementSection &&
-            placement &&
-            !validateFootprint(placement.candidate) && (
-              <g
-                data-placement-preview="true"
-                transform={`translate(${placementSection.position.x} ${placementSection.position.y}) rotate(${placementSection.orientation})`}
-                pointerEvents="none"
-              >
-                <path
-                  d={polygonPath(footprintVertices(placementSection))}
-                  fill={placement?.error ? "#cc635c66" : "#5a9d7966"}
-                  stroke={placement?.error ? "#b43d35" : "#26704e"}
-                  strokeWidth={2 / s}
-                  strokeDasharray={`${7 / s} ${4 / s}`}
-                />
-              </g>
-            )}
-          {selected &&
-            !section.locked &&
-            !placement &&
-            tool === "edit" &&
-            pts.map((p, i) => (
-              <g
-                key={i}
-                data-building="true"
-                data-corner={i}
-                className="resize-handle"
-              >
-                <circle cx={p.x} cy={p.y} r={23 / s} fill="transparent" />
-                <rect
-                  x={p.x - 6 / s}
-                  y={p.y - 6 / s}
-                  width={12 / s}
-                  height={12 / s}
-                  rx={2 / s}
-                  fill={
-                    part?.kind === "vertex" && part.index === i
-                      ? "#c37b1d"
-                      : "#fffaf0"
-                  }
-                  stroke="#a66e26"
-                  strokeWidth={2 / s}
-                  pointerEvents="none"
-                />
-              </g>
-            ))}
         </g>
       </svg>
+      {interior && drawStart && (
+        <button
+          className="cancel-wall"
+          onClick={() => {
+            startWall(null);
+            previewWall(null);
+          }}
+        >
+          Cancel wall start
+        </button>
+      )}
       {geometryError && (
         <div className="geometry-error" role="alert">
-          {geometryError} Drag cancelled until geometry is valid.
+          {geometryError} Edit rejected; saved geometry is unchanged.
         </div>
       )}
       <div className="canvas-compass" aria-hidden="true">

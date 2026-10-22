@@ -231,8 +231,8 @@ it.each([legacyV1, legacyV2])(
   (legacy) => {
     const before = structuredClone(legacy),
       p = validateProject(legacy);
-    expect(p.schemaVersion).toBe(3);
-    expect(p).toMatchObject({ ...legacy, schemaVersion: 3 });
+    expect(p.schemaVersion).toBe(4);
+    expect(p).toMatchObject({ ...legacy, schemaVersion: 4 });
     expect(legacy).toEqual(before);
     expect(p.building.mainSectionId).toBe(legacy.building.sections[0].id);
     expect(p.building.connections).toEqual([]);
