@@ -1,3 +1,4 @@
+import { bounds, insetPolygon, polygonArea, validatePolygon } from "./polygon";
 // Geometry is expressed in integer millimetres. Rendering never changes the model.
 export type Point = { x: number; y: number };
 export type Rectangle = {
@@ -49,11 +50,38 @@ export function validateRectangle(r: Rectangle): string | null {
     return "Orientation must be from 0° up to (but excluding) 360°.";
   return null;
 }
-export const areas = (r: Rectangle) => ({
-  exterior: (r.length * r.width) / 1e6,
-  interior:
-    ((r.length - 2 * r.wallThickness) * (r.width - 2 * r.wallThickness)) / 1e6,
-});
+export type Footprint = Rectangle & { vertices?: Point[] };
+export const footprintVertices = (r: Footprint): Point[] =>
+  r.vertices ?? [
+    { x: 0, y: 0 },
+    { x: r.length, y: 0 },
+    { x: r.length, y: r.width },
+    { x: 0, y: r.width },
+  ];
+export function validateFootprint(r: Footprint): string | null {
+  const base = validateRectangle(r);
+  if (base) return base;
+  if (r.vertices) {
+    const issue = validatePolygon(r.vertices);
+    if (issue) return issue;
+    const box = bounds(r.vertices);
+    if (box.length !== r.length || box.width !== r.width)
+      return "Polygon exterior extents do not match its vertices.";
+    try {
+      insetPolygon(r.vertices, r.wallThickness);
+    } catch (e) {
+      return (e as Error).message;
+    }
+  }
+  return null;
+}
+export function areas(r: Footprint) {
+  const v = footprintVertices(r);
+  return {
+    exterior: polygonArea(v) / 1e6,
+    interior: polygonArea(insetPolygon(v, r.wallThickness)) / 1e6,
+  };
+}
 export function rotate(p: Point, degrees: number): Point {
   const a = (degrees * Math.PI) / 180;
   return {
@@ -71,13 +99,8 @@ export function worldToLocal(p: Point, r: Rectangle): Point {
     -r.orientation,
   );
 }
-export function corners(r: Rectangle): Point[] {
-  return [
-    { x: 0, y: 0 },
-    { x: r.length, y: 0 },
-    { x: r.length, y: r.width },
-    { x: 0, y: r.width },
-  ].map((p) => localToWorld(p, r));
+export function corners(r: Footprint): Point[] {
+  return footprintVertices(r).map((p) => localToWorld(p, r));
 }
 export function moveRectangle(
   r: Rectangle,

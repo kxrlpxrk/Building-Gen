@@ -1,12 +1,15 @@
-import { validateRectangle, type Rectangle } from "./geometry";
+import { validateFootprint, type Rectangle } from "./geometry";
 export type Architecture = "Medieval" | "Norse" | "Mixed";
-export type Section = Rectangle & {
-  id: string;
-  kind: "rectangle";
-  floorCount: number;
-};
+import { SHAPES, type Shape } from "./polygon";
+import type { Point } from "./geometry";
+type SectionBase = Rectangle & { id: string; floorCount: number };
+export type Section = SectionBase &
+  (
+    | { kind: "rectangle" }
+    | { kind: "polygon"; preset: Shape; vertices: Point[] }
+  );
 export type Project = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   name: string;
   architecture: Architecture;
@@ -17,7 +20,7 @@ export type Project = {
 export function createProject(name = "Untitled building"): Project {
   const now = new Date().toISOString();
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: crypto.randomUUID(),
     name,
     architecture: "Norse",
@@ -49,9 +52,9 @@ const validDate = (v: unknown) =>
   typeof v === "string" && v.length <= 40 && Number.isFinite(Date.parse(v));
 // Reconstruct only the supported version's fields: untrusted JSON never enters state directly.
 export function validateProject(value: unknown): Project {
-  if (!object(value) || value.schemaVersion !== 1)
+  if (!object(value) || ![1, 2].includes(value.schemaVersion as number))
     throw new Error(
-      "Unsupported project schema. BG-01 requires schemaVersion 1.",
+      "Unsupported project schema. BG-02A accepts schemaVersion 1 or 2.",
     );
   if (
     !validId(value.id) ||
@@ -69,12 +72,13 @@ export function validateProject(value: unknown): Project {
     !Array.isArray(value.building.sections) ||
     value.building.sections.length !== 1
   )
-    throw new Error("BG-01 requires exactly one rectangular section.");
+    throw new Error("BG-02A requires exactly one footprint section.");
   const s = value.building.sections[0];
   if (
     !object(s) ||
     !validId(s.id) ||
-    s.kind !== "rectangle" ||
+    (s.kind !== "rectangle" &&
+      (value.schemaVersion !== 2 || s.kind !== "polygon")) ||
     !object(s.position) ||
     ![1, 2, 3, 4].includes(s.floorCount as number)
   )
@@ -90,7 +94,7 @@ export function validateProject(value: unknown): Project {
   ])
     if (typeof v !== "number")
       throw new Error("Geometry measurements must be numbers.");
-  const section: Section = {
+  let section: Section = {
     id: s.id,
     kind: "rectangle",
     length: s.length as number,
@@ -104,12 +108,33 @@ export function validateProject(value: unknown): Project {
       z: s.position.z as number,
     },
   };
-  const error = validateRectangle(section);
+  if (s.kind === "polygon") {
+    if (
+      !SHAPES.includes(s.preset as Shape) ||
+      s.preset === "Rectangle" ||
+      !Array.isArray(s.vertices)
+    )
+      throw new Error("Invalid polygon preset or vertices.");
+    const vertices = s.vertices.map((p: unknown) => {
+      if (!object(p) || typeof p.x !== "number" || typeof p.y !== "number")
+        throw new Error(
+          "Each polygon vertex requires numeric X and Y coordinates.",
+        );
+      return { x: p.x, y: p.y };
+    });
+    section = {
+      ...section,
+      kind: "polygon",
+      preset: s.preset as Shape,
+      vertices,
+    };
+  }
+  const error = validateFootprint(section);
   if (error) throw new Error(error);
   if (new Set([value.id, value.building.id, section.id]).size !== 3)
     throw new Error("Project, building and section IDs must be distinct.");
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: value.id,
     name: value.name.trim(),
     architecture: value.architecture as Architecture,

@@ -41,3 +41,49 @@ describe("IndexedDB project persistence", () => {
     await expect(loadProject("missing")).rejects.toThrow(/no longer exists/);
   });
 });
+
+import legacyProject from "../tests/fixtures/bg01-project.json";
+import { applyPreset } from "./footprint";
+import { validateProject } from "./model";
+it("reads BG-01 from the original database and upgrades only when saved", async () => {
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const r = indexedDB.open("building-generator-bg01", 1);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction("projects", "readwrite");
+    tx.objectStore("projects").put(legacyProject);
+    tx.oncomplete = () => resolve();
+    tx.onabort = () => reject(tx.error);
+  });
+  const raw = () =>
+    new Promise<unknown>((resolve) => {
+      const tx = db.transaction("projects");
+      const req = tx.objectStore("projects").get(legacyProject.id);
+      tx.oncomplete = () => resolve(req.result);
+    });
+  const migrated = await loadProject(legacyProject.id);
+  expect(migrated).toEqual({ ...legacyProject, schemaVersion: 2 });
+  expect(await raw()).toEqual(legacyProject);
+  await saveProject(migrated);
+  expect(await raw()).toEqual(migrated);
+  db.close();
+  await deleteProject(migrated.id);
+});
+it("persists polygon footprints with independent data after reopening", async () => {
+  const p = validateProject(legacyProject);
+  p.building.sections = [applyPreset(p.building.sections[0], "U-shape")];
+  const copy = duplicateProject(p, "Independent U");
+  await saveProject(p);
+  await saveProject(copy);
+  const a = await loadProject(p.id),
+    b = await loadProject(copy.id);
+  expect(a).toEqual(p);
+  expect(b).toEqual(copy);
+  if (b.building.sections[0].kind === "polygon")
+    b.building.sections[0].vertices[0].x = 100;
+  expect(await loadProject(p.id)).toEqual(p);
+  await deleteProject(p.id);
+  await deleteProject(copy.id);
+});

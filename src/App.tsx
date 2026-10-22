@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { areas, metres } from "./geometry";
+import { areas, metres, footprintVertices } from "./geometry";
 import {
   createProject,
   duplicateProject,
@@ -15,6 +15,8 @@ import {
 } from "./storage";
 import { Brand, Modal } from "./components";
 import Studio from "./Studio";
+import { bounds, insetPolygon, polygonPath } from "./polygon";
+import { shapeName } from "./footprint";
 type Dialog =
   | { kind: "new" }
   | { kind: "rename" | "delete" | "duplicate"; project: Project };
@@ -206,14 +208,14 @@ export default function App() {
             <br />
             with a considered plan.
           </p>
-          <span className="version">BG-01</span>
+          <span className="version">BG-02A</span>
         </div>
       </aside>
       <div className="library-body">
         <header className="library-topbar">
           <span>YOUR DESIGN WORKSPACE</span>
           <span className="local-badge">● Local storage</span>
-          <span className="version mobile-version">BG-01</span>
+          <span className="version mobile-version">BG-02A</span>
         </header>
         <main className="dashboard">
           <section className="welcome">
@@ -384,6 +386,7 @@ export default function App() {
                       <div className="project-info">
                         <h3>{p.name}</h3>
                         <p>
+                          {shapeName(p.building.sections[0])} ·{" "}
                           {metres(p.building.sections[0].length)} ×{" "}
                           {metres(p.building.sections[0].width)} m{" "}
                           <span>·</span>{" "}
@@ -446,7 +449,7 @@ export default function App() {
           </section>
           <footer className="library-footer">
             <span>
-              BUILDING GENERATOR <b> / </b> BG-01
+              BUILDING GENERATOR <b> / </b> BG-02A
             </span>
             <span>
               Saved on this device. Export your plans to keep a backup.
@@ -532,46 +535,30 @@ export default function App() {
   );
 }
 function MiniPlan({ project }: { project: Project }) {
-  const s = project.building.sections[0],
-    scale = Math.min(170 / s.length, 85 / s.width),
-    l = s.length * scale,
-    w = s.width * scale,
-    t = Math.max(2, s.wallThickness * scale);
+  const section = project.building.sections[0],
+    vertices = footprintVertices(section),
+    box = bounds(vertices);
+  const scale = Math.min(170 / box.length, 85 / box.width);
   return (
-    <g transform={`translate(${(280 - l) / 2} ${(160 - w) / 2})`}>
-      <rect
-        x="-5"
-        y="-5"
-        width={l + 10}
-        height={w + 10}
-        fill="none"
-        stroke="currentColor"
-        strokeOpacity=".3"
-        strokeDasharray="3 4"
-      />
-      <path
-        d={`M0 0 H${l} V${w} H0 Z M${t} ${t} V${w - t} H${l - t} V${t} Z`}
-        fill="currentColor"
-        fillRule="evenodd"
-        opacity=".8"
-      />
+    <g
+      transform={`translate(${(280 - box.length * scale) / 2} ${(160 - box.width * scale) / 2})`}
+    >
+      <g transform={`scale(${scale}) translate(${-box.minX} ${-box.minY})`}>
+        <path
+          d={`${polygonPath(vertices)} ${polygonPath(insetPolygon(vertices, section.wallThickness))}`}
+          fill="currentColor"
+          fillRule="evenodd"
+          opacity=".8"
+        />
+      </g>
       <text
-        x={l / 2}
+        x={(box.length * scale) / 2}
         y={-12}
         textAnchor="middle"
         fill="currentColor"
         fontSize="9"
       >
-        {metres(s.length)} m
-      </text>
-      <text
-        x={l / 2}
-        y={w / 2 + 3}
-        textAnchor="middle"
-        fill="currentColor"
-        fontSize="9"
-      >
-        FLOOR PLAN
+        {metres(box.length)} m · {shapeName(section)}
       </text>
     </g>
   );

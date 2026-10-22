@@ -1,7 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { areas, GRID_PRESETS, metres, validateRectangle } from "./geometry";
+import {
+  areas,
+  MIN_SIZE,
+  MAX_SIZE,
+  footprintVertices,
+  GRID_PRESETS,
+  metres,
+  validateFootprint,
+} from "./geometry";
 import { commit, initialHistory, redo, undo, type History } from "./history";
 import { type Architecture, type Project, type Section } from "./model";
+import {
+  applyPreset,
+  scaleFootprint,
+  shapeName,
+  withVertices,
+  type Part,
+} from "./footprint";
+import {
+  dragVertex,
+  edgeLength,
+  setEdgeLength,
+  MIN_EDGE,
+  SHAPES,
+  type Shape,
+} from "./polygon";
 import { saveProject } from "./storage";
 import Editor from "./Editor";
 import { Brand, downloadProject, Modal, NumericField } from "./components";
@@ -25,6 +48,8 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     [leaveError, setLeaveError] = useState(false);
   const [tool, setTool] = useState<"edit" | "pan">("edit");
   const [selected, setSelected] = useState(true);
+  const [part, setPart] = useState<Part>(null);
+  const [geometryError, setGeometryError] = useState("");
   const [grid, setGrid] = useState<number | null>(500),
     [snapEnabled, setSnap] = useState(true),
     [gridVisible, setGridVisible] = useState(true);
@@ -32,6 +57,9 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     [inspectorOpen, setInspectorOpen] = useState(true);
   const section = current.building.sections[0],
     area = areas(section);
+  const vertices = footprintVertices(section);
+  const activePart =
+    selected && part && part.index < vertices.length ? part : null;
   const persist = useCallback(
     async (p: Project) => {
       setSaveState("Saving");
@@ -93,14 +121,25 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     });
   }
   function changeSection(s: Section) {
+    const error = validateFootprint(s);
+    setGeometryError(error || "");
+    if (error) return;
     edit({ ...current, building: { ...current.building, sections: [s] } });
   }
   function dimension(
     key: "length" | "width" | "wallThickness" | "orientation" | "floorCount",
     value: number,
   ) {
-    const next = { ...section, [key]: value };
-    const error = validateRectangle(next);
+    if (
+      (key === "length" || key === "width") &&
+      (!Number.isSafeInteger(value) || value < MIN_SIZE || value > MAX_SIZE)
+    )
+      return "Length and width must be between 0.5 and 500 m.";
+    const next =
+      key === "length" || key === "width"
+        ? scaleFootprint(section, key, value)
+        : { ...section, [key]: value };
+    const error = validateFootprint(next);
     if (error) return error;
     if (![1, 2, 3, 4].includes(next.floorCount)) return "Choose 1–4 floors.";
     changeSection(next);
@@ -111,7 +150,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
         ...section,
         position: { ...section.position, [key]: value },
       },
-      error = validateRectangle(next);
+      error = validateFootprint(next);
     if (error) return error;
     changeSection(next);
     return null;
@@ -190,7 +229,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-01</span>
+        <span className="version">BG-02A</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -306,7 +345,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
               >
                 <span>▱</span>
                 <span>
-                  Rectangular section
+                  {shapeName(section)} footprint
                   <small>
                     {metres(section.length)} × {metres(section.width)} m
                   </small>
@@ -337,6 +376,8 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             tool={tool}
             selected={selected}
             onSelect={setSelected}
+            part={activePart}
+            onPartSelect={setPart}
           />
           <footer className="editor-status">
             <span>
@@ -357,7 +398,9 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           >
             <span>
               INSPECTOR{" "}
-              <small>{selected ? "Rectangular section" : "Project"}</small>
+              <small>
+                {selected ? `${shapeName(section)} footprint` : "Project"}
+              </small>
             </span>
             <span>{inspectorOpen ? "−" : "+"}</span>
           </button>
@@ -366,8 +409,46 @@ export default function Studio({ project, onBack, onSaved }: Props) {
               {selected ? (
                 <>
                   <div className="inspector-section">
+                    <label className="field">
+                      <span>Footprint Shape</span>
+                      <select
+                        aria-label="Footprint Shape"
+                        value={shapeName(section)}
+                        onChange={(e) => {
+                          const next = applyPreset(
+                              section,
+                              e.target.value as Shape,
+                            ),
+                            error = validateFootprint(next);
+                          setGeometryError(error || "");
+                          if (!error) {
+                            changeSection(next);
+                            setPart(null);
+                            setSelected(true);
+                          }
+                        }}
+                      >
+                        {SHAPES.map((shape) => (
+                          <option key={shape}>{shape}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="field-hint">
+                      Presets replace the outline. Undo restores the previous
+                      footprint.
+                    </p>
+                    {geometryError && (
+                      <p className="field-error" role="alert">
+                        {geometryError}
+                      </p>
+                    )}
                     <h2>
-                      Dimensions <span>EXTERIOR</span>
+                      Dimensions{" "}
+                      <span>
+                        {section.kind === "polygon"
+                          ? "OUTER EXTENTS"
+                          : "EXTERIOR"}
+                      </span>
                     </h2>
                     <div className="field-row">
                       <NumericField
@@ -410,6 +491,92 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                       </div>
                     </div>
                   </div>
+                  <div className="inspector-section footprint-parts">
+                    <h2>Vertices & edges</h2>
+                    <label className="field">
+                      <span>Select a part</span>
+                      <select
+                        aria-label="Select footprint part"
+                        value={
+                          activePart
+                            ? `${activePart.kind}:${activePart.index}`
+                            : ""
+                        }
+                        onChange={(e) => {
+                          if (!e.target.value) setPart(null);
+                          else {
+                            const [kind, index] = e.target.value.split(":");
+                            setPart({
+                              kind: kind as "vertex" | "edge",
+                              index: Number(index),
+                            });
+                          }
+                        }}
+                      >
+                        <option value="">Whole footprint</option>
+                        {vertices.map((_, i) => (
+                          <option key={`e${i}`} value={`edge:${i}`}>
+                            Edge {i + 1} · {metres(edgeLength(vertices, i))} m
+                          </option>
+                        ))}
+                        {vertices.map((_, i) => (
+                          <option key={`v${i}`} value={`vertex:${i}`}>
+                            Vertex {i + 1}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {activePart?.kind === "edge" && (
+                      <NumericField
+                        key={`e${activePart.index}`}
+                        label={`Edge ${activePart.index + 1} length`}
+                        value={edgeLength(vertices, activePart.index)}
+                        onCommit={(value) => {
+                          if (value < MIN_EDGE)
+                            return "Edge length must be at least 0.1 m.";
+                          const next = withVertices(
+                              section,
+                              setEdgeLength(vertices, activePart.index, value),
+                            ),
+                            error = validateFootprint(next);
+                          if (error) return error;
+                          changeSection(next);
+                          return null;
+                        }}
+                      />
+                    )}
+                    {activePart?.kind === "vertex" && (
+                      <div className="field-row">
+                        {(["x", "y"] as const).map((axis) => (
+                          <NumericField
+                            key={`${activePart.index}${axis}`}
+                            label={`Vertex ${activePart.index + 1} ${axis.toUpperCase()}`}
+                            value={vertices[activePart.index][axis]}
+                            onCommit={(value) => {
+                              const point = {
+                                  ...vertices[activePart.index],
+                                  [axis]: value,
+                                },
+                                next = withVertices(
+                                  section,
+                                  dragVertex(vertices, activePart.index, point),
+                                ),
+                                error = validateFootprint(next);
+                              if (error) return error;
+                              changeSection(next);
+                              return null;
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <p className="field-hint">
+                      Drag an edge perpendicular to itself. Moving a vertex
+                      adjusts its two neighbours to keep right angles. Exact
+                      edge length keeps its start fixed and moves the following
+                      edge. Vertex coordinates are local, before rotation.
+                    </p>
+                  </div>
                   <div className="inspector-section">
                     <h2>Placement</h2>
                     <div className="field-row">
@@ -445,8 +612,8 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                       />
                     </div>
                     <p className="field-hint">
-                      X/Y: plan position at the section’s first corner. Z:
-                      elevation. Floors (1–4) are metadata only.
+                      X/Y: local-origin position in the plan. Z: elevation.
+                      Floors (1–4) are metadata only.
                     </p>
                   </div>
                 </>

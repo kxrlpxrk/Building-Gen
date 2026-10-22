@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "legacy-project-id",
+  "name": "BG-01 legacy hall",
+  "architecture": "Mixed",
+  "createdAt": "2026-10-22T12:00:00.000Z",
+  "updatedAt": "2026-10-22T13:00:00.000Z",
+  "building": {
+    "id": "legacy-building-id",
+    "sections": [
+      {
+        "id": "legacy-section-id",
+        "kind": "rectangle",
+        "position": { "x": -1251, "y": 2837, "z": 950 },
+        "length": 13247,
+        "width": 8751,
+        "wallThickness": 251,
+        "orientation": 37.5,
+        "floorCount": 4
+      }
+    ]
+  }
+}
