@@ -43,7 +43,7 @@ describe("IndexedDB project persistence", () => {
 });
 
 import legacyProject from "../tests/fixtures/bg01-project.json";
-import expectedV6 from "../tests/fixtures/bg01-project-v6.json";
+import expectedV6 from "../tests/fixtures/bg01-project-v7.json";
 import { applyPreset } from "./footprint";
 import { validateProject } from "./model";
 it("reads BG-01 from the original database and upgrades only when saved", async () => {
@@ -116,7 +116,7 @@ it("loads BG-02A from existing IndexedDB without rewriting it or unsupported nei
     tx.onabort = () => reject(tx.error);
   });
   const migrated = await loadProject(legacyV2.id);
-  expect(migrated).toMatchObject({ ...legacyV2, schemaVersion: 6 });
+  expect(migrated).toMatchObject({ ...legacyV2, schemaVersion: 7 });
   expect(await read(legacyV2.id)).toEqual(legacyV2);
   expect((await listProjects()).invalidCount).toBe(1);
   await saveProject(migrated);

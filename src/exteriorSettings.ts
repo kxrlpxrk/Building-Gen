@@ -1,6 +1,44 @@
 import type { Architecture, Section } from "./model";
 export const ROOF_STYLES = ["Gable", "Hip", "Shed"] as const;
+export const STYLE_PRESETS = [
+  "Rustic Norse",
+  "Norse Chieftain's Hall",
+  "Medieval Timber Cottage",
+  "Medieval Manor",
+  "Mixed Architectural Fantasy",
+] as const;
+export const COVERINGS = ["Wood shingles", "Slate", "Clay tiles"] as const;
+export const WINDOW_STYLES = [
+  "Timber shuttered",
+  "Medieval glazed",
+  "Narrow slit",
+] as const;
+export type ExteriorWindow = {
+  id: string;
+  edge: number;
+  offset: number;
+  width: number;
+  height: number;
+  sill: number;
+  style: (typeof WINDOW_STYLES)[number];
+  shutters: boolean;
+  glazing: boolean;
+};
+export type ExteriorFeature = {
+  id: string;
+  kind: "Chimney" | "Gable ornament" | "Entrance canopy";
+  x: number;
+  y: number;
+  height: number;
+  doorId: string | null;
+  finish: "Stone" | "Brick";
+};
 export type ExteriorSettings = {
+  stylePreset: (typeof STYLE_PRESETS)[number];
+  detailLevel: "Low" | "Standard" | "High";
+  covering: (typeof COVERINGS)[number];
+  windows: ExteriorWindow[];
+  features: ExteriorFeature[];
   wallHeight: number;
   roofPitch: number;
   roofStyle: (typeof ROOF_STYLES)[number];
@@ -14,6 +52,11 @@ export function exteriorDefaults(
 ): ExteriorSettings {
   return {
     material,
+    stylePreset: defaultStyle(material),
+    detailLevel: "Standard",
+    covering: material === "Medieval" ? "Slate" : "Wood shingles",
+    windows: [],
+    features: [],
     wallHeight:
       type === "Tower Footprint"
         ? 6500
@@ -31,7 +74,23 @@ export function exteriorDefaults(
     overhang: material === "Norse" ? 450 : 350,
   };
 }
-export function readExterior(value: unknown): ExteriorSettings {
+export const defaultStyle = (
+  material: Architecture,
+): ExteriorSettings["stylePreset"] =>
+  material === "Norse"
+    ? "Rustic Norse"
+    : material === "Medieval"
+      ? "Medieval Timber Cottage"
+      : "Mixed Architectural Fantasy";
+export const styleMaterial = (
+  style: ExteriorSettings["stylePreset"],
+): Architecture =>
+  style.startsWith("Norse") || style === "Rustic Norse"
+    ? "Norse"
+    : style.startsWith("Medieval")
+      ? "Medieval"
+      : "Mixed";
+export function readExterior(value: unknown, legacy = false): ExteriorSettings {
   const v = value as ExteriorSettings;
   if (
     !v ||
@@ -52,7 +111,91 @@ export function readExterior(value: unknown): ExteriorSettings {
     throw new Error(
       "Invalid exterior settings: eaves 2.4–12 m, pitch 10–65° (0.1° precision), overhang 0–1 m and a supported roof/material preset are required.",
     );
+  if (legacy && ((v.windows?.length ?? 0) > 0 || (v.features?.length ?? 0) > 0))
+    throw new Error(
+      "Exterior windows/features require schemaVersion 7; this legacy record was not reset.",
+    );
+  const detail = legacy
+    ? {
+        stylePreset: defaultStyle(v.material),
+        detailLevel: "Standard",
+        covering: v.material === "Medieval" ? "Slate" : "Wood shingles",
+        windows: [],
+        features: [],
+      }
+    : v;
+  if (
+    !STYLE_PRESETS.includes(
+      detail.stylePreset as ExteriorSettings["stylePreset"],
+    ) ||
+    !["Low", "Standard", "High"].includes(detail.detailLevel) ||
+    !COVERINGS.includes(detail.covering as ExteriorSettings["covering"]) ||
+    !Array.isArray(detail.windows) ||
+    detail.windows.length > 32 ||
+    !Array.isArray(detail.features) ||
+    detail.features.length > 8
+  )
+    throw new Error(
+      "Invalid architectural style, detail level, covering or exterior feature collection.",
+    );
+  const id = (s: unknown) =>
+    typeof s === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(s);
+  const integer = (n: unknown) => Number.isSafeInteger(n);
+  const windows = detail.windows.map((w: ExteriorWindow) => {
+    if (
+      !w ||
+      !id(w.id) ||
+      !integer(w.edge) ||
+      w.edge < 0 ||
+      !integer(w.offset) ||
+      !integer(w.width) ||
+      !integer(w.height) ||
+      !integer(w.sill) ||
+      !WINDOW_STYLES.includes(w.style) ||
+      typeof w.shutters !== "boolean" ||
+      typeof w.glazing !== "boolean"
+    )
+      throw new Error("Invalid exterior window record.");
+    return {
+      id: w.id,
+      edge: w.edge,
+      offset: w.offset,
+      width: w.width,
+      height: w.height,
+      sill: w.sill,
+      style: w.style,
+      shutters: w.shutters,
+      glazing: w.glazing,
+    };
+  });
+  const features = detail.features.map((f: ExteriorFeature) => {
+    if (
+      !f ||
+      !id(f.id) ||
+      !["Chimney", "Gable ornament", "Entrance canopy"].includes(f.kind) ||
+      !integer(f.x) ||
+      !integer(f.y) ||
+      !integer(f.height) ||
+      !(f.doorId === null || id(f.doorId)) ||
+      !["Stone", "Brick"].includes(f.finish)
+    )
+      throw new Error("Invalid architectural feature record.");
+    return {
+      id: f.id,
+      kind: f.kind,
+      x: f.x,
+      y: f.y,
+      height: f.height,
+      doorId: f.doorId,
+      finish: f.finish,
+    };
+  });
   return {
+    stylePreset: detail.stylePreset as ExteriorSettings["stylePreset"],
+    detailLevel: detail.detailLevel as ExteriorSettings["detailLevel"],
+    covering: detail.covering as ExteriorSettings["covering"],
+    windows,
+    features,
     wallHeight: v.wallHeight,
     roofPitch: v.roofPitch,
     roofStyle: v.roofStyle,

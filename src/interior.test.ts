@@ -244,7 +244,7 @@ describe("schema v4 and interior persistence", () => {
       const before = structuredClone(source),
         p = validateProject(source);
       expect(source).toEqual(before);
-      expect(p.schemaVersion).toBe(6);
+      expect(p.schemaVersion).toBe(7);
       expect(p.building.interior).toEqual(emptyInterior());
       expect(p.building.sections).toMatchObject(source.building.sections);
       expect(p.name).toBe(source.name);

@@ -124,7 +124,7 @@ test("draw, assign rooms, edit exact walls, reject invalid exterior edits, undo 
   await numeric(page, "Interior building rotation", "37.5");
   await saved(page);
   const before = (await stored(page))[0];
-  expect(before.schemaVersion).toBe(6);
+  expect(before.schemaVersion).toBe(7);
   expect(before.building.interior.partitions[0].a.x).toBe(7000);
   expect(
     before.building.interior.rooms.some(

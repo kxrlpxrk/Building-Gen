@@ -232,7 +232,7 @@ test("create new preserves a locked named interior and doors; generated sections
     generated = rows.find((p) => p.name === "Generated workshop")!;
   expect(rows).toHaveLength(2);
   expect(rows.find((p) => p.id === original.id)).toEqual(original);
-  expect(generated.schemaVersion).toBe(6);
+  expect(generated.schemaVersion).toBe(7);
   expect(generated.building.sections).toHaveLength(2);
   expect(generated.building.sections[1].type).toBe("Storage");
   expect(generated.building.interior).toEqual({ partitions: [], rooms: [] });

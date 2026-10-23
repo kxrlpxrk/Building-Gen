@@ -6,14 +6,20 @@ export default function ExteriorViewer({
   building,
   selectedId,
   onSelect,
+  selectedWindowId,
+  onWindow,
 }: {
   building: Building;
   selectedId: string;
   onSelect: (id: string) => void;
+  selectedWindowId: string;
+  onWindow: (sectionId: string, id: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null),
     scene = useRef<ExteriorScene | null>(null),
-    pick = useRef(onSelect);
+    pick = useRef(onSelect),
+    windowPick = useRef(onWindow);
+  windowPick.current = onWindow;
   pick.current = onSelect;
   const [error, setError] = useState(""),
     [retry, setRetry] = useState(0),
@@ -36,6 +42,7 @@ export default function ExteriorViewer({
         host.current!,
         (id) => pick.current(id),
         setError,
+        (sectionId, id) => windowPick.current(sectionId, id),
       );
       scene.current = view;
       setReady(true);
@@ -60,8 +67,8 @@ export default function ExteriorViewer({
       }
   }, [geometry, building, retry, ready]);
   useEffect(
-    () => scene.current?.select(selectedId),
-    [selectedId, geometry, ready, retry],
+    () => scene.current?.select(selectedId, selectedWindowId),
+    [selectedId, selectedWindowId, geometry, ready, retry],
   );
   useEffect(() => scene.current?.projection(ortho), [ortho, ready, retry]);
   useEffect(() => scene.current?.pan(pan), [pan, ready, retry]);

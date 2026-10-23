@@ -1,3 +1,4 @@
+import { validateExterior } from "./exteriorValidation";
 import {
   exteriorDefaults,
   readExterior,
@@ -57,7 +58,7 @@ export type Building = {
   openings: Opening[];
 };
 export type Project = {
-  schemaVersion: 6;
+  schemaVersion: 7;
   id: string;
   name: string;
   architecture: Architecture;
@@ -69,7 +70,7 @@ export function createProject(name = "Untitled building"): Project {
   const now = new Date().toISOString(),
     sectionId = crypto.randomUUID();
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     id: crypto.randomUUID(),
     name,
     architecture: "Norse",
@@ -171,7 +172,7 @@ function section(
     floorCount: value.floorCount as number,
     exterior:
       version >= 6
-        ? readExterior(value.exterior)
+        ? readExterior(value.exterior, version === 6)
         : exteriorDefaults(
             architecture,
             version >= 3 ? (value.type as SectionType) : "Custom",
@@ -298,10 +299,10 @@ function readOpenings(value: unknown): Opening[] {
 export function validateProject(value: unknown): Project {
   if (
     !object(value) ||
-    ![1, 2, 3, 4, 5, 6].includes(value.schemaVersion as number)
+    ![1, 2, 3, 4, 5, 6, 7].includes(value.schemaVersion as number)
   )
     throw new Error(
-      "Unsupported project schema. BG-04C accepts schemaVersion 1, 2, 3, 4, 5 or 6.",
+      "Unsupported project schema. BG-04D accepts schemaVersion 1–7.",
     );
   const version = value.schemaVersion as number;
   if (
@@ -321,6 +322,18 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error(
       "A building requires 1–12 sections (legacy schemas require exactly one).",
+    );
+  if (
+    version < 7 &&
+    (value.building.sections as unknown[]).some((s) => {
+      if (!object(s) || !object(s.exterior)) return false;
+      return [s.exterior.windows, s.exterior.features].some(
+        (v) => v !== undefined && (!Array.isArray(v) || v.length > 0),
+      );
+    })
+  )
+    throw new Error(
+      "Exterior windows/features require schemaVersion 7; unsupported legacy data was not reset.",
     );
   const source = value.building,
     sections = (source.sections as unknown[]).map((s, i) =>
@@ -401,6 +414,13 @@ export function validateProject(value: unknown): Project {
     throw new Error(
       "Legacy schema cannot contain door/opening data. Use schemaVersion 5.",
     );
+  if (
+    version < 7 &&
+    sections.some(
+      (s) => s.exterior.windows.length || s.exterior.features.length,
+    )
+  )
+    throw new Error("Exterior windows/features require schemaVersion 7.");
   const building: Building = {
     id: source.id as string,
     mainSectionId,
@@ -411,12 +431,17 @@ export function validateProject(value: unknown): Project {
     openings: version >= 5 ? readOpenings(source.openings) : [],
   };
   validateConnections(building);
+  validateExterior(building);
   validateOpenings(openingContext(building), building.openings);
   validateInterior(combinedGeometry(building).inner, building.interior);
   const interiorIds = [
     ...building.interior.partitions,
     ...building.interior.rooms,
     ...building.openings,
+    ...building.sections.flatMap((s) => [
+      ...s.exterior.windows,
+      ...s.exterior.features,
+    ]),
   ].map((v) => v.id);
   if (
     new Set([...ids, ...interiorIds]).size !==
@@ -424,7 +449,7 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error("All project, interior and opening IDs must be distinct.");
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     id: value.id,
     name: value.name.trim(),
     architecture: value.architecture as Architecture,
@@ -471,9 +496,27 @@ export function duplicateProject(
   const partitionIds = new Map(
     copy.building.interior.partitions.map((w) => [w.id, crypto.randomUUID()]),
   );
+  const doorIds = new Map(
+    copy.building.openings.map((o) => [o.id, crypto.randomUUID()]),
+  );
+  copy.building.sections = copy.building.sections.map((s) => ({
+    ...s,
+    exterior: {
+      ...s.exterior,
+      windows: s.exterior.windows.map((w) => ({
+        ...w,
+        id: crypto.randomUUID(),
+      })),
+      features: s.exterior.features.map((f) => ({
+        ...f,
+        id: crypto.randomUUID(),
+        doorId: f.doorId ? doorIds.get(f.doorId)! : null,
+      })),
+    },
+  }));
   copy.building.openings = copy.building.openings.map((o) => ({
     ...o,
-    id: crypto.randomUUID(),
+    id: doorIds.get(o.id)!,
     host:
       o.host.kind === "partition"
         ? { ...o.host, partitionId: partitionIds.get(o.host.partitionId)! }

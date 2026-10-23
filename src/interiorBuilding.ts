@@ -1,3 +1,4 @@
+import { validateExterior } from "./exteriorValidation";
 import { validateOpenings, reanchorOpenings } from "./openings";
 import {
   canonicalVertices,
@@ -69,5 +70,6 @@ export function changePartitions(
       next.openings,
     );
   validateOpenings(openingContext(next), next.openings);
+  validateExterior(next);
   return next;
 }

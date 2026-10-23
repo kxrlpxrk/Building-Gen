@@ -1,3 +1,4 @@
+import { validateExterior, reanchorExterior } from "./exteriorValidation";
 import {
   validateOpenings,
   reanchorOpenings,
@@ -210,6 +211,16 @@ export function prepareBuilding(b: Building, previous?: Building): Building {
             `“${old.name}” is locked. Unlock it before changing or removing it.`,
           );
       }
+  if (previous)
+    for (const old of previous.sections) {
+      if (
+        !b.sections.some((s) => s.id === old.id) &&
+        (old.exterior.windows.length || old.exterior.features.length)
+      )
+        throw new Error(
+          "Remove this section’s exterior windows/features explicitly before removing the section. No exterior data was deleted.",
+        );
+    }
   const geometry = combinedGeometry(b);
   const connections = geometry.contacts.map((c) => ({
     ...c,
@@ -234,7 +245,7 @@ export function prepareBuilding(b: Building, previous?: Building): Building {
           )
         : b.interior;
     validateInterior(geometry.inner, interior);
-    const next = { ...b, connections, interior };
+    let next = { ...b, connections, interior };
     if (previous && next.openings.length)
       next.openings = reanchorOpenings(
         openingContext(previous),
@@ -242,6 +253,8 @@ export function prepareBuilding(b: Building, previous?: Building): Building {
         next.openings,
       );
     validateOpenings(openingContext(next, geometry), next.openings);
+    if (previous) next = reanchorExterior(previous, next);
+    validateExterior(next);
     return next;
   } catch (e) {
     throw new Error(

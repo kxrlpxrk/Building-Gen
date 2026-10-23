@@ -1,7 +1,12 @@
+import ExteriorDetails from "./ExteriorDetails";
 import type { Building, Section, Architecture } from "./model";
 import { NumericField } from "./components";
 import {
   exteriorDefaults,
+  defaultStyle,
+  styleMaterial,
+  STYLE_PRESETS,
+  COVERINGS,
   readExterior,
   ROOF_STYLES,
   type ExteriorSettings,
@@ -13,11 +18,17 @@ export default function ExteriorInspector({
   section,
   onSelect,
   onChange,
+  onPreview,
+  selectedWindowId,
+  onWindow,
 }: {
   building: Building;
   section: Section;
   onSelect: (id: string) => void;
   onChange: (s: Section) => string | null;
+  onPreview: (b: Building | null) => void;
+  selectedWindowId: string;
+  onWindow: (id: string) => void;
 }) {
   const analysis = useMemo(() => {
     try {
@@ -78,6 +89,64 @@ export default function ExteriorInspector({
       </section>
       <fieldset disabled={section.locked} className="section-fields">
         <section className="inspector-section">
+          <label className="field">
+            <span>Architectural style</span>
+            <select
+              aria-label="Architectural style"
+              value={ex.stylePreset}
+              onChange={(e) => {
+                const stylePreset = e.target
+                  .value as ExteriorSettings["stylePreset"];
+                edit({
+                  stylePreset,
+                  material: styleMaterial(stylePreset),
+                  covering:
+                    styleMaterial(stylePreset) === "Medieval"
+                      ? stylePreset === "Medieval Manor"
+                        ? "Slate"
+                        : "Clay tiles"
+                      : "Wood shingles",
+                });
+              }}
+            >
+              {STYLE_PRESETS.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Detail level</span>
+            <select
+              aria-label="Detail level"
+              value={ex.detailLevel}
+              onChange={(e) =>
+                edit({
+                  detailLevel: e.target
+                    .value as ExteriorSettings["detailLevel"],
+                })
+              }
+            >
+              {["Low", "Standard", "High"].map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Roof covering</span>
+            <select
+              aria-label="Roof covering"
+              value={ex.covering}
+              onChange={(e) =>
+                edit({
+                  covering: e.target.value as ExteriorSettings["covering"],
+                })
+              }
+            >
+              {COVERINGS.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
           <NumericField
             label="Eaves height"
             value={ex.wallHeight}
@@ -116,7 +185,10 @@ export default function ExteriorInspector({
               aria-label="Exterior material preset"
               value={ex.material}
               onChange={(e) =>
-                edit({ material: e.target.value as Architecture })
+                edit({
+                  material: e.target.value as Architecture,
+                  stylePreset: defaultStyle(e.target.value as Architecture),
+                })
               }
             >
               {["Norse", "Medieval", "Mixed"].map((s) => (
@@ -128,11 +200,15 @@ export default function ExteriorInspector({
             onClick={() =>
               onChange({
                 ...section,
-                exterior: exteriorDefaults(
-                  ex.material,
-                  section.type,
-                  section.id === building.mainSectionId,
-                ),
+                exterior: {
+                  ...exteriorDefaults(
+                    ex.material,
+                    section.type,
+                    section.id === building.mainSectionId,
+                  ),
+                  windows: ex.windows,
+                  features: ex.features,
+                },
               })
             }
           >
@@ -149,6 +225,15 @@ export default function ExteriorInspector({
           </p>
         </section>
       </fieldset>
+      <ExteriorDetails
+        key={section.id}
+        building={building}
+        section={section}
+        onChange={onChange}
+        onPreview={onPreview}
+        selected={selectedWindowId}
+        onWindow={onWindow}
+      />
       <section className="inspector-section">
         <h2>Roof support & limitations</h2>
         {analysis.model?.warnings.map((s) => (
@@ -164,9 +249,10 @@ export default function ExteriorInspector({
         )}
         {analysis.error && <p role="alert">{analysis.error}</p>}
         <p>
-          Facade framing and cladding are decorative. No functional windows are
-          invented. Existing exterior openings have real wall gaps, using a 2.1
-          m door height; interior doors stay inside. No roof-engineering or
+          Facade framing and cladding are decorative. Windows are explicit
+          modelled apertures; no windows or chimneys are added automatically.
+          Existing exterior openings have real wall gaps, using a 2.1 m door
+          height; interior doors stay inside. No roof-engineering or
           building-code certification.
         </p>
       </section>

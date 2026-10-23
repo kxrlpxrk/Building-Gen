@@ -32,7 +32,12 @@ import {
   validateFootprint,
 } from "./geometry";
 import { commit, initialHistory, redo, undo, type History } from "./history";
-import { type Architecture, type Project, type Section } from "./model";
+import {
+  type Architecture,
+  type Project,
+  type Section,
+  type Building,
+} from "./model";
 import {
   applyPreset,
   scaleFootprint,
@@ -119,6 +124,8 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
   const [mode, setMode] = useState<"footprint" | "interior" | "exterior">(
     "footprint",
   );
+  const [selectedExteriorWindow, setSelectedExteriorWindow] = useState("");
+  const [exteriorPreview, setExteriorPreview] = useState<Building | null>(null);
   const [interiorTool, setInteriorTool] = useState<InteriorTool>("wall");
   const [interiorSelection, setInteriorSelection] =
     useState<InteriorSelection>(null);
@@ -499,7 +506,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-04C</span>
+        <span className="version">BG-04D</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -820,9 +827,14 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                 }
               >
                 <ExteriorViewer
-                  building={current.building}
+                  building={exteriorPreview ?? current.building}
                   selectedId={section.id}
+                  selectedWindowId={selectedExteriorWindow}
                   onSelect={selectSection}
+                  onWindow={(sectionId, id) => {
+                    selectSection(sectionId);
+                    setSelectedExteriorWindow(id);
+                  }}
                 />
               </Suspense>
             </ExteriorBoundary>
@@ -958,6 +970,9 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                   section={section}
                   onSelect={selectSection}
                   onChange={changeSection}
+                  onPreview={setExteriorPreview}
+                  selectedWindowId={selectedExteriorWindow}
+                  onWindow={setSelectedExteriorWindow}
                 />
               ) : mode === "interior" ? (
                 generatorOpen ? (

@@ -1,37 +1,76 @@
+import { openingContext } from "./assembly";
+import { openingGeometry } from "./openings";
+import { windowOpening } from "./exteriorValidation";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import type { ExteriorSettings } from "./exteriorSettings";
 import type { Building } from "./model";
 import type { ExteriorModel, Surface } from "./exteriorGeometry";
 /** Isolated engine conversion: model XY horizontal / Z up (mm) → Three XZ / Y up (m). */
 export const enginePoint = (x: number, y: number, z: number) =>
   new THREE.Vector3(x / 1000, z / 1000, -y / 1000);
 const palettes = {
-  Norse: {
+  "Rustic Norse": {
+    roofDetail: "#38332a",
     wall: "#79563a",
     roof: "#302d29",
     stone: "#77766b",
     timber: "#38291e",
     door: "#60432e",
+    detail: "#60422c",
+    glass: "#607b78",
+    brick: "#895843",
   },
-  Medieval: {
+  "Norse Chieftain's Hall": {
+    roofDetail: "#302c23",
+    wall: "#573e2b",
+    roof: "#252923",
+    stone: "#68675c",
+    timber: "#2c231b",
+    door: "#705438",
+    detail: "#987044",
+    glass: "#536a65",
+    brick: "#79513f",
+  },
+  "Medieval Timber Cottage": {
+    roofDetail: "#564438",
     wall: "#ded2ad",
     roof: "#4d5353",
     stone: "#858071",
     timber: "#493528",
     door: "#705039",
+    detail: "#76523a",
+    glass: "#72918b",
+    brick: "#985e48",
   },
-  Mixed: {
+  "Medieval Manor": {
+    roofDetail: "#343d3f",
+    wall: "#e3d9bf",
+    roof: "#424d50",
+    stone: "#918d7e",
+    timber: "#312a24",
+    door: "#584330",
+    detail: "#574333",
+    glass: "#6b8886",
+    brick: "#905b48",
+  },
+  "Mixed Architectural Fantasy": {
+    roofDetail: "#3c3026",
     wall: "#bca780",
     roof: "#4c3c30",
     stone: "#7e7b70",
     timber: "#453225",
     door: "#624832",
+    detail: "#785d3e",
+    glass: "#647d75",
+    brick: "#875842",
   },
 };
 export function createExteriorScene(
   host: HTMLDivElement,
   onPick: (id: string) => void,
   onFailure: (text: string) => void,
+  onWindow: (sectionId: string, id: string) => void,
 ) {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -76,6 +115,9 @@ export function createExteriorScene(
     lost = false,
     frame = 0,
     rebuilds = 0;
+  let activeBuilding: Building | null = null;
+  let selectedWindow = "";
+  let windowHelper: THREE.Box3Helper | null = null;
   let initialized = false;
   let previousCenter: THREE.Vector3 | null = null;
   const controls = new OrbitControls<
@@ -90,11 +132,22 @@ export function createExteriorScene(
   const groups = new Map<string, { key: string; group: THREE.Group }>(),
     materials = new Map<string, THREE.MeshStandardMaterial>(),
     textures: THREE.Texture[] = [];
-  function texture(style: keyof typeof palettes, kind: Surface) {
+  function texture(
+    style: keyof typeof palettes,
+    kind: Surface,
+    covering: ExteriorSettings["covering"],
+  ) {
     const c = document.createElement("canvas");
     c.width = c.height = 128;
     const ctx = c.getContext("2d")!;
-    ctx.fillStyle = palettes[style][kind];
+    ctx.fillStyle =
+      kind === "roof"
+        ? covering === "Clay tiles"
+          ? "#795441"
+          : covering === "Slate"
+            ? "#454e50"
+            : palettes[style][kind]
+        : palettes[style][kind];
     ctx.fillRect(0, 0, 128, 128);
     let seed = 17;
     const rand = () => {
@@ -112,14 +165,19 @@ export function createExteriorScene(
           ctx.fillRect(x, y, 1, 16);
         }
       }
-    else if (kind === "wall" && style === "Norse")
+    else if (
+      kind === "wall" &&
+      (style === "Rustic Norse" || style === "Norse Chieftain's Hall")
+    )
       for (let y = 0; y < 128; y += 16) {
         ctx.fillStyle = "rgba(0,0,0,.24)";
-        ctx.fillRect(0, y, 128, 2);
+        if (style === "Rustic Norse") ctx.fillRect(0, y, 128, 2);
+        else ctx.fillRect(y, 0, 2, 128);
         ctx.fillStyle = "rgba(220,190,130,.1)";
-        ctx.fillRect(0, y + 3, 128, 1);
+        if (style === "Rustic Norse") ctx.fillRect(0, y + 3, 128, 1);
+        else ctx.fillRect(y + 3, 0, 1, 128);
       }
-    else if (kind === "stone")
+    else if (kind === "stone" || kind === "brick")
       for (let y = 0; y < 128; y += 32) {
         ctx.fillStyle = "rgba(40,42,35,.25)";
         ctx.fillRect(0, y, 128, 3);
@@ -138,13 +196,18 @@ export function createExteriorScene(
     textures.push(t);
     return t;
   }
-  function material(style: keyof typeof palettes, kind: Surface) {
-    const key = style + kind;
+  function material(
+    style: keyof typeof palettes,
+    kind: Surface,
+    covering: ExteriorSettings["covering"],
+  ) {
+    const key = style + kind + covering;
     let m = materials.get(key);
     if (!m) {
       m = new THREE.MeshStandardMaterial({
-        map: texture(style, kind),
-        roughness: 0.94,
+        map: texture(style, kind, covering),
+        metalness: kind === "glass" ? 0.25 : 0,
+        roughness: kind === "glass" ? 0.2 : 0.94,
         side: THREE.DoubleSide,
       });
       materials.set(key, m);
@@ -183,7 +246,16 @@ export function createExteriorScene(
       frame = 0;
       if (disposed || lost || !visible || document.hidden) return;
       try {
+        // Small merged decorative buffers disappear at distance; architectural
+        // walls, openings, roofs and framing remain visible at every distance.
+        const near =
+          camera.position.distanceTo(controls.target) / camera.zoom <
+          extent * 3;
+        root.traverse((o) => {
+          if (o.userData.fineDetail) o.visible = near;
+        });
         renderer.render(scene, camera);
+        host.dataset.drawCalls = String(renderer.info.render.calls);
         host.dataset.renderCount = String(
           Number(host.dataset.renderCount || 0) + 1,
         );
@@ -217,6 +289,32 @@ export function createExteriorScene(
     invalidate();
   }
   function highlight() {
+    if (windowHelper) {
+      root.remove(windowHelper);
+      windowHelper.geometry.dispose();
+      (windowHelper.material as THREE.Material).dispose();
+      windowHelper = null;
+    }
+    if (activeBuilding && selectedWindow) {
+      const section = activeBuilding.sections.find((s) => s.id === selected),
+        w = section?.exterior.windows.find((w) => w.id === selectedWindow);
+      if (section && w) {
+        const g = openingGeometry(
+          openingContext(activeBuilding),
+          windowOpening(section, w),
+        );
+        const box = new THREE.Box3().setFromPoints([
+          enginePoint(g.gap.x - 80, g.gap.y - 80, w.sill - 80),
+          enginePoint(
+            g.gap.x + g.gap.width + 80,
+            g.gap.y + g.gap.height + 80,
+            w.sill + w.height + 80,
+          ),
+        ]);
+        windowHelper = new THREE.Box3Helper(box, "#e6b85e");
+        root.add(windowHelper);
+      }
+    }
     if (helper) {
       scene.remove(helper);
       helper.geometry.dispose();
@@ -264,6 +362,7 @@ export function createExteriorScene(
     invalidate();
   }
   function update(model: ExteriorModel, b: Building) {
+    activeBuilding = b;
     const wanted = new Set(model.sections.map((s) => s.id));
     for (const [id, item] of groups)
       if (!wanted.has(id)) {
@@ -284,9 +383,10 @@ export function createExteriorScene(
         if (!points.length) continue;
         const mesh = new THREE.Mesh(
           geometry(points, kind),
-          material(s.material, kind),
+          material(s.stylePreset, kind, s.covering),
         );
         mesh.userData.sectionId = s.id;
+        mesh.userData.fineDetail = kind === "detail" || kind === "roofDetail";
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         group.add(mesh);
@@ -385,7 +485,45 @@ export function createExteriorScene(
       const hit = raycaster
         .intersectObject(root, true)
         .find((o) => o.object.userData.sectionId);
-      if (hit) onPick(hit.object.userData.sectionId);
+      let windowHit: {
+        sectionId: string;
+        id: string;
+        distance: number;
+      } | null = null;
+      if (activeBuilding) {
+        const context = openingContext(activeBuilding),
+          localRay = raycaster.ray
+            .clone()
+            .applyMatrix4(root.matrixWorld.clone().invert());
+        for (const s of activeBuilding.sections)
+          for (const w of s.exterior.windows) {
+            const g = openingGeometry(context, windowOpening(s, w)),
+              plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+                enginePoint(g.n.x, g.n.y, 0).normalize(),
+                enginePoint(g.center.x, g.center.y, w.sill),
+              ),
+              point = new THREE.Vector3();
+            if (!localRay.intersectPlane(plane, point)) continue;
+            const x = point.x * 1000,
+              y = -point.z * 1000,
+              z = point.y * 1000;
+            if (
+              Math.abs((x - g.center.x) * g.u.x + (y - g.center.y) * g.u.y) >
+                w.width / 2 + 100 ||
+              z < w.sill - 100 ||
+              z > w.sill + w.height + 100
+            )
+              continue;
+            const distance = point
+              .applyMatrix4(root.matrixWorld)
+              .distanceTo(raycaster.ray.origin);
+            if (distance > (hit?.distance ?? Infinity) + 0.25) continue;
+            if (!windowHit || distance < windowHit.distance)
+              windowHit = { sectionId: s.id, id: w.id, distance };
+          }
+      }
+      if (windowHit) onWindow(windowHit.sectionId, windowHit.id);
+      else if (hit) onPick(hit.object.userData.sectionId);
     }
     pointers.delete(e.pointerId);
   };
@@ -411,8 +549,9 @@ export function createExteriorScene(
     update,
     fit: () => fit(false),
     reset: () => fit(true),
-    select: (id: string) => {
+    select: (id: string, windowId = "") => {
       selected = id;
+      selectedWindow = windowId;
       highlight();
     },
     projection: (ortho: boolean) => {
@@ -446,6 +585,10 @@ export function createExteriorScene(
       if (helper) {
         helper.geometry.dispose();
         (helper.material as THREE.Material).dispose();
+      }
+      if (windowHelper) {
+        windowHelper.geometry.dispose();
+        (windowHelper.material as THREE.Material).dispose();
       }
       for (const item of groups.values()) disposeGroup(item.group);
       for (const m of materials.values()) m.dispose();

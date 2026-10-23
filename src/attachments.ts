@@ -107,10 +107,26 @@ export function attachmentPreview(
         },
         c.shape,
       );
+  if (source)
+    candidate.exterior = {
+      ...candidate.exterior,
+      windows: candidate.exterior.windows.map((w, i) => ({
+        ...w,
+        id: `${c.id}-w-${i}`,
+      })),
+      features: candidate.exterior.features.map((f, i) => ({
+        ...f,
+        id: `${c.id}-f-${i}`,
+      })),
+    };
   // Strip polygon-only fields from rectangular templates copied from a polygon main.
   if (!source && c.shape === "Rectangle")
     candidate = applyPreset(candidate, "Rectangle");
   try {
+    if (source?.exterior.features.some((f) => f.kind === "Entrance canopy"))
+      throw new Error(
+        "A section with an entrance canopy cannot be copied independently of its door. Duplicate the project, or remove the canopy before duplicating this section.",
+      );
     if (
       !c.name.trim() ||
       c.name.length > 100 ||

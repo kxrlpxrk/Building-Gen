@@ -137,7 +137,7 @@ function regionOnSide(
 export function openingSides(c: OpeningContext, o: Opening) {
   return [regionOnSide(c, o, 1), regionOnSide(c, o, -1)] as const;
 }
-function onExterior(c: OpeningContext, o: Opening) {
+export function onExterior(c: OpeningContext, o: Opening) {
   const g = openingGeometry(c, o),
     a = add(g.host.a, g.u, o.offset - o.width / 2),
     b = add(a, g.u, o.width);

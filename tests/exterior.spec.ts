@@ -1,3 +1,6 @@
+import { PerspectiveCamera, Vector3 } from "three";
+import { windowOpening } from "../src/exteriorValidation";
+import { openingGeometry } from "../src/openings";
 import { test, expect, type Page } from "@playwright/test";
 import { createProject, serializeProject, type Project } from "../src/model";
 import {
@@ -450,4 +453,177 @@ test("native 3D pinch orbits/zooms without page scroll or data edits", async ({
   expect(await page.evaluate(() => scrollY)).toBe(scroll);
   expect((await records(page))[0]).toEqual(p);
   await client.detach();
+});
+
+test("BG-04D window previews, exact aperture edits, features, history and persistence", async ({
+  page,
+}) => {
+  await create(page);
+  await open3d(page);
+  await saved(page);
+  const original = await records(page);
+  await page.getByRole("button", { name: "Place window", exact: true }).click();
+  await numeric(page, "Window position along wall", "0.1");
+  await expect(
+    page.getByRole("button", { name: "Confirm window", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Cancel window", exact: true })
+    .click();
+  expect(await records(page)).toEqual(original);
+  await page.getByRole("button", { name: "Place window", exact: true }).click();
+  await expect(
+    page.getByText("Valid placement · preview only, not saved"),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Confirm window", exact: true })
+    .click();
+  await numeric(page, "Window width", "1.1");
+  await numeric(page, "Window sill", "1.2");
+  await page
+    .getByLabel("Window style", { exact: true })
+    .selectOption("Medieval glazed");
+  await page.getByRole("button", { name: "Add chimney", exact: true }).click();
+  await numeric(page, "Chimney 1 local X", "4");
+  await page
+    .getByLabel("Chimney 1 finish", { exact: true })
+    .selectOption("Brick");
+  await page
+    .getByRole("button", { name: "Add gable ornament", exact: true })
+    .click();
+  await saved(page);
+  const p = (await records(page))[0];
+  expect(p.schemaVersion).toBe(7);
+  expect(p.building.sections[0].exterior.windows[0]).toMatchObject({
+    width: 1100,
+    sill: 1200,
+    style: "Medieval glazed",
+  });
+  expect(p.building.sections[0].exterior.features).toHaveLength(2);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await saved(page);
+  expect(
+    (await records(page))[0].building.sections[0].exterior.features,
+  ).toHaveLength(1);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await saved(page);
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Open Architectural hall", exact: true })
+    .click();
+  await open3d(page);
+  const viewport = page.locator(".exterior-viewport");
+  await viewport.scrollIntoViewIfNeeded();
+  const rect = (await viewport.boundingBox())!,
+    values = (await viewport.getAttribute("data-camera"))!
+      .split(",")
+      .map(Number);
+  const camera = new PerspectiveCamera(42, rect.width / rect.height, 0.1, 2000);
+  camera.position.set(values[0], values[1], values[2]);
+  camera.lookAt(new Vector3(values[3], values[4], values[5]));
+  camera.zoom = values[6];
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  const window = p.building.sections[0].exterior.windows[0],
+    g = openingGeometry(
+      openingContext(p.building),
+      windowOpening(p.building.sections[0], window),
+    );
+  const target = new Vector3(
+    g.center.x / 1000,
+    (window.sill + window.height / 2) / 1000,
+    -g.center.y / 1000,
+  ).project(camera);
+  await page.mouse.click(
+    rect.x + ((target.x + 1) * rect.width) / 2,
+    rect.y + ((1 - target.y) * rect.height) / 2,
+  );
+  await expect(page.getByLabel("Selected window", { exact: true })).toHaveValue(
+    window.id,
+  );
+  await expect(page.getByLabel("Window width", { exact: true })).toHaveValue(
+    "1.1",
+  );
+  page.once("dialog", (d) => d.accept());
+  await page
+    .getByRole("button", { name: "Remove window", exact: true })
+    .click();
+  await saved(page);
+  expect(
+    (await records(page))[0].building.sections[0].exterior.windows,
+  ).toEqual([]);
+  await expect(page.locator(".exterior-viewport")).toHaveAttribute(
+    "data-render-status",
+    "ready",
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("BG-04D architectural presets have distinct rendered detail and bounded draws", async ({
+  page,
+}, testInfo) => {
+  const p = createProject("Detail quality hall");
+  const s = p.building.sections[0];
+  s.exterior.windows = [
+    {
+      id: "window",
+      edge: 0,
+      offset: 3500,
+      width: 900,
+      height: 1000,
+      sill: 1000,
+      style: "Timber shuttered",
+      shutters: true,
+      glazing: true,
+    },
+  ];
+  s.exterior.features = [
+    {
+      id: "chimney",
+      kind: "Chimney",
+      x: 5000,
+      y: 3000,
+      height: 1000,
+      doorId: null,
+      finish: "Stone",
+    },
+  ];
+  await importProject(page, p);
+  await open3d(page);
+  for (const [index, style] of [
+    "Rustic Norse",
+    "Norse Chieftain's Hall",
+    "Medieval Timber Cottage",
+    "Medieval Manor",
+    "Mixed Architectural Fantasy",
+  ].entries()) {
+    await page
+      .getByLabel("Architectural style", { exact: true })
+      .selectOption(style);
+    await page.getByLabel("Detail level", { exact: true }).selectOption("High");
+    await page.getByRole("button", { name: "Fit 3D", exact: true }).click();
+    await expect(page.locator(".exterior-viewport")).toHaveAttribute(
+      "data-render-status",
+      "ready",
+    );
+    await expect
+      .poll(async () =>
+        Number(
+          await page
+            .locator(".exterior-viewport")
+            .getAttribute("data-draw-calls"),
+        ),
+      )
+      .toBeLessThan(30);
+    await page
+      .locator(".exterior-wrap")
+      .screenshot({ path: `/tmp/bg04d-${testInfo.project.name}-${index}.png` });
+  }
+  await saved(page);
+  const savedProject = (await records(page))[0];
+  expect(savedProject.building.sections[0].exterior.windows).toHaveLength(1);
 });
