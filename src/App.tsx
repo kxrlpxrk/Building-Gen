@@ -209,14 +209,14 @@ export default function App() {
             <br />
             with a considered plan.
           </p>
-          <span className="version">BG-03B</span>
+          <span className="version">BG-04A</span>
         </div>
       </aside>
       <div className="library-body">
         <header className="library-topbar">
           <span>YOUR DESIGN WORKSPACE</span>
           <span className="local-badge">● Local storage</span>
-          <span className="version mobile-version">BG-03B</span>
+          <span className="version mobile-version">BG-04A</span>
         </header>
         <main className="dashboard">
           <section className="welcome">
@@ -452,7 +452,7 @@ export default function App() {
           </section>
           <footer className="library-footer">
             <span>
-              BUILDING GENERATOR <b> / </b> BG-03B
+              BUILDING GENERATOR <b> / </b> BG-04A
             </span>
             <span>
               Saved on this device. Export your plans to keep a backup.

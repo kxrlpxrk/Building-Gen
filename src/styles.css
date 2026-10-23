@@ -2014,3 +2014,75 @@ h3 {
   color: #2d6e4a;
   font-size: 12px;
 }
+
+.generator-fields {
+  border: 0;
+  padding: 0;
+  margin: 18px 0;
+  min-width: 0;
+}
+.generator-fields legend {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 0 12px;
+}
+.layout-request {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.layout-request .field {
+  margin: 0;
+  min-width: 0;
+}
+.generator-panel input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #ccd5c7;
+  border-radius: 6px;
+  background: #fffef8;
+  padding: 10px;
+  font: inherit;
+  font-size: 16px;
+}
+.generator-panel button {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+}
+.generator-panel .field select {
+  font-size: 16px;
+}
+.generator-panel p,
+.generator-panel li {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.layout-thumbnail {
+  width: 100%;
+  max-height: 200px;
+  display: block;
+  background: #edf2e8;
+  border: 1px solid var(--line);
+}
+.layout-proposal {
+  margin: 16px 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.layout-proposal h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.layout-proposal ul {
+  padding-left: 18px;
+}
+.generator-panel [aria-pressed="true"] {
+  background: #244f40;
+  color: white;
+}

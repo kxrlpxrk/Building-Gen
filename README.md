@@ -1,6 +1,6 @@
-# Building Generator · BG-03B
+# Building Generator · BG-04A
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-03B adds manually placed doors, passages and ground-floor circulation analysis to BG-03A interiors, retaining BG-02B.1 mobile document scrolling. No BG-04 features are implemented.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04A adds deterministic, editable ground-floor layout proposals to the existing footprint, interior and door tools, retaining BG-02B.1 mobile document scrolling. Release 0.6.0; project schema remains version 5.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,20 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Automatic room layouts · BG-04A
+
+In **Interior Planning**, choose **Generate Layout**. The starter requests Main Hall, Kitchen, Bedroom and Storage. Configure **2–5 rooms** with quantities, minimum/preferred areas and Required/Preferred priority, then choose Compact, Balanced or Open and a seed. The panel compares total required minimum area with actual usable interior area before generation. Preferred areas are scoring targets, not hard limits; Required minimums are mandatory. Preferred rooms that cannot fit are explicitly reported.
+
+**Generate** repeats the same inputs and seed; **Regenerate** changes the seed. Up to three geometrically different valid proposals appear as **A/B/C**. Select a proposal on the existing canvas or use **Compare** for miniature plans. Each reports exact net assigned/unassigned area, separate threshold area, room sizes, score and validated entrance access. Camera controls remain available, with geometry editing disabled during preview. Generation runs in a cancellable local Web Worker; no external API is used.
+
+**Preview and Cancel never change the project or autosave its candidate.** Accept validates the complete candidate against the live structure and commits the entire interior in one Undo transaction. Before replacing existing partitions, room records/labels/notes or interior doors, a confirmation lists what will be replaced. Existing exterior entrances are preserved exactly; incompatible placements are rejected. Undo restores all previous walls, rooms and openings. Accepted layouts use ordinary editable records and work with save/reopen, export/import and duplication. Temporary settings/previews are not stored; no schema migration is added.
+
+The bounded seeded solver uses exact clear-space geometry and existing partition, opening, swing and circulation validators. It supports rectangles and some L-shaped/attached-wing interiors that can be recursively divided by full orthogonal cuts. Tests cover those examples; arbitrary concave shapes are **not guaranteed**. It never substitutes bounding-box areas or reports failed candidates as solutions. Larger/required rooms are allocated first; scoring considers preferred size, entrance room, adjacency and circulation. A valid proposal must give every generated room a real entrance path and unobstructed door swings. No room or access connection is invented.
+
+Search limits: **1,800 cut evaluations**, **2,400 door-slot evaluations**, a beam of **16** candidates per cut depth, at most **4 partitions**, and at most **32 clear-boundary vertices**. Cuts use 50 mm increments, **100 mm partitions** and at least **1.8 m clear spans**. Doors use existing validated 900 mm hinged or 1,200 mm passage openings. These generator limits do not restrict subsequent manual editing. Search failure explains constraints and preserves the source; it does not prove every possible arrangement infeasible. Fewer than three valid distinct solutions are reported honestly. Different seeds provide alternatives where feasible, without guaranteeing a solution for every seed.
+
+Any locked architectural section blocks whole-building generation; partial protected-section solving and selective regeneration are outside BG-04A. Existing exterior entrances are kept, while replacing a populated plan is an explicit all-interior operation. All generated regions receive room labels (unassigned area is normally zero); partition thresholds remain separate passage area under the BG-03B convention below. There is no real-world code or structural-engineering certification.
 
 ## Doors, openings and circulation · BG-03B
 
@@ -112,21 +126,18 @@ Connections are derived from real shared section edges and persisted explicitly.
 
 Library reads never overwrite old records. A successfully validated legacy record is written as v5 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v5.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
 
-## BG-03B implementation map
+## BG-04A implementation map
 
-| Files                                                                                                                | Responsibility                                                                                    |
-| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `src/openings.ts`, `src/openingBuilding.ts`                                                                          | Host geometry, gap validation, anchor preservation, locks, physical areas and swept-leaf warnings |
-| `src/circulation.ts`                                                                                                 | Ground-floor room access graph and entrance reachability                                          |
-| `src/DoorsInspector.tsx`, `src/OpeningsLayer.tsx`                                                                    | Preview/confirm, exact controls, hinge/swing actions, masks, leaves/arcs and access summaries     |
-| `src/Editor.tsx`, `src/Studio.tsx`, `src/InteriorLayer.tsx`, `src/InteriorInspector.tsx`, `src/styles.css`           | Touch selection/dragging, existing camera gestures, room status and portrait scrolling            |
-| `src/model.ts`, `src/assembly.ts`, `src/interiorBuilding.ts`                                                         | Schema v5, identity remapping, lossless migrations and structural edit validation                 |
-| `schemas/project-v5.schema.json`, `tests/fixtures/bg01-project-v5.json`                                              | Versioned schema and migration expectation; older schemas/fixtures remain intact                  |
-| `src/openings.test.ts`, `src/storage.test.ts`, `src/assembly.test.ts`, `src/polygon.test.ts`, `src/interior.test.ts` | Door geometry/access/migration coverage and prior-phase schema expectations                       |
-| `tests/openings.spec.ts`, `tests/footprints.spec.ts`, `tests/interiors.spec.ts`, `tests/sections.spec.ts`            | End-to-end doors, earlier regression workflows and version expectations                           |
-| `src/App.tsx`, `package.json`, `package-lock.json`, `README.md`                                                      | BG-03B / 0.5.0 release and documentation                                                          |
+| Files                                                                                       | Responsibility                                                                                     |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `src/layoutGenerator.ts`                                                                    | Seeded bounded candidate generation, assignment, scoring, doors, validation and acceptance checks  |
+| `src/layoutWorker.ts`                                                                       | Cancellable worker execution and progress/result messages                                          |
+| `src/GeneratorPanel.tsx`                                                                    | Configuration, comparison previews, metrics and explicit replacement confirmation                  |
+| `src/Studio.tsx`, `src/Editor.tsx`, `src/styles.css`                                        | Read-only canvas preview, single-transaction acceptance, touch controls and responsive integration |
+| `src/layoutGenerator.test.ts`, `tests/layouts.spec.ts`, `tests/interiors.spec.ts`           | Determinism, geometry, circulation, safety, roundtrips and desktop/mobile workflows                |
+| `src/App.tsx`, `tests/footprints.spec.ts`, `package.json`, `package-lock.json`, `README.md` | BG-04A / 0.6.0 version and documentation                                                           |
 
-Existing interior topology, camera transforms, history and IndexedDB modules are reused. No runtime dependency or repository was added.
+Existing interior topology, opening/access validators, camera transforms, history and IndexedDB modules are reused. No runtime dependency, schema change or repository was added.
 
 ## Automated checks
 
@@ -143,26 +154,25 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- --proj
 
 After building, prefix the browser command with **`BG_E2E_PREVIEW=1`** to validate the production bundle through preview. Stop other servers on port 5173 first. For WebKit when available: `npm run test:e2e -- --project=iphone-webkit`.
 
-Tests retain BG-01 through BG-03A workflows and cover physical wall gaps, exact opening/threshold areas, stable room identities, entrance/multi-hop reachability, passages, hinge/swing geometry, obstruction warnings, invalid hosts/overlaps/junctions, lock protection, host resizing/movement, undo/redo, v1–v5 import/export, independent host references, persistence and native multi-touch cancellation. Mobile scrolling and pointer-to-world regressions remain enabled.
+Tests retain BG-01 through BG-03B workflows and cover physical wall gaps, exact opening/threshold areas, stable room identities, entrance/multi-hop reachability, passages, hinge/swing geometry, obstruction warnings, invalid hosts/overlaps/junctions, lock protection, host resizing/movement, undo/redo, v1–v5 import/export, independent host references, persistence and native multi-touch cancellation. Mobile scrolling and pointer-to-world regressions remain enabled. BG-04A adds seeded 2–5-room generation, concave/wing fixtures, exact area reconciliation, validated door access and swings, Preferred omission, bounded failure, lock restrictions, non-destructive previews/cancellation, replacement confirmation, whole-plan undo/redo and generated-plan persistence/import/editing tests. The existing duplication browser test now waits for its asynchronous IndexedDB save before inspecting the copy.
 
-BG-03B validation: **139 unit/storage tests passed**, **42 desktop/mobile Chromium production-browser tests passed**, and **6 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
+BG-04A validation: **154 unit/storage tests passed**, **51 desktop/mobile Chromium production-browser tests passed**, and **7 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
 
 WebKit is not installed in this machine (the official browser CDN was blocked during BG-01 setup). Chromium mobile emulation/native Chromium touch dispatch does **not** verify physical iPhone Safari; run the playtest below on a device.
 
 ## Known limitations and data safety
 
-- Strict edge-to-edge, **open-plan** joins only; all positive-area overlaps are rejected. Attachment aligns the candidate's first local edge; change the external segment, offset or shape to choose another placement. No generated partitioned joins or doors, holes in the exterior footprint, split exterior wall insets, slanted local edges, vertex insertion/removal or freehand drawing. Interior rooms are manually planned with orthogonal partitions.
+- Strict edge-to-edge, **open-plan** joins only; all positive-area overlaps are rejected. Attachment aligns the candidate's first local edge; change the external segment, offset or shape to choose another placement. No generated partitioned joins or doors, holes in the exterior footprint, split exterior wall insets, slanted local edges, vertex insertion/removal or freehand drawing. Interior rooms use orthogonal partitions, placed manually or accepted from the bounded generator.
 - One main building cannot be removed. Section count max 12; combined dimensions max 500 m. No automatic movement of neighbours to “fix” an invalid edit. A duplicated section must be placed on a valid external edge before acceptance.
 - Common walls/elevation must agree. A locked section blocks any operation that would modify its stored data. Whole-building rotation is an intentional frame operation and does not unlock/change section records. Undo/redo restores previously committed lock/geometry states.
 - IndexedDB autosaves after 400 ms idle; Saving/Saved/Save Error, retry/export backup and flush-before-leave are retained. Wait for **Saved**. Private browsing, clearing site data, storage pressure, origin changes or OS termination can lose local/unsaved data. Export JSON backups. Persistent storage is requested but not guaranteed.
 - Same-project multi-tab editing has no conflict resolution (last save wins). History/view/grid preferences are session-only. No service worker/offline installation.
-- BG-03B remains ground-floor manual planning. Hinged doors are single leaves with a 90° swing. No windows, stairs, upper-floor editing, furniture, automatic layouts, roofs, 3D, procedural generation, game conversion or structural engineering. No BG-04 work is included.
+- BG-04A remains ground-floor planning. Hinged doors are single leaves with a 90° swing. No selective regeneration, automatic footprints/extensions, windows, stairs, upper-floor editing, furniture, roofs, 3D, game conversion or structural engineering. BG-04B/C are not implemented.
 
 ## Short iPhone Safari playtest
 
-1. At the same HTTPS origin, reopen legacy v1–v4 projects, including a named BG-03A room plan. Verify unchanged geometry, IDs/labels and empty openings; export backups.
-2. Add a centred partition to the default building and name both regions. Place a 0.9 m interior door and an exterior entrance: preview, adjust, cancel/retry and confirm. Check real gaps, unchanged two 43.70 m² rooms, 0.09 m² threshold, 0.67 m² remaining partition and access to both rooms.
-3. Select by tap/dropdown, drag/move/resize after page scrolling, edit exact width/position, Flip Hinge and Reverse Swing. Test passage openings, swing obstruction warnings, invalid overlaps/junctions/endpoints and locked sections. Invalid operations must leave saved walls/rooms/doors untouched.
-4. Remove the connecting door: the far room should show No entrance path. Undo/Redo, add a passage, and confirm multi-room routes. Resize/move hosts and try invalid host removal/shortening; check preserved anchors or safe rejection. Translate/rotate the whole building, Fit and pan/pinch during a door drag or placement preview; camera gestures must never commit geometry.
-5. In portrait, swipe through the Inspector so canvas/toolbar move offscreen and return. Collapse/expand, use numeric fields with the keyboard open, expand/retract Safari's address bar, and rotate landscape/back. Check safe areas, no nested Inspector scroll trap, no horizontal overflow and accurate taps after scrolling.
-6. Wait for Saved, reopen Safari, export/import v5 and duplicate the project. Verify door dimensions, host references, hinge/swing, room labels/notes and independent IDs. Invalid JSON must preserve all saved data.
+1. Use the same HTTPS origin; reopen an older project and export a backup. In Interior Planning, open Generate Layout, review minimum versus usable area, and generate the starter rooms.
+2. Compare A/B/C and inspect labels, areas, real door gaps and access. Repeat the seed, then Regenerate. Pan, pinch and Fit while previewing; geometry must remain read-only. Cancel and verify the original plan is unchanged.
+3. Accept, Undo and Redo. On an existing named manual plan, verify the replacement summary; cancel once, then explicitly confirm. Existing exterior entrances must survive or generation must explain incompatibility. Try impossible areas and a locked section: neither may alter saved data.
+4. Swipe through the portrait Inspector so the canvas/toolbar leave and return with the page. Open the keyboard, collapse/expand, vary Safari's address bar and rotate landscape/back. Check no nested scroll trap, horizontal overflow or inaccurate taps after scrolling.
+5. Edit generated room names, walls and doors with existing tools. Wait for Saved, reopen Safari, export/import and duplicate. Verify geometry, names, openings, access and independent identities.

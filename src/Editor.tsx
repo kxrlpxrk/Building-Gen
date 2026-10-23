@@ -56,6 +56,8 @@ import {
   type Viewport,
 } from "./transforms";
 type Props = {
+  readOnly?: boolean;
+  previewLabel?: string;
   interior?: {
     tool: InteriorTool;
     selection: InteriorSelection;
@@ -115,6 +117,8 @@ const midpoint = (a: Point, b: Point): Point => ({
   y: (a.y + b.y) / 2,
 });
 export default function Editor({
+  readOnly = false,
+  previewLabel,
   interior,
   section,
   building,
@@ -238,7 +242,7 @@ export default function Editor({
     setGeometryError("");
     startWall(null);
     previewWall(null);
-  }, [modelKey, interior?.tool, !!interior]);
+  }, [modelKey, interior?.tool, !!interior, readOnly]);
   function preview(s: Section | null) {
     draftRef.current = s;
     setDraft(s);
@@ -782,9 +786,11 @@ export default function Editor({
         className={`plan-canvas tool-${tool}`}
         role="application"
         aria-label={
-          interior
-            ? "Ground-floor interior plan. Place Door: tap a real wall, preview and confirm in the Inspector. Draw Wall: tap start, then end. Select Wall: drag body or endpoint. Select Room: tap clear space. Pan tool: drag canvas. Pinch or scroll to zoom."
-            : "Building plan. Edit tool: drag building to move, drag corners to resize. Pan tool: drag canvas. Pinch or scroll to zoom. Arrow keys move selected building."
+          readOnly
+            ? "Read-only layout preview. Drag to pan; pinch, zoom and Fit remain available."
+            : interior
+              ? "Ground-floor interior plan. Place Door: tap a real wall, preview and confirm in the Inspector. Draw Wall: tap start, then end. Select Wall: drag body or endpoint. Select Room: tap clear space. Pan tool: drag canvas. Pinch or scroll to zoom."
+              : "Building plan. Edit tool: drag building to move, drag corners to resize. Pan tool: drag canvas. Pinch or scroll to zoom. Arrow keys move selected building."
         }
         tabIndex={0}
         viewBox={`0 0 ${viewport.width} ${viewport.height}`}
@@ -1182,7 +1188,7 @@ export default function Editor({
         <span>X+ →</span>
       </div>
       <div className="canvas-caption">
-        PLAN / XY{" "}
+        {previewLabel ? `LAYOUT ${previewLabel} / PREVIEW` : "PLAN / XY"}{" "}
         <span>
           {gridVisible ? `${metres(visualGrid)} m display grid` : "Grid hidden"}
         </span>

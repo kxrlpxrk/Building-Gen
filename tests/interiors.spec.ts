@@ -241,6 +241,11 @@ test("wall handles, stable scrolled coordinates, page scrolling, merges, duplica
     .getByLabel("Building name", { exact: true })
     .fill("Independent rooms");
   await page.getByRole("button", { name: "Create copy", exact: true }).click();
+  await expect
+    .poll(async () =>
+      (await stored(page)).some((p) => p.name === "Independent rooms"),
+    )
+    .toBe(true);
   const copy = (await stored(page)).find(
     (p) => p.name === "Independent rooms",
   )!;
@@ -251,6 +256,7 @@ test("wall handles, stable scrolled coordinates, page scrolling, merges, duplica
     original.building.interior.rooms[0].id,
   );
   await page.getByLabel("Import project JSON file").setInputFiles(path!);
+  await expect.poll(async () => (await stored(page)).length).toBe(3);
   const rows = await stored(page);
   expect(rows).toHaveLength(3);
   expect(rows.every((p) => p.building.interior.partitions.length === 1)).toBe(

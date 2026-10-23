@@ -1,3 +1,5 @@
+import GeneratorPanel from "./GeneratorPanel";
+import { acceptGeneratedLayout, type LayoutProposal } from "./layoutGenerator";
 import DoorsInspector from "./DoorsInspector";
 import { changeOpenings } from "./openingBuilding";
 import { type Opening } from "./openings";
@@ -77,6 +79,16 @@ export default function Studio({ project, onBack, onSaved }: Props) {
   const [saveError, setSaveError] = useState("");
   const [leaving, setLeaving] = useState(false),
     [leaveError, setLeaveError] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [layoutPreview, setLayoutPreview] = useState<LayoutProposal | null>(
+    null,
+  );
+  const closeGenerator = () => {
+    setGeneratorOpen(false);
+    setLayoutPreview(null);
+    setTool("edit");
+  };
+  const viewBuilding = layoutPreview?.building ?? current.building;
   const [mode, setMode] = useState<"footprint" | "interior">("footprint");
   const [interiorTool, setInteriorTool] = useState<InteriorTool>("wall");
   const [interiorSelection, setInteriorSelection] =
@@ -409,14 +421,14 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           e.preventDefault();
           void persist(currentRef.current);
         }
-      } else if (e.key.toLowerCase() === "v") {
+      } else if (e.key.toLowerCase() === "v" && !generatorOpen) {
         setTool("edit");
         setInteriorTool("wall");
       } else if (e.key.toLowerCase() === "h") setTool("pan");
     }
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [persist]);
+  }, [persist, generatorOpen]);
   async function back() {
     setLeaving(true);
     if (await persist(currentRef.current)) onBack();
@@ -452,7 +464,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-03B</span>
+        <span className="version">BG-04A</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -484,6 +496,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
         <button
           aria-pressed={mode === "footprint"}
           onClick={() => {
+            closeGenerator();
             setMode("footprint");
             setTool("edit");
           }}
@@ -503,6 +516,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
         {mode === "interior" && (
           <>
             <button
+              disabled={generatorOpen}
               aria-pressed={tool === "edit" && interiorTool === "draw"}
               onClick={() => {
                 setInteriorTool("draw");
@@ -512,6 +526,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
               Draw Wall
             </button>
             <button
+              disabled={generatorOpen}
               aria-pressed={tool === "edit" && interiorTool === "room"}
               onClick={() => {
                 setInteriorTool("room");
@@ -521,6 +536,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
               Select Room
             </button>
             <button
+              disabled={generatorOpen}
               aria-pressed={tool === "edit" && interiorTool === "door"}
               onClick={() => {
                 setInteriorTool("door");
@@ -529,12 +545,25 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             >
               Place Door
             </button>
+            <button
+              aria-pressed={generatorOpen}
+              onClick={() => {
+                setTool("pan");
+                setGeneratorOpen(true);
+                setInspectorOpen(true);
+                setOpeningDraft(null);
+                setGeometryError("");
+              }}
+            >
+              Generate Layout
+            </button>
           </>
         )}
       </div>
       <div className="studio-toolbar">
         <div className="tool-group">
           <button
+            disabled={generatorOpen}
             aria-pressed={
               tool === "edit" &&
               (mode === "footprint" || interiorTool === "wall")
@@ -637,6 +666,18 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                   onSelect={selectSection}
                   onAdd={() => openAttachment()}
                 />
+              ) : generatorOpen ? (
+                <div className="interior-overview">
+                  <h2>
+                    {layoutPreview
+                      ? `Proposal ${layoutPreview.label}`
+                      : "Layout generator"}
+                  </h2>
+                  <p>
+                    Read-only previews. Compare and accept a proposal in the
+                    Inspector, or cancel to return to your manual plan.
+                  </p>
+                </div>
               ) : (
                 <div className="interior-overview">
                   <h2>Ground floor</h2>
@@ -664,6 +705,8 @@ export default function Studio({ project, onBack, onSaved }: Props) {
         </aside>
         <main className="editor-main">
           <Editor
+            readOnly={generatorOpen}
+            previewLabel={layoutPreview?.label}
             interior={
               mode === "interior"
                 ? {
@@ -681,7 +724,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                 : undefined
             }
             section={displaySection(section, current.building)}
-            building={current.building}
+            building={viewBuilding}
             placement={
               placement && attachment
                 ? { ...placement, edge: attachment.config.edge }
@@ -695,7 +738,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             grid={grid}
             snapEnabled={snapEnabled}
             gridVisible={gridVisible}
-            tool={tool}
+            tool={generatorOpen ? "pan" : tool}
             selected={selected}
             onSelect={setSelected}
             part={activePart}
@@ -703,11 +746,15 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           />
           <footer className="editor-status">
             <span>
-              {mode === "interior"
-                ? "Ground-floor interior"
-                : selected
-                  ? "Section selected"
-                  : "No selection"}{" "}
+              {generatorOpen
+                ? layoutPreview
+                  ? `Layout ${layoutPreview.label} preview · not saved`
+                  : "Layout configuration · original plan"
+                : mode === "interior"
+                  ? "Ground-floor interior"
+                  : selected
+                    ? "Section selected"
+                    : "No selection"}{" "}
               ·{" "}
               {tool === "pan"
                 ? "Drag to pan"
@@ -743,87 +790,107 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             </span>
             <span>{inspectorOpen ? "−" : "+"}</span>
           </button>
-          {inspectorOpen && (
-            <div className="inspector-content">
+          {(inspectorOpen || generatorOpen) && (
+            <div className="inspector-content" hidden={!inspectorOpen}>
               {mode === "interior" ? (
-                <InteriorInspector
-                  roomAccess={
-                    interiorSelection?.kind === "room"
-                      ? access.reachable.has(interiorSelection.key)
-                      : undefined
-                  }
-                  doors={
-                    <DoorsInspector
-                      building={current.building}
-                      context={doorsContext}
-                      draft={openingDraft}
-                      passage={passage}
-                      onPassage={setPassage}
-                      selectedId={
-                        interiorSelection?.kind === "opening"
-                          ? interiorSelection.id
-                          : null
+                generatorOpen ? (
+                  <GeneratorPanel
+                    project={current}
+                    onPreview={setLayoutPreview}
+                    onCancel={closeGenerator}
+                    onAccept={(proposal) => {
+                      try {
+                        const next = acceptGeneratedLayout(current, proposal);
+                        edit(next);
+                        closeGenerator();
+                        setInteriorSelection(null);
+                        setInteriorTool("room");
+                        return null;
+                      } catch (e) {
+                        return (e as Error).message;
                       }
-                      onDraft={setOpeningDraft}
-                      onChange={doorsChange}
-                      onSelect={(id) => {
-                        setInteriorSelection({ kind: "opening", id });
-                        setInteriorTool("door");
-                        setTool("edit");
-                      }}
-                    />
-                  }
-                  building={current.building}
-                  regions={interiorGeometry.regions}
-                  partitionArea={interiorGeometry.partitionArea}
-                  usableArea={interiorGeometry.usableArea}
-                  selection={interiorSelection}
-                  onSelect={setInteriorSelection}
-                  onWalls={interiorWalls}
-                  onRoom={roomMetadata}
-                  onForget={(id) =>
-                    edit({
-                      ...current,
-                      building: {
-                        ...current.building,
-                        interior: {
-                          ...current.building.interior,
-                          rooms: current.building.interior.rooms.filter(
-                            (r) => r.id !== id,
-                          ),
-                        },
-                      },
-                    })
-                  }
-                  thickness={partitionThickness}
-                  onPlacement={(key, value) => {
-                    try {
-                      if (
-                        key === "rotation" &&
-                        (!Number.isFinite(value) || value < 0 || value >= 360)
-                      )
-                        return "Use an angle from 0 to less than 360°.";
-                      const building =
-                        key === "rotation"
-                          ? {
-                              ...current.building,
-                              frame: {
-                                ...current.building.frame,
-                                rotation: value,
-                              },
-                            }
-                          : translateBuilding(current.building, {
-                              ...current.building.frame.origin,
-                              [key]: value,
-                            });
-                      edit({ ...current, building });
-                      return null;
-                    } catch (e) {
-                      return (e as Error).message;
+                    }}
+                  />
+                ) : (
+                  <InteriorInspector
+                    roomAccess={
+                      interiorSelection?.kind === "room"
+                        ? access.reachable.has(interiorSelection.key)
+                        : undefined
                     }
-                  }}
-                  onThickness={setPartitionThickness}
-                />
+                    doors={
+                      <DoorsInspector
+                        building={current.building}
+                        context={doorsContext}
+                        draft={openingDraft}
+                        passage={passage}
+                        onPassage={setPassage}
+                        selectedId={
+                          interiorSelection?.kind === "opening"
+                            ? interiorSelection.id
+                            : null
+                        }
+                        onDraft={setOpeningDraft}
+                        onChange={doorsChange}
+                        onSelect={(id) => {
+                          setInteriorSelection({ kind: "opening", id });
+                          setInteriorTool("door");
+                          setTool("edit");
+                        }}
+                      />
+                    }
+                    building={current.building}
+                    regions={interiorGeometry.regions}
+                    partitionArea={interiorGeometry.partitionArea}
+                    usableArea={interiorGeometry.usableArea}
+                    selection={interiorSelection}
+                    onSelect={setInteriorSelection}
+                    onWalls={interiorWalls}
+                    onRoom={roomMetadata}
+                    onForget={(id) =>
+                      edit({
+                        ...current,
+                        building: {
+                          ...current.building,
+                          interior: {
+                            ...current.building.interior,
+                            rooms: current.building.interior.rooms.filter(
+                              (r) => r.id !== id,
+                            ),
+                          },
+                        },
+                      })
+                    }
+                    thickness={partitionThickness}
+                    onPlacement={(key, value) => {
+                      try {
+                        if (
+                          key === "rotation" &&
+                          (!Number.isFinite(value) || value < 0 || value >= 360)
+                        )
+                          return "Use an angle from 0 to less than 360°.";
+                        const building =
+                          key === "rotation"
+                            ? {
+                                ...current.building,
+                                frame: {
+                                  ...current.building.frame,
+                                  rotation: value,
+                                },
+                              }
+                            : translateBuilding(current.building, {
+                                ...current.building.frame.origin,
+                                [key]: value,
+                              });
+                        edit({ ...current, building });
+                        return null;
+                      } catch (e) {
+                        return (e as Error).message;
+                      }
+                    }}
+                    onThickness={setPartitionThickness}
+                  />
+                )
               ) : (
                 <>
                   <div className="mobile-sections inspector-section">
