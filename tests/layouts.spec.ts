@@ -186,7 +186,7 @@ test("accept is one undo transaction; generated rooms and openings remain editab
   ).toHaveCount(0);
   await saved(page);
   const accepted = (await records(page))[0];
-  expect(accepted.schemaVersion).toBe(5);
+  expect(accepted.schemaVersion).toBe(6);
   expect(accepted.building.interior.rooms).toHaveLength(4);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await saved(page);

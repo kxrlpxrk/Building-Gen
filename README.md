@@ -1,6 +1,6 @@
-# Building Generator · BG-04B
+# Building Generator · BG-04C
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04B adds seeded main-building and connected-extension proposals alongside BG-04A room layouts, retaining the existing manual tools and BG-02B.1 mobile document scrolling. Release 0.7.0; project schema remains version 5.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04C adds a lazy-loaded Three.js architectural exterior viewer to the existing footprint, section, interior and procedural tools. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release 0.8.0; project schema is version 6.
 
 ## Run, validate and deploy
 
@@ -19,6 +19,31 @@ For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
 
+## Architectural exterior and interactive 3D · BG-04C
+
+Choose **Exterior 3D**, the third Studio mode. The on-demand Three.js chunk loads only when this mode is opened; no 3D framework is used. Walls, roofs and facade details derive from the same section IDs, exact merged footprint, wall inset, positions, rotations and exterior openings used by the 2D editor. No meshes or manually synchronised copy of the building are saved. Returning to 2D retains its camera and authoritative geometry.
+
+Drag to **Orbit**, choose **Pan 3D**, or use two fingers to zoom/pan. **Perspective/Orthographic**, **Fit 3D** and **Reset view** are available. Arrow keys pan when the viewer has focus. Tap a rendered surface to select its source section, or use the Exterior Inspector's section list. Selection outlines identify the section; locks disable its architecture fields. Camera gestures do not edit project geometry. Heights/pitch/overhang/material edits and reset are ordinary Undo/Redo transactions with normal autosave.
+
+The Exterior Inspector edits per-section **eaves height (2.4–12 m)**, **Gable/Hip/Shed roof**, **pitch (10–65°, 0.1° precision)**, **overhang (0–1 m)** and **Norse/Medieval/Mixed material preset**. It reports actual derived ridge/high-edge height from generated roof vertices, including overhangs. **Reset section to style defaults** resets only the selected unlocked section. Settings survive compatible footprint edits; changing material leaves dimensions/heights alone until reset. The project architecture preference remains separate from these per-section appearance choices.
+
+Defaults: Norse main eaves **3.8 m**, Medieval/Mixed **3.6 m**, supporting wings **3.1 m**, Storage **2.8 m**, Porch **2.4 m** with a Shed roof, Tower Footprint **6.5 m**. Norse pitch/overhang is **42° / 0.45 m**, Medieval **38° / 0.35 m**, Mixed **40° / 0.35 m**. Towers are taller ground-level exteriors; `floorCount` remains metadata and does not create upper-floor plans.
+
+**Visible architecture:** Norse has timber cladding, dark shingle treatment, posts, beams, pronounced gables and a stone foundation band. Medieval adds contrasting plaster, timber braces and muted slate-like roofing. Mixed blends warm wall surfaces and timber with brown roofing. Textures are small deterministic procedural canvases, without external image downloads. Facade posts/braces are decorative; there are no invented windows or entrance apertures. Existing hinged exterior doors render open leaves with their stored hinge/swing direction; passages render gaps only. Existing widths/anchors are retained. As no opening height exists in the 2D schema, exterior apertures use a documented **2.1 m height** (door leaf 2.0 m). Interior partitions/doors are preserved in data and are not shown as exterior openings; this is not a dollhouse cutaway.
+
+### Roof support and honest fallbacks
+
+- **One rectangular section:** real piecewise planar gable, hip or shed faces; actual ridges/eaves, perimeter overhangs, **0.12 m roof skin**, fascia/edge timber and wall-thickness gable/high-end infill. Roof heights use pitch over the short section axis; Hip slopes are the minimum of four planes. These are geometric forms, not engineered roof structures.
+- **Connected rectangular sections, including L/T-style compositions:** section roof domains remain disjoint. Differing heights close with vertical **step/clerestory panels**; shared joins get no internal overhang or ground-to-eaves separating wall. This is an explicit stable simplified junction, **not an accurate valley intersection**. The Inspector always states this fallback for multi-section buildings.
+- **Concave L/T/U/Cross/Irregular sections:** pitch planes are clipped to the actual footprint, with closed edges/infill. The Inspector labels this as a simplified concave roof solution. It can look less traditional than a purpose-designed segmented valley roof; no advanced intersections are claimed.
+- Perimeter overhangs offset actual exterior edges. Unequal collinear eaves, tight notches, reversed/crossing offsets or insufficient outline coverage use a **no-overhang fallback for the assembly**, with an explicit warning; stored values stay intact. Roof domains cover the authoritative footprint and do not overlap or float. No silhouette/bounding-box extrusion replaces exterior wall geometry.
+
+`exteriorGeometry.ts` is deterministic and independent of Three.js. Exact coordinate compression cuts the merged wall band and actual opening gaps; roof facets come from affine-plane clipping, with closed perimeter/junction faces. Model coordinates remain **X/Y horizontal, Z vertical in millimetres**; only `exteriorScene.ts` converts to Three **X/Z horizontal, Y up in metres**. The shared frame applies whole-building rotation/placement. Individual meshes cache by stable section ID and derived geometry/material fingerprint; only changed groups rebuild. Shared boundaries may necessarily affect neighbouring groups.
+
+For mobile, pixel ratio is capped at **1.5**, shadows at **1024²**, roof/wall compression at **40,000 exact cells**, and derived geometry at **250,000 triangles**. Complex records beyond that budget show a useful fallback instead of harming saved data. Rendering is on demand (no idle animation loop), pauses offscreen/when the document is hidden, and disposes buffers, materials, textures, controls, shadows and the WebGL context on exit/retry. Context loss or unavailable WebGL2 gives an explicit safe fallback with Retry; 2D editing/autosave remain independent. The lazy Three.js chunk is approximately **140 kB gzip**; Vite's standard >500 kB uncompressed-chunk advisory is expected for that isolated chunk.
+
+Portrait Studio remains one scrolling page. Only the viewer viewport captures touch gestures; Inspector controls scroll the document, moving the canvas/toolbar naturally offscreen. Safe-area padding, stable viewport height, landscape panels and no horizontal overflow are retained. Physical iPhone Safari performance still requires the playtest below; Chromium/SwiftShader tests are not device certification.
+
 ## Procedural building footprints · BG-04B
 
 In **Footprint** mode, choose **Generate Building**. Configure Norse/Medieval/Mixed architecture, Longhouse/Cottage/Farmhouse/Workshop/Tavern/Inn/Manor/Trading Hall purpose, Simple/Organic/Grand complexity, main length/width, **0–5 desired extensions**, optional preferred section types, main starting outline and seed. Defaults are a Norse longhouse, 18 × 8 m, Simple, one supporting extension. Use **Generate footprints** to repeat a seed or **Regenerate buildings** to change it.
@@ -35,7 +60,7 @@ The local worker performs at most **32 composition attempts**, **1,600 attachmen
 
 `attachmentPreview`, `prepareBuilding`, exact orthogonal union/inset, clear-space and project validators reject overlaps, holes, self-touching boundaries, disconnected/corner-only joins, invalid offsets, narrow necks and unsupported orientation relationships. Areas come from actual merged polygons, never bounding boxes. Open-plan shared edges have one continuous exterior wall boundary. Ranking considers purpose proportions, compactness, requested asymmetry, extension scale and represented preferences; proposals must differ by at least 0.4 m of exterior boundary, not merely labels or IDs.
 
-No rooms, partitions, doors or roofs are generated by this operation. **Interior Planning / BG-04A Generate Layout** can be used afterwards on supported generated footprints. Complex shapes can return the room solver's normal safe failure; building geometry is never altered to manufacture a solution. The existing schema v5, IndexedDB database, v1–v5 import/migrations, JSON export and duplication remain unchanged. Accepted buildings store ordinary section/frame/connection records only, with normal autosave. No architectural/structural code compliance is claimed.
+No rooms, partitions, doors or roofs are generated by this operation. **Interior Planning / BG-04A Generate Layout** can be used afterwards on supported generated footprints. Complex shapes can return the room solver's normal safe failure; building geometry is never altered to manufacture a solution. The existing section/frame/connection models and IndexedDB database are reused; BG-04C migrates these records to schema v6, preserving v1–v5 import compatibility, JSON export and duplication. Accepted buildings store ordinary section/frame/connection records only, with normal autosave. No architectural/structural code compliance is claimed.
 
 ## Automatic room layouts · BG-04A
 
@@ -123,9 +148,9 @@ Each section uses a simple orthogonal ring before rotation, with 4–64 vertices
 
 Shoelace area computes exact exterior area. Clear area and the continuous rendered external wall band use the **validated mitered inward offset of the merged boundary**, not sums of section interiors or bounding-box estimates. The offset must remain one positive connected ring, not reverse edges, cross boundaries or intrude within the wall clearance. Too-thick walls, tiny jogs, collapsing necks, split interiors, overlapping interiors, holes, corner-only contacts and detached sections are rejected. Common exterior walls must be at least 0.01 m. No invalid measurement is replaced by an estimated value.
 
-## Schema v5 and migration
+## Schema v6 and migration
 
-The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 5` retains:
+The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 6` retains:
 
 - `building.mainSectionId` and up to twelve `sections`.
 - Section `name`, `type`, `locked`, with the original rectangle or polygon geometry fields.
@@ -136,13 +161,27 @@ Schema v4 introduced `building.interior: { partitions, rooms }`. Each partition 
 
 Schema v5 adds `building.openings`, each with `id`, `type`, a partition/exterior `host`, `offset` and `width`; hinged records also require `hinge` and `swing`. Passages omit hinge/swing. Runtime validation checks references, aperture geometry, clearances and unique IDs.
 
-Pure read-time migration accepts schema **1, 2, 3, 4 and 5**. Versions 1–4 receive an empty opening collection. Populated BG-03A interiors retain every partition/room ID, coordinate and label. Versions 1–3 receive an empty interior plan without modifying their original geometry or metadata. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
+Schema v6 adds required `section.exterior: { wallHeight, roofPitch, roofStyle, overhang, material }`. Height and overhang are integer mm; pitch is degrees to 0.1°. Versions 1–5 receive type/architecture defaults without modifying any existing field or identity. Version 6 must contain valid settings; missing/invalid records are rejected instead of reset. Duplicate section/project operations deep-copy settings and continue rekeying all identity references. Derived triangles/textures/cameras are never persisted.
+
+Pure read-time migration accepts schema **1, 2, 3, 4, 5 and 6**. Versions 1–4 receive an empty opening collection. Populated BG-03A interiors retain every partition/room ID, coordinate and label. Versions 1–3 receive an empty interior plan without modifying their original geometry or metadata. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
 
 The first accepted attachment enters **assembly** mode. Positions then share integer assembly axes anchored at that preserved origin; section quarter turns are relative to the frame axis. The frame's additional `rotation` is applied only for rendering/world transforms, so attachments stay exact. An assembly retains its frame even after its last extension is removed; remaining sections cannot jump, including moved/locked sections. Earlier-phase single-section projects retain their original arbitrary orientation and world-placement controls until attachment.
 
-Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section, connection, partition, room and opening identity** and remap section/partition host references, with independent geometry arrays. Exports use v5; v1/v2/v3/v4 imports remain supported, but older app versions cannot open v5 exports. Room geometric keys remain valid after identity rekeying.
+Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section, connection, partition, room and opening identity** and remap section/partition host references, with independent geometry arrays. Exports use v6; v1/v2/v3/v4/v5 imports remain supported, but older app versions cannot open v6 exports. Room geometric keys remain valid after identity rekeying.
 
-Library reads never overwrite old records. A successfully validated legacy record is written as v5 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v5.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
+Library reads never overwrite old records. A successfully validated legacy record is written as v6 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v6.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
+
+## BG-04C implementation map
+
+| Files                                                                                       | Responsibility                                                                                                                 |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `src/exteriorSettings.ts`, `src/model.ts`, `src/attachments.ts`, `src/buildingGenerator.ts` | Section settings/defaults, strict v6 validation, lossless migrations and new-section defaults                                  |
+| `src/exteriorGeometry.ts`                                                                   | Pure continuous wall/opening geometry, sloping roofs, closed stepped junctions and facade framing                              |
+| `src/exteriorScene.ts`, `src/ExteriorViewer.tsx`, `src/ExteriorBoundary.tsx`                | Lazy Three.js viewer, engine conversion, camera/picking, incremental GPU cache and failure/resource handling                   |
+| `src/ExteriorInspector.tsx`, `src/Studio.tsx`, `src/App.tsx`, `src/styles.css`              | Three Studio modes, architectural controls/history and responsive integration                                                  |
+| `schemas/project-v6.schema.json`, `tests/fixtures/bg01-project-v6.json`                     | New schema and migration expectation; older files remain intact                                                                |
+| `src/exterior.test.ts`, `tests/exterior.spec.ts`, prior regression tests                    | Roofs, openings, exact areas, migrations, independent copies, controls, WebGL failure, idle pause and touch/scroll regressions |
+| `playwright.config.ts`, `package.json`, `package-lock.json`, `README.md`                    | Headless software-WebGL tests, Three.js/type dependency, BG-04C / 0.8.0 and documentation                                      |
 
 ## BG-04B implementation map
 
@@ -155,7 +194,7 @@ Library reads never overwrite old records. A successfully validated legacy recor
 | `src/buildingGenerator.test.ts`, `tests/buildings.spec.ts`                   | Purposes, all main outlines with attachments, deterministic geometry, areas, safe creation/persistence and mobile workflows |
 | `tests/footprints.spec.ts`, `package.json`, `package-lock.json`, `README.md` | BG-04B / 0.7.0 version and documentation                                                                                    |
 
-No runtime dependency, schema migration or repository was added. Existing BG-04A modules remain in use:
+BG-04B required no new dependency or schema migration. Its BG-04A modules remain in use:
 
 ### BG-04A implementation map
 
@@ -168,7 +207,7 @@ No runtime dependency, schema migration or repository was added. Existing BG-04A
 | `src/layoutGenerator.test.ts`, `tests/layouts.spec.ts`, `tests/interiors.spec.ts`           | Determinism, geometry, circulation, safety, roundtrips and desktop/mobile workflows                |
 | `src/App.tsx`, `tests/footprints.spec.ts`, `package.json`, `package-lock.json`, `README.md` | BG-04A / 0.6.0 version and documentation                                                           |
 
-Existing interior topology, opening/access validators, camera transforms, history and IndexedDB modules are reused. No runtime dependency, schema change or repository was added.
+BG-04A reused existing interior topology, opening/access validators, camera transforms, history and IndexedDB modules without a schema change in that phase.
 
 ## Automated checks
 
@@ -185,9 +224,9 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- --proj
 
 After building, prefix the browser command with **`BG_E2E_PREVIEW=1`** to validate the production bundle through preview. Stop other servers on port 5173 first. For WebKit when available: `npm run test:e2e -- --project=iphone-webkit`.
 
-Tests retain BG-01 through BG-04A workflows and cover physical wall gaps, exact opening/threshold areas, stable room identities, entrance/multi-hop reachability, passages, hinge/swing geometry, obstruction warnings, invalid hosts/overlaps/junctions, lock protection, host resizing/movement, undo/redo, v1–v5 import/export, independent host references, persistence and native multi-touch cancellation. Mobile scrolling and pointer-to-world regressions remain enabled. BG-04A adds seeded 2–5-room generation, concave/wing fixtures, exact area reconciliation, validated door access and swings, Preferred omission, bounded failure, lock restrictions, non-destructive previews/cancellation, replacement confirmation, whole-plan undo/redo and generated-plan persistence/import/editing tests. BG-04B adds all seven purposes, all six main outlines with and without attachments, maximum extension count, exact combined areas, seeded geometric variation, square tower preferences, safe new-project creation, source-plan/lock preservation, generated-section edits and persistence, cancellation, storage failure/retry, portrait scrolling and native pinch coverage.
+Tests retain BG-01 through BG-04B workflows and cover physical wall gaps, exact opening/threshold areas, stable room identities, entrance/multi-hop reachability, passages, hinge/swing geometry, obstruction warnings, invalid hosts/overlaps/junctions, lock protection, host resizing/movement, undo/redo, v1–v5 import/export, independent host references, persistence and native multi-touch cancellation. Mobile scrolling and pointer-to-world regressions remain enabled. BG-04A adds seeded 2–5-room generation, concave/wing fixtures, exact area reconciliation, validated door access and swings, Preferred omission, bounded failure, lock restrictions, non-destructive previews/cancellation, replacement confirmation, whole-plan undo/redo and generated-plan persistence/import/editing tests. BG-04B adds all seven purposes, all six main outlines with and without attachments, maximum extension count, exact combined areas, seeded geometric variation, square tower preferences, safe new-project creation, source-plan/lock preservation, generated-section edits and persistence, cancellation, storage failure/retry, portrait scrolling and native pinch coverage. BG-04C adds exact wall-band/opening volumes, sloping roof forms, closed concave/joined fallbacks, style differences, v1–v6 lossless migrations, independent architectural settings, lazy WebGL loading, camera gestures, settings Undo/Redo, save/reopen/JSON roundtrips, mesh caching, idle/offscreen pause, WebGL/context-loss recovery and portrait resize/scroll checks.
 
-BG-04B validation: **183 unit/storage tests passed**, **58 desktop/mobile Chromium production-browser tests passed**, and **8 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
+BG-04C validation: **203 unit/storage tests passed**, **67 desktop/mobile Chromium production-browser tests passed**, and **9 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
 
 WebKit is not installed in this machine (the official browser CDN was blocked during BG-01 setup). Chromium mobile emulation/native Chromium touch dispatch does **not** verify physical iPhone Safari; run the playtest below on a device.
 
@@ -198,12 +237,13 @@ WebKit is not installed in this machine (the official browser CDN was blocked du
 - Common walls/elevation must agree. A locked section blocks any operation that would modify its stored data. Whole-building rotation is an intentional frame operation and does not unlock/change section records. Undo/redo restores previously committed lock/geometry states.
 - IndexedDB autosaves after 400 ms idle; Saving/Saved/Save Error, retry/export backup and flush-before-leave are retained. Wait for **Saved**. Private browsing, clearing site data, storage pressure, origin changes or OS termination can lose local/unsaved data. Export JSON backups. Persistent storage is requested but not guaranteed.
 - Same-project multi-tab editing has no conflict resolution (last save wins). History/view/grid preferences are session-only. No service worker/offline installation.
-- BG-04B remains ground-floor planning. Hinged doors are single leaves with a 90° swing. No selective regeneration, windows, stairs, upper-floor editing, furniture, roofs, 3D, game conversion or structural engineering. BG-04C is not implemented.
+- BG-04C remains ground-floor planning with an architectural exterior. Hinged doors are single leaves with a 90° swing. No selective regeneration, functional windows, stairs, editable upper-floor interiors, furnishing, advanced roof valleys/dormers, structural engineering, game conversion or downloadable 3D export. BG-04D is not implemented.
 
-## Short iPhone Safari playtest
+## Short iPhone Safari 3D playtest
 
-1. On the same HTTPS origin, reopen an existing manual plan with named rooms/doors; export a backup. Open Generate Building in Footprint mode, choose a purpose/complexity/count and inspect the mandatory constraints versus preferences.
-2. Generate, compare A/B/C, repeat a seed and Regenerate. Verify real connected outlines, section lists and areas. Pan, pinch and Fit during previews; geometry must remain read-only. Collapse/expand the Inspector and Cancel: the original plan must remain unchanged.
-3. Try a too-short longhouse, an impossible narrow outline and cancelling while busy. Errors/cancellation must preserve saved data. Create New Project from a valid proposal; verify the original's locks, geometry, rooms, notes and doors remain intact.
-4. In portrait, scroll through configuration/results until the toolbar and canvas leave the screen, then return. Focus dimension/name inputs with the keyboard open, vary Safari's address bar, rotate landscape/back and check safe areas/no horizontal overflow/no nested Inspector trap. Taps and camera gestures must remain accurate after scrolling.
-5. Edit/move/resize a generated section, test rejection of detached placement, lock/unlock and Undo/Redo. Run BG-04A on a simple generated rectangle; complex shapes may fail safely. Wait for Saved, reopen Safari, export/import and duplicate; verify independent identities, connections and geometry.
+1. At the same HTTPS origin, reopen a legacy building and a named interior plan; export backups. Open Exterior 3D: inspect the pitched roof, gable infill, cladding, timber details, stone band and an existing entrance's real gap/open leaf. No interior door should appear on an exterior wall.
+2. Orbit through 360°, pan, pinch, toggle projection and use Fit/Reset. Tap several wings and verify selection matches the 2D section IDs. Change eaves, pitch, Gable/Hip/Shed, overhang and material; Undo/Redo and reset defaults. Check locked sections remain protected.
+3. Generate a BG-04B Norse longhouse with three extensions; inspect sensible heights and closed step junctions from all sides. Try an L-shaped and multi-wing plan; confirm fallback notices and no floating roof pieces. Do not interpret these simplified junctions as engineered valleys.
+4. In portrait, scroll Inspector controls until the viewer leaves and returns with the document. Focus numeric fields with the keyboard open, vary Safari's address bar and rotate landscape/back. Check stable geometry/camera targeting, touch isolation, safe areas and no horizontal/nested scroll trap.
+5. Return to 2D, move/rotate/resize a section, reopen 3D and verify updated architecture with retained settings and intact rooms/doors. Wait for Saved, reopen Safari, export/import and duplicate; compare settings, labels, IDs and geometry.
+6. Background/restore Safari and switch 3D/2D repeatedly. Check idle heat/frame activity and resource stability on a device. If context loss or unavailable WebGL occurs, verify the fallback/Retry and continued 2D editing/autosave without lost data.

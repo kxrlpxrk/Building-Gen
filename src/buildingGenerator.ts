@@ -1,3 +1,4 @@
+import { exteriorDefaults } from "./exteriorSettings";
 import { footprintVertices } from "./geometry";
 import {
   duplicateProject,
@@ -188,6 +189,7 @@ function baseProject(c: BuildingConfig, ns: string, shape: Shape): Project {
       wallThickness: 200,
       orientation: 0,
       floorCount: 1,
+      exterior: exteriorDefaults(c.architecture, p.type, true),
     },
     shape,
   );
@@ -201,7 +203,7 @@ function baseProject(c: BuildingConfig, ns: string, shape: Shape): Project {
     openings: [],
   });
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     id: ns + "-project",
     name: `${c.architecture} ${c.purpose}`,
     architecture: c.architecture,

@@ -2110,3 +2110,102 @@ h3 {
   height: 22px;
   flex: 0 0 22px;
 }
+
+.editor-2d {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.editor-2d[hidden] {
+  display: none;
+}
+.exterior-wrap {
+  background: #e5e7df;
+}
+.exterior-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+.exterior-viewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.viewer-controls {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: none;
+}
+.viewer-controls button {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 12px;
+  background: #fafbf2ee;
+  pointer-events: auto;
+}
+.viewer-controls [aria-pressed="true"] {
+  background: #244f40;
+  color: white;
+}
+.exterior-caption {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: #4d5a48;
+  font-size: 10px;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+.viewer-fallback {
+  position: absolute;
+  inset: 16px;
+  padding: 20px;
+  background: #fafbf2f5;
+  overflow-y: auto;
+  line-height: 1.6;
+  font-size: 14px;
+}
+.exterior-inspector p {
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.exterior-inspector button {
+  min-height: 44px;
+}
+.roof-warning {
+  border-left: 3px solid #af8c45;
+  padding-left: 10px;
+}
+.studio-toolbar[data-exterior="true"] > :not(.tool-group),
+.studio-toolbar[data-exterior="true"] > .tool-group:first-child {
+  display: none;
+}
+.studio-toolbar[data-exterior="true"]::after {
+  content: none;
+}
+@media (max-width: 650px) {
+  .viewer-controls {
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+  }
+  .viewer-controls button {
+    flex: 1 1 auto;
+    padding: 6px;
+    font-size: 11px;
+  }
+  .studio-toolbar[data-exterior="true"] {
+    display: flex;
+    min-height: 54px;
+  }
+}

@@ -1,3 +1,4 @@
+import { exteriorDefaults } from "./exteriorSettings";
 import { describe, expect, it } from "vitest";
 import {
   areas,
@@ -232,9 +233,13 @@ describe("schema v3 and lossless BG-01 migration", () => {
       migrated = validateProject(old);
     expect(migrated).toEqual({
       ...old,
-      schemaVersion: 5,
+      schemaVersion: 6,
       building: {
         ...old.building,
+        sections: old.building.sections.map((s) => ({
+          ...s,
+          exterior: exteriorDefaults("Mixed"),
+        })),
         frame: {
           origin: {
             x: old.building.sections[0].position.x,
@@ -248,7 +253,7 @@ describe("schema v3 and lossless BG-01 migration", () => {
     });
     expect(old).toEqual(before);
     expect(parseProject(JSON.stringify(old))).toEqual(migrated);
-    expect(serializeProject(migrated)).toContain('"schemaVersion": 5');
+    expect(serializeProject(migrated)).toContain('"schemaVersion": 6');
   });
   it.each(SHAPES)(
     "roundtrips %s polygons, metadata, extents and stable IDs",

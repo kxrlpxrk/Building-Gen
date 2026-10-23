@@ -278,7 +278,7 @@ describe("v5 migrations and identities", () => {
       const before = structuredClone(source),
         p = validateProject(source);
       expect(source).toEqual(before);
-      expect(p.schemaVersion).toBe(5);
+      expect(p.schemaVersion).toBe(6);
       expect(p.building.openings).toEqual([]);
       expect(p.building.sections).toMatchObject(source.building.sections);
       expect(p.id).toBe(source.id);

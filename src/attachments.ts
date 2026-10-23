@@ -1,3 +1,4 @@
+import { exteriorDefaults } from "./exteriorSettings";
 import {
   SECTION_TYPES,
   combinedGeometry,
@@ -102,6 +103,7 @@ export function attachmentPreview(
           length: c.length,
           width: c.width,
           floorCount: 1,
+          exterior: exteriorDefaults(main.exterior.material, c.type, false),
         },
         c.shape,
       );

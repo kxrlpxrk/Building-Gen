@@ -301,7 +301,7 @@ test("placement cancellation, scrolled drag/resize, protected hosts and independ
   expect(rows).toHaveLength(3);
   expect(
     rows.every(
-      (p) => p.schemaVersion === 5 && p.building.openings.length === 1,
+      (p) => p.schemaVersion === 6 && p.building.openings.length === 1,
     ),
   ).toBe(true);
   expect(new Set(rows.map((p) => p.building.openings[0].id)).size).toBe(3);

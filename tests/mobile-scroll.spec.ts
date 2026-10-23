@@ -172,7 +172,16 @@ test("native swipes over the inspector scroll the page without editing the canva
     0,
   );
   expect(await snapshot(page)).toEqual(before);
-  await swipe(230, 790);
+  // Always begin the return gesture in the Inspector. Once the canvas returns,
+  // a fixed screen coordinate can land on its gesture-capturing SVG instead.
+  for (
+    let attempt = 0;
+    attempt < 5 && (await page.evaluate(() => scrollY)) >= 100;
+    attempt++
+  ) {
+    const inspector = (await page.locator(".inspector").boundingBox())!;
+    await swipe(Math.max(140, Math.min(720, inspector.y + 60)), 800);
+  }
   await expect.poll(() => page.evaluate(() => scrollY)).toBeLessThan(100);
   expect(await snapshot(page)).toEqual(before);
   expect(

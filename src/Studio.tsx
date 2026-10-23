@@ -1,3 +1,5 @@
+import ExteriorInspector from "./ExteriorInspector";
+import ExteriorBoundary from "./ExteriorBoundary";
 import BuildingGeneratorPanel from "./BuildingGeneratorPanel";
 import type { BuildingProposal } from "./buildingGenerator";
 import GeneratorPanel from "./GeneratorPanel";
@@ -12,7 +14,15 @@ import InteriorInspector, {
 } from "./InteriorInspector";
 import { changePartitions } from "./interiorBuilding";
 import { deriveInterior, type Partition, type RoomRecord } from "./interior";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   MIN_SIZE,
   MAX_SIZE,
@@ -61,6 +71,7 @@ import {
   type AttachmentConfig,
 } from "./attachments";
 import { Brand, downloadProject, Modal, NumericField } from "./components";
+const ExteriorViewer = lazy(() => import("./ExteriorViewer"));
 type Props = {
   project: Project;
   onBack: () => void;
@@ -105,7 +116,9 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
     buildingPreview?.project.building ??
     layoutPreview?.building ??
     current.building;
-  const [mode, setMode] = useState<"footprint" | "interior">("footprint");
+  const [mode, setMode] = useState<"footprint" | "interior" | "exterior">(
+    "footprint",
+  );
   const [interiorTool, setInteriorTool] = useState<InteriorTool>("wall");
   const [interiorSelection, setInteriorSelection] =
     useState<InteriorSelection>(null);
@@ -438,14 +451,19 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
           e.preventDefault();
           void persist(currentRef.current);
         }
-      } else if (e.key.toLowerCase() === "v" && !anyGenerator) {
+      } else if (
+        e.key.toLowerCase() === "v" &&
+        !anyGenerator &&
+        mode !== "exterior"
+      ) {
         setTool("edit");
         setInteriorTool("wall");
-      } else if (e.key.toLowerCase() === "h") setTool("pan");
+      } else if (e.key.toLowerCase() === "h" && mode !== "exterior")
+        setTool("pan");
     }
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [persist, anyGenerator, buildingGeneratorOpen]);
+  }, [persist, anyGenerator, buildingGeneratorOpen, mode]);
   async function back() {
     setLeaving(true);
     if (await persist(currentRef.current)) onBack();
@@ -481,7 +499,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-04B</span>
+        <span className="version">BG-04C</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -533,6 +551,20 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
           }}
         >
           Interior Planning
+        </button>
+        <button
+          disabled={creatingGenerated}
+          aria-pressed={mode === "exterior"}
+          onClick={() => {
+            closeGenerator();
+            closeBuildingGenerator();
+            setAttachment(null);
+            setMode("exterior");
+            setOpeningDraft(null);
+            setGeometryError("");
+          }}
+        >
+          Exterior 3D
         </button>
         {mode === "footprint" && (
           <button
@@ -597,7 +629,11 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
           </>
         )}
       </div>
-      <div className="studio-toolbar" data-read-only={anyGenerator}>
+      <div
+        className="studio-toolbar"
+        data-read-only={anyGenerator}
+        data-exterior={mode === "exterior"}
+      >
         <div className="tool-group">
           <button
             disabled={anyGenerator}
@@ -713,6 +749,20 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                     </p>
                   ))}
                 </div>
+              ) : mode === "exterior" ? (
+                <div className="interior-overview">
+                  <h2>Architectural sections</h2>
+                  {current.building.sections.map((s) => (
+                    <button
+                      key={s.id}
+                      aria-pressed={s.id === section.id}
+                      onClick={() => selectSection(s.id)}
+                    >
+                      {s.name}
+                      {s.locked ? " · Locked" : ""}
+                    </button>
+                  ))}
+                </div>
               ) : mode === "footprint" ? (
                 <SectionsPanel
                   building={current.building}
@@ -758,77 +808,105 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
           )}
         </aside>
         <main className="editor-main">
-          <Editor
-            readOnly={anyGenerator}
-            previewLabel={buildingPreview?.label ?? layoutPreview?.label}
-            previewKind={buildingGeneratorOpen ? "Building" : "Layout"}
-            interior={
-              mode === "interior"
-                ? {
-                    tool: interiorTool,
-                    selection: interiorSelection,
-                    thickness: partitionThickness,
-                    onSelect: setInteriorSelection,
-                    onWalls: interiorWalls,
-                    validate: (walls) => interiorWalls(walls, true),
-                    openingDraft,
-                    passage,
-                    onOpeningDraft: setOpeningDraft,
-                    validateOpenings: (openings) => doorsChange(openings, true),
-                  }
-                : undefined
-            }
-            section={displaySection(
-              buildingPreview ? viewBuilding.sections[0] : section,
-              viewBuilding,
-            )}
-            building={viewBuilding}
-            placement={
-              placement && attachment
-                ? { ...placement, edge: attachment.config.edge }
-                : null
-            }
-            onSectionSelect={selectSection}
-            validateChange={(s) =>
-              validateSectionChange(storedSection(s, current.building))
-            }
-            onChange={(s) => changeSection(storedSection(s, current.building))}
-            grid={grid}
-            snapEnabled={snapEnabled}
-            gridVisible={gridVisible}
-            tool={anyGenerator ? "pan" : tool}
-            selected={buildingGeneratorOpen ? false : selected}
-            onSelect={setSelected}
-            part={activePart}
-            onPartSelect={setPart}
-          />
+          {mode === "exterior" && (
+            <ExteriorBoundary>
+              <Suspense
+                fallback={
+                  <div className="canvas-wrap exterior-wrap">
+                    <p className="viewer-fallback" role="status">
+                      Loading architectural 3D viewer…
+                    </p>
+                  </div>
+                }
+              >
+                <ExteriorViewer
+                  building={current.building}
+                  selectedId={section.id}
+                  onSelect={selectSection}
+                />
+              </Suspense>
+            </ExteriorBoundary>
+          )}
+          <div className="editor-2d" hidden={mode === "exterior"}>
+            <Editor
+              readOnly={anyGenerator}
+              previewLabel={buildingPreview?.label ?? layoutPreview?.label}
+              previewKind={buildingGeneratorOpen ? "Building" : "Layout"}
+              interior={
+                mode === "interior"
+                  ? {
+                      tool: interiorTool,
+                      selection: interiorSelection,
+                      thickness: partitionThickness,
+                      onSelect: setInteriorSelection,
+                      onWalls: interiorWalls,
+                      validate: (walls) => interiorWalls(walls, true),
+                      openingDraft,
+                      passage,
+                      onOpeningDraft: setOpeningDraft,
+                      validateOpenings: (openings) =>
+                        doorsChange(openings, true),
+                    }
+                  : undefined
+              }
+              section={displaySection(
+                buildingPreview ? viewBuilding.sections[0] : section,
+                viewBuilding,
+              )}
+              building={viewBuilding}
+              placement={
+                placement && attachment
+                  ? { ...placement, edge: attachment.config.edge }
+                  : null
+              }
+              onSectionSelect={selectSection}
+              validateChange={(s) =>
+                validateSectionChange(storedSection(s, current.building))
+              }
+              onChange={(s) =>
+                changeSection(storedSection(s, current.building))
+              }
+              grid={grid}
+              snapEnabled={snapEnabled}
+              gridVisible={gridVisible}
+              tool={anyGenerator ? "pan" : tool}
+              selected={buildingGeneratorOpen ? false : selected}
+              onSelect={setSelected}
+              part={activePart}
+              onPartSelect={setPart}
+            />
+          </div>
           <footer className="editor-status">
             <span>
-              {buildingGeneratorOpen
-                ? buildingPreview
-                  ? `Building ${buildingPreview.label} preview · not saved`
-                  : "Building configuration · original project"
-                : generatorOpen
-                  ? layoutPreview
-                    ? `Layout ${layoutPreview.label} preview · not saved`
-                    : "Layout configuration · original plan"
-                  : mode === "interior"
-                    ? "Ground-floor interior"
-                    : selected
-                      ? "Section selected"
-                      : "No selection"}{" "}
+              {mode === "exterior"
+                ? "Exterior 3D · Orbit / pan / pinch · Ground floor"
+                : buildingGeneratorOpen
+                  ? buildingPreview
+                    ? `Building ${buildingPreview.label} preview · not saved`
+                    : "Building configuration · original project"
+                  : generatorOpen
+                    ? layoutPreview
+                      ? `Layout ${layoutPreview.label} preview · not saved`
+                      : "Layout configuration · original plan"
+                    : mode === "interior"
+                      ? "Ground-floor interior"
+                      : selected
+                        ? "Section selected"
+                        : "No selection"}{" "}
               ·{" "}
-              {tool === "pan"
-                ? "Drag to pan"
-                : mode === "footprint"
-                  ? "Drag to move · corners resize"
-                  : interiorTool === "draw"
-                    ? "Tap start · tap end"
-                    : interiorTool === "wall"
-                      ? "Drag wall · endpoints resize"
-                      : interiorTool === "door"
-                        ? "Tap wall · preview · confirm"
-                        : "Tap a clear region"}
+              {mode === "exterior"
+                ? "Camera gestures never edit geometry"
+                : tool === "pan"
+                  ? "Drag to pan"
+                  : mode === "footprint"
+                    ? "Drag to move · corners resize"
+                    : interiorTool === "draw"
+                      ? "Tap start · tap end"
+                      : interiorTool === "wall"
+                        ? "Drag wall · endpoints resize"
+                        : interiorTool === "door"
+                          ? "Tap wall · preview · confirm"
+                          : "Tap a clear region"}
             </span>
             <span>Millimetre precision</span>
           </footer>
@@ -873,6 +951,13 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                       setCreatingGenerated(false);
                     }
                   }}
+                />
+              ) : mode === "exterior" ? (
+                <ExteriorInspector
+                  building={current.building}
+                  section={section}
+                  onSelect={selectSection}
+                  onChange={changeSection}
                 />
               ) : mode === "interior" ? (
                 generatorOpen ? (

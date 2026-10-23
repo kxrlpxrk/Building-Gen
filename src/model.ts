@@ -1,3 +1,8 @@
+import {
+  exteriorDefaults,
+  readExterior,
+  type ExteriorSettings,
+} from "./exteriorSettings";
 import { validateOpenings, type Opening, type OpeningHost } from "./openings";
 import { openingContext } from "./assembly";
 import {
@@ -22,6 +27,7 @@ type SectionBase = Rectangle & {
   type: SectionType;
   locked: boolean;
   floorCount: number;
+  exterior: ExteriorSettings;
 };
 export type Section = SectionBase &
   (
@@ -51,7 +57,7 @@ export type Building = {
   openings: Opening[];
 };
 export type Project = {
-  schemaVersion: 5;
+  schemaVersion: 6;
   id: string;
   name: string;
   architecture: Architecture;
@@ -63,7 +69,7 @@ export function createProject(name = "Untitled building"): Project {
   const now = new Date().toISOString(),
     sectionId = crypto.randomUUID();
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     id: crypto.randomUUID(),
     name,
     architecture: "Norse",
@@ -89,6 +95,7 @@ export function createProject(name = "Untitled building"): Project {
           wallThickness: 200,
           orientation: 0,
           floorCount: 1,
+          exterior: exteriorDefaults("Norse"),
         },
       ],
     },
@@ -118,7 +125,12 @@ function point(v: unknown): Point {
     );
   return { x: v.x as number, y: v.y as number };
 }
-function section(value: unknown, version: number): Section {
+function section(
+  value: unknown,
+  version: number,
+  architecture: Architecture,
+  main: boolean,
+): Section {
   if (
     !object(value) ||
     !validId(value.id) ||
@@ -157,6 +169,14 @@ function section(value: unknown, version: number): Section {
     wallThickness: value.wallThickness as number,
     orientation: value.orientation as number,
     floorCount: value.floorCount as number,
+    exterior:
+      version >= 6
+        ? readExterior(value.exterior)
+        : exteriorDefaults(
+            architecture,
+            version >= 3 ? (value.type as SectionType) : "Custom",
+            main,
+          ),
     position: {
       x: value.position.x as number,
       y: value.position.y as number,
@@ -278,10 +298,10 @@ function readOpenings(value: unknown): Opening[] {
 export function validateProject(value: unknown): Project {
   if (
     !object(value) ||
-    ![1, 2, 3, 4, 5].includes(value.schemaVersion as number)
+    ![1, 2, 3, 4, 5, 6].includes(value.schemaVersion as number)
   )
     throw new Error(
-      "Unsupported project schema. BG-03B accepts schemaVersion 1, 2, 3, 4 or 5.",
+      "Unsupported project schema. BG-04C accepts schemaVersion 1, 2, 3, 4, 5 or 6.",
     );
   const version = value.schemaVersion as number;
   if (
@@ -303,7 +323,16 @@ export function validateProject(value: unknown): Project {
       "A building requires 1–12 sections (legacy schemas require exactly one).",
     );
   const source = value.building,
-    sections = (source.sections as unknown[]).map((s) => section(s, version)),
+    sections = (source.sections as unknown[]).map((s, i) =>
+      section(
+        s,
+        version,
+        value.architecture as Architecture,
+        version >= 3
+          ? (s as Record<string, unknown>)?.id === source.mainSectionId
+          : i === 0,
+      ),
+    ),
     first = sections[0];
   let frame: Building["frame"] = {
       origin: { x: first.position.x, y: first.position.y },
@@ -379,7 +408,7 @@ export function validateProject(value: unknown): Project {
     sections,
     connections,
     interior: version >= 4 ? readInterior(source.interior) : emptyInterior(),
-    openings: version === 5 ? readOpenings(source.openings) : [],
+    openings: version >= 5 ? readOpenings(source.openings) : [],
   };
   validateConnections(building);
   validateOpenings(openingContext(building), building.openings);
@@ -395,7 +424,7 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error("All project, interior and opening IDs must be distinct.");
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     id: value.id,
     name: value.name.trim(),
     architecture: value.architecture as Architecture,
