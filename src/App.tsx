@@ -169,6 +169,12 @@ export default function App() {
         key={active.id}
         project={active}
         onSaved={onSaved}
+        onCreate={async (p) => {
+          await saveProject(p);
+          onSaved(p);
+          void requestPersistentStorage();
+          setActive(p);
+        }}
         onBack={() => {
           setActive(null);
           void refresh();
@@ -209,14 +215,14 @@ export default function App() {
             <br />
             with a considered plan.
           </p>
-          <span className="version">BG-04A</span>
+          <span className="version">BG-04B</span>
         </div>
       </aside>
       <div className="library-body">
         <header className="library-topbar">
           <span>YOUR DESIGN WORKSPACE</span>
           <span className="local-badge">● Local storage</span>
-          <span className="version mobile-version">BG-04A</span>
+          <span className="version mobile-version">BG-04B</span>
         </header>
         <main className="dashboard">
           <section className="welcome">
@@ -452,7 +458,7 @@ export default function App() {
           </section>
           <footer className="library-footer">
             <span>
-              BUILDING GENERATOR <b> / </b> BG-04A
+              BUILDING GENERATOR <b> / </b> BG-04B
             </span>
             <span>
               Saved on this device. Export your plans to keep a backup.

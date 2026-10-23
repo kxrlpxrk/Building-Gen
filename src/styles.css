@@ -1539,6 +1539,9 @@ h3 {
     grid-column: 3;
     grid-row: 2;
   }
+  .studio-toolbar[data-read-only="true"]::after {
+    content: "PINCH TO ZOOM · DRAG TO PAN";
+  }
   .studio-workspace,
   .studio-workspace.left-closed,
   .studio-workspace.inspector-closed,
@@ -2085,4 +2088,25 @@ h3 {
 .generator-panel [aria-pressed="true"] {
   background: #244f40;
   color: white;
+}
+
+.building-preferences {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 16px 0;
+  padding: 8px;
+  min-width: 0;
+}
+.building-preferences label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.building-preferences input[type="checkbox"] {
+  width: 22px;
+  min-height: 22px;
+  height: 22px;
+  flex: 0 0 22px;
 }

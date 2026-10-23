@@ -1,6 +1,6 @@
-# Building Generator · BG-04A
+# Building Generator · BG-04B
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04A adds deterministic, editable ground-floor layout proposals to the existing footprint, interior and door tools, retaining BG-02B.1 mobile document scrolling. Release 0.6.0; project schema remains version 5.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04B adds seeded main-building and connected-extension proposals alongside BG-04A room layouts, retaining the existing manual tools and BG-02B.1 mobile document scrolling. Release 0.7.0; project schema remains version 5.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,24 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Procedural building footprints · BG-04B
+
+In **Footprint** mode, choose **Generate Building**. Configure Norse/Medieval/Mixed architecture, Longhouse/Cottage/Farmhouse/Workshop/Tavern/Inn/Manor/Trading Hall purpose, Simple/Organic/Grand complexity, main length/width, **0–5 desired extensions**, optional preferred section types, main starting outline and seed. Defaults are a Norse longhouse, 18 × 8 m, Simple, one supporting extension. Use **Generate footprints** to repeat a seed or **Regenerate buildings** to change it.
+
+**Mandatory constraints** are the exact integer-mm main dimensions, requested extension count, explicit outline (unless Auto), valid connected geometry and clear spans. **Preferences** guide purpose proportions, architecture, complexity, extension types and composition scoring. A longhouse requires length ≥ 1.8 × width; incompatible inputs explain the constraint instead of rewriting dimensions. Other departures from preferred proportions are reported. Preferred types that are absent are listed; no requested extension is silently omitted.
+
+The generator offers up to **three geometrically different proposals A/B/C** on the existing SVG canvas, with **Compare buildings** thumbnails, actual exterior/usable interior areas, outer extents, section names/types/dimensions, coherence scores and explanations. Geometry edits are disabled during previews; pan, zoom, Fit and pinch remain available. Collapsing the Inspector retains proposals. Previews and temporary configuration are never persisted. **Cancel building generation** terminates its worker and returns to the original building without changing project data.
+
+**Create New Project** is the only acceptance action. Enter a project name; the selected candidate is runtime-validated and every project/building/section/connection ID is rekeyed before saving. The original project, including locked sections, partitions, room labels/notes and doors, is preserved. Pending manual edits must save successfully before switching. Storage failures keep the preview available with a clear retry message. Current-building replacement is deliberately not offered. New sections are unlocked and fully editable using existing attachment, dimension, move, resize, rotation, lock and Undo/Redo tools; validation remains authoritative.
+
+Supported compositions include elongated rectangular main halls, cottages with porches, farmhouses with residential/support wings, workshops with storage, tavern/trading halls, secondary halls, square tower footprints and multi-wing manors. All **Rectangle, L, T, U, Cross and Irregular** main presets are available where their wall inset and clear limbs remain valid. Auto uses simpler rectangles for Simple/Longhouse and a broader outline pool for Organic/Grand; Norse favours rectangular hall forms. Complexity changes outline pools, extension sizes and offsets; it does not change the requested count. Extensions use rectangular templates, possibly offset along a shared edge; tower footprints are square and remain ground-level geometry only. Different purposes use different main roles and supporting-section profiles.
+
+The local worker performs at most **32 composition attempts**, **1,600 attachment trials total** and **36 trials per extension in each attempt**. Candidate sizes/offsets use 100 mm increments; exact entered main dimensions preserve millimetres. Generator-specific limits are **4–60 m main dimensions**, **0.2 m exterior walls**, at least **2.2 m shared edges** and **1.8 m clear limbs/necks**. Supporting extensions cannot dominate the main footprint. These limits do not restrict the existing manual editor. Zero extensions with a fixed outline and dimensions have only one physical geometry; fewer than three results are reported honestly. Bounded failure does not prove that all possible compositions are infeasible.
+
+`attachmentPreview`, `prepareBuilding`, exact orthogonal union/inset, clear-space and project validators reject overlaps, holes, self-touching boundaries, disconnected/corner-only joins, invalid offsets, narrow necks and unsupported orientation relationships. Areas come from actual merged polygons, never bounding boxes. Open-plan shared edges have one continuous exterior wall boundary. Ranking considers purpose proportions, compactness, requested asymmetry, extension scale and represented preferences; proposals must differ by at least 0.4 m of exterior boundary, not merely labels or IDs.
+
+No rooms, partitions, doors or roofs are generated by this operation. **Interior Planning / BG-04A Generate Layout** can be used afterwards on supported generated footprints. Complex shapes can return the room solver's normal safe failure; building geometry is never altered to manufacture a solution. The existing schema v5, IndexedDB database, v1–v5 import/migrations, JSON export and duplication remain unchanged. Accepted buildings store ordinary section/frame/connection records only, with normal autosave. No architectural/structural code compliance is claimed.
 
 ## Automatic room layouts · BG-04A
 
@@ -126,7 +144,20 @@ Connections are derived from real shared section edges and persisted explicitly.
 
 Library reads never overwrite old records. A successfully validated legacy record is written as v5 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v5.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
 
-## BG-04A implementation map
+## BG-04B implementation map
+
+| Files                                                                        | Responsibility                                                                                                              |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `src/buildingGenerator.ts`                                                   | Bounded seeded composition search, scoring, exact validation, independent project creation                                  |
+| `src/buildingWorker.ts`                                                      | Responsive cancellable worker and progress/results                                                                          |
+| `src/BuildingGeneratorPanel.tsx`                                             | Configuration, comparison thumbnails, warnings and Create New Project                                                       |
+| `src/Studio.tsx`, `src/Editor.tsx`, `src/App.tsx`, `src/styles.css`          | Read-only footprint previews, Fit, save-before-switch and existing studio/library integration                               |
+| `src/buildingGenerator.test.ts`, `tests/buildings.spec.ts`                   | Purposes, all main outlines with attachments, deterministic geometry, areas, safe creation/persistence and mobile workflows |
+| `tests/footprints.spec.ts`, `package.json`, `package-lock.json`, `README.md` | BG-04B / 0.7.0 version and documentation                                                                                    |
+
+No runtime dependency, schema migration or repository was added. Existing BG-04A modules remain in use:
+
+### BG-04A implementation map
 
 | Files                                                                                       | Responsibility                                                                                     |
 | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -154,9 +185,9 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- --proj
 
 After building, prefix the browser command with **`BG_E2E_PREVIEW=1`** to validate the production bundle through preview. Stop other servers on port 5173 first. For WebKit when available: `npm run test:e2e -- --project=iphone-webkit`.
 
-Tests retain BG-01 through BG-03B workflows and cover physical wall gaps, exact opening/threshold areas, stable room identities, entrance/multi-hop reachability, passages, hinge/swing geometry, obstruction warnings, invalid hosts/overlaps/junctions, lock protection, host resizing/movement, undo/redo, v1–v5 import/export, independent host references, persistence and native multi-touch cancellation. Mobile scrolling and pointer-to-world regressions remain enabled. BG-04A adds seeded 2–5-room generation, concave/wing fixtures, exact area reconciliation, validated door access and swings, Preferred omission, bounded failure, lock restrictions, non-destructive previews/cancellation, replacement confirmation, whole-plan undo/redo and generated-plan persistence/import/editing tests. The existing duplication browser test now waits for its asynchronous IndexedDB save before inspecting the copy.
+Tests retain BG-01 through BG-04A workflows and cover physical wall gaps, exact opening/threshold areas, stable room identities, entrance/multi-hop reachability, passages, hinge/swing geometry, obstruction warnings, invalid hosts/overlaps/junctions, lock protection, host resizing/movement, undo/redo, v1–v5 import/export, independent host references, persistence and native multi-touch cancellation. Mobile scrolling and pointer-to-world regressions remain enabled. BG-04A adds seeded 2–5-room generation, concave/wing fixtures, exact area reconciliation, validated door access and swings, Preferred omission, bounded failure, lock restrictions, non-destructive previews/cancellation, replacement confirmation, whole-plan undo/redo and generated-plan persistence/import/editing tests. BG-04B adds all seven purposes, all six main outlines with and without attachments, maximum extension count, exact combined areas, seeded geometric variation, square tower preferences, safe new-project creation, source-plan/lock preservation, generated-section edits and persistence, cancellation, storage failure/retry, portrait scrolling and native pinch coverage.
 
-BG-04A validation: **154 unit/storage tests passed**, **51 desktop/mobile Chromium production-browser tests passed**, and **7 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
+BG-04B validation: **183 unit/storage tests passed**, **58 desktop/mobile Chromium production-browser tests passed**, and **8 desktop-inapplicable native touch tests skipped** (their mobile runs passed). TypeScript/Vite production build and formatting checks passed.
 
 WebKit is not installed in this machine (the official browser CDN was blocked during BG-01 setup). Chromium mobile emulation/native Chromium touch dispatch does **not** verify physical iPhone Safari; run the playtest below on a device.
 
@@ -167,12 +198,12 @@ WebKit is not installed in this machine (the official browser CDN was blocked du
 - Common walls/elevation must agree. A locked section blocks any operation that would modify its stored data. Whole-building rotation is an intentional frame operation and does not unlock/change section records. Undo/redo restores previously committed lock/geometry states.
 - IndexedDB autosaves after 400 ms idle; Saving/Saved/Save Error, retry/export backup and flush-before-leave are retained. Wait for **Saved**. Private browsing, clearing site data, storage pressure, origin changes or OS termination can lose local/unsaved data. Export JSON backups. Persistent storage is requested but not guaranteed.
 - Same-project multi-tab editing has no conflict resolution (last save wins). History/view/grid preferences are session-only. No service worker/offline installation.
-- BG-04A remains ground-floor planning. Hinged doors are single leaves with a 90° swing. No selective regeneration, automatic footprints/extensions, windows, stairs, upper-floor editing, furniture, roofs, 3D, game conversion or structural engineering. BG-04B/C are not implemented.
+- BG-04B remains ground-floor planning. Hinged doors are single leaves with a 90° swing. No selective regeneration, windows, stairs, upper-floor editing, furniture, roofs, 3D, game conversion or structural engineering. BG-04C is not implemented.
 
 ## Short iPhone Safari playtest
 
-1. Use the same HTTPS origin; reopen an older project and export a backup. In Interior Planning, open Generate Layout, review minimum versus usable area, and generate the starter rooms.
-2. Compare A/B/C and inspect labels, areas, real door gaps and access. Repeat the seed, then Regenerate. Pan, pinch and Fit while previewing; geometry must remain read-only. Cancel and verify the original plan is unchanged.
-3. Accept, Undo and Redo. On an existing named manual plan, verify the replacement summary; cancel once, then explicitly confirm. Existing exterior entrances must survive or generation must explain incompatibility. Try impossible areas and a locked section: neither may alter saved data.
-4. Swipe through the portrait Inspector so the canvas/toolbar leave and return with the page. Open the keyboard, collapse/expand, vary Safari's address bar and rotate landscape/back. Check no nested scroll trap, horizontal overflow or inaccurate taps after scrolling.
-5. Edit generated room names, walls and doors with existing tools. Wait for Saved, reopen Safari, export/import and duplicate. Verify geometry, names, openings, access and independent identities.
+1. On the same HTTPS origin, reopen an existing manual plan with named rooms/doors; export a backup. Open Generate Building in Footprint mode, choose a purpose/complexity/count and inspect the mandatory constraints versus preferences.
+2. Generate, compare A/B/C, repeat a seed and Regenerate. Verify real connected outlines, section lists and areas. Pan, pinch and Fit during previews; geometry must remain read-only. Collapse/expand the Inspector and Cancel: the original plan must remain unchanged.
+3. Try a too-short longhouse, an impossible narrow outline and cancelling while busy. Errors/cancellation must preserve saved data. Create New Project from a valid proposal; verify the original's locks, geometry, rooms, notes and doors remain intact.
+4. In portrait, scroll through configuration/results until the toolbar and canvas leave the screen, then return. Focus dimension/name inputs with the keyboard open, vary Safari's address bar, rotate landscape/back and check safe areas/no horizontal overflow/no nested Inspector trap. Taps and camera gestures must remain accurate after scrolling.
+5. Edit/move/resize a generated section, test rejection of detached placement, lock/unlock and Undo/Redo. Run BG-04A on a simple generated rectangle; complex shapes may fail safely. Wait for Saved, reopen Safari, export/import and duplicate; verify independent identities, connections and geometry.

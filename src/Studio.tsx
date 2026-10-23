@@ -1,3 +1,5 @@
+import BuildingGeneratorPanel from "./BuildingGeneratorPanel";
+import type { BuildingProposal } from "./buildingGenerator";
 import GeneratorPanel from "./GeneratorPanel";
 import { acceptGeneratedLayout, type LayoutProposal } from "./layoutGenerator";
 import DoorsInspector from "./DoorsInspector";
@@ -63,8 +65,9 @@ type Props = {
   project: Project;
   onBack: () => void;
   onSaved: (p: Project) => void;
+  onCreate: (p: Project) => Promise<void>;
 };
-export default function Studio({ project, onBack, onSaved }: Props) {
+export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
   const [history, setHistory] = useState(() => initialHistory(project));
   const current = history.present;
   const historyRef = useRef(history);
@@ -79,7 +82,17 @@ export default function Studio({ project, onBack, onSaved }: Props) {
   const [saveError, setSaveError] = useState("");
   const [leaving, setLeaving] = useState(false),
     [leaveError, setLeaveError] = useState(false);
+  const [buildingGeneratorOpen, setBuildingGeneratorOpen] = useState(false);
+  const [buildingPreview, setBuildingPreview] =
+    useState<BuildingProposal | null>(null);
+  const [creatingGenerated, setCreatingGenerated] = useState(false);
+  const closeBuildingGenerator = () => {
+    setBuildingGeneratorOpen(false);
+    setBuildingPreview(null);
+    setTool("edit");
+  };
   const [generatorOpen, setGeneratorOpen] = useState(false);
+  const anyGenerator = generatorOpen || buildingGeneratorOpen;
   const [layoutPreview, setLayoutPreview] = useState<LayoutProposal | null>(
     null,
   );
@@ -88,7 +101,10 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     setLayoutPreview(null);
     setTool("edit");
   };
-  const viewBuilding = layoutPreview?.building ?? current.building;
+  const viewBuilding =
+    buildingPreview?.project.building ??
+    layoutPreview?.building ??
+    current.building;
   const [mode, setMode] = useState<"footprint" | "interior">("footprint");
   const [interiorTool, setInteriorTool] = useState<InteriorTool>("wall");
   const [interiorSelection, setInteriorSelection] =
@@ -387,6 +403,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
     return changeSection(next, false);
   }
   function travel(action: (h: History<Project>) => History<Project>) {
+    if (buildingGeneratorOpen) return;
     if (action(historyRef.current) === historyRef.current) return;
     setSaveState("Saving");
     setHistory((h) => {
@@ -421,14 +438,14 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           e.preventDefault();
           void persist(currentRef.current);
         }
-      } else if (e.key.toLowerCase() === "v" && !generatorOpen) {
+      } else if (e.key.toLowerCase() === "v" && !anyGenerator) {
         setTool("edit");
         setInteriorTool("wall");
       } else if (e.key.toLowerCase() === "h") setTool("pan");
     }
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [persist, generatorOpen]);
+  }, [persist, anyGenerator, buildingGeneratorOpen]);
   async function back() {
     setLeaving(true);
     if (await persist(currentRef.current)) onBack();
@@ -444,7 +461,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
         <button
           className="back-button"
           onClick={() => void back()}
-          disabled={leaving}
+          disabled={leaving || creatingGenerated}
           aria-label="Back to project library"
         >
           ← <span>Library</span>
@@ -464,7 +481,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-04A</span>
+        <span className="version">BG-04B</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -494,9 +511,11 @@ export default function Studio({ project, onBack, onSaved }: Props) {
       )}
       <div className="studio-modes" aria-label="Studio planning modes">
         <button
+          disabled={creatingGenerated}
           aria-pressed={mode === "footprint"}
           onClick={() => {
             closeGenerator();
+            closeBuildingGenerator();
             setMode("footprint");
             setTool("edit");
           }}
@@ -504,8 +523,10 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           Footprint
         </button>
         <button
+          disabled={creatingGenerated}
           aria-pressed={mode === "interior"}
           onClick={() => {
+            closeBuildingGenerator();
             setMode("interior");
             setTool("edit");
             setAttachment(null);
@@ -513,10 +534,26 @@ export default function Studio({ project, onBack, onSaved }: Props) {
         >
           Interior Planning
         </button>
+        {mode === "footprint" && (
+          <button
+            aria-pressed={buildingGeneratorOpen}
+            disabled={creatingGenerated}
+            onClick={() => {
+              closeGenerator();
+              setTool("pan");
+              setAttachment(null);
+              setBuildingGeneratorOpen(true);
+              setInspectorOpen(true);
+              setGeometryError("");
+            }}
+          >
+            Generate Building
+          </button>
+        )}
         {mode === "interior" && (
           <>
             <button
-              disabled={generatorOpen}
+              disabled={anyGenerator}
               aria-pressed={tool === "edit" && interiorTool === "draw"}
               onClick={() => {
                 setInteriorTool("draw");
@@ -526,7 +563,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
               Draw Wall
             </button>
             <button
-              disabled={generatorOpen}
+              disabled={anyGenerator}
               aria-pressed={tool === "edit" && interiorTool === "room"}
               onClick={() => {
                 setInteriorTool("room");
@@ -536,7 +573,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
               Select Room
             </button>
             <button
-              disabled={generatorOpen}
+              disabled={anyGenerator}
               aria-pressed={tool === "edit" && interiorTool === "door"}
               onClick={() => {
                 setInteriorTool("door");
@@ -560,10 +597,10 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           </>
         )}
       </div>
-      <div className="studio-toolbar">
+      <div className="studio-toolbar" data-read-only={anyGenerator}>
         <div className="tool-group">
           <button
-            disabled={generatorOpen}
+            disabled={anyGenerator}
             aria-pressed={
               tool === "edit" &&
               (mode === "footprint" || interiorTool === "wall")
@@ -599,7 +636,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           <button
             aria-label="Undo"
             title="Undo (⌘/Ctrl Z)"
-            disabled={!history.past.length}
+            disabled={buildingGeneratorOpen || !history.past.length}
             onClick={() => travel(undo)}
           >
             ↶
@@ -607,7 +644,7 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           <button
             aria-label="Redo"
             title="Redo (⌘/Ctrl Shift Z)"
-            disabled={!history.future.length}
+            disabled={buildingGeneratorOpen || !history.future.length}
             onClick={() => travel(redo)}
           >
             ↷
@@ -659,7 +696,24 @@ export default function Studio({ project, onBack, onSaved }: Props) {
           </button>
           {leftOpen && (
             <div className="structure-content">
-              {mode === "footprint" ? (
+              {buildingGeneratorOpen ? (
+                <div className="interior-overview">
+                  <h2>
+                    {buildingPreview
+                      ? `Building ${buildingPreview.label}`
+                      : "Building generator"}
+                  </h2>
+                  <p>
+                    Read-only footprint proposals. Create a new project in the
+                    Inspector; your current building stays unchanged.
+                  </p>
+                  {buildingPreview?.project.building.sections.map((s) => (
+                    <p key={s.id}>
+                      {s.name} · {s.type}
+                    </p>
+                  ))}
+                </div>
+              ) : mode === "footprint" ? (
                 <SectionsPanel
                   building={current.building}
                   selectedId={section.id}
@@ -705,8 +759,9 @@ export default function Studio({ project, onBack, onSaved }: Props) {
         </aside>
         <main className="editor-main">
           <Editor
-            readOnly={generatorOpen}
-            previewLabel={layoutPreview?.label}
+            readOnly={anyGenerator}
+            previewLabel={buildingPreview?.label ?? layoutPreview?.label}
+            previewKind={buildingGeneratorOpen ? "Building" : "Layout"}
             interior={
               mode === "interior"
                 ? {
@@ -723,7 +778,10 @@ export default function Studio({ project, onBack, onSaved }: Props) {
                   }
                 : undefined
             }
-            section={displaySection(section, current.building)}
+            section={displaySection(
+              buildingPreview ? viewBuilding.sections[0] : section,
+              viewBuilding,
+            )}
             building={viewBuilding}
             placement={
               placement && attachment
@@ -738,23 +796,27 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             grid={grid}
             snapEnabled={snapEnabled}
             gridVisible={gridVisible}
-            tool={generatorOpen ? "pan" : tool}
-            selected={selected}
+            tool={anyGenerator ? "pan" : tool}
+            selected={buildingGeneratorOpen ? false : selected}
             onSelect={setSelected}
             part={activePart}
             onPartSelect={setPart}
           />
           <footer className="editor-status">
             <span>
-              {generatorOpen
-                ? layoutPreview
-                  ? `Layout ${layoutPreview.label} preview · not saved`
-                  : "Layout configuration · original plan"
-                : mode === "interior"
-                  ? "Ground-floor interior"
-                  : selected
-                    ? "Section selected"
-                    : "No selection"}{" "}
+              {buildingGeneratorOpen
+                ? buildingPreview
+                  ? `Building ${buildingPreview.label} preview · not saved`
+                  : "Building configuration · original project"
+                : generatorOpen
+                  ? layoutPreview
+                    ? `Layout ${layoutPreview.label} preview · not saved`
+                    : "Layout configuration · original plan"
+                  : mode === "interior"
+                    ? "Ground-floor interior"
+                    : selected
+                      ? "Section selected"
+                      : "No selection"}{" "}
               ·{" "}
               {tool === "pan"
                 ? "Drag to pan"
@@ -790,9 +852,29 @@ export default function Studio({ project, onBack, onSaved }: Props) {
             </span>
             <span>{inspectorOpen ? "−" : "+"}</span>
           </button>
-          {(inspectorOpen || generatorOpen) && (
+          {(inspectorOpen || anyGenerator) && (
             <div className="inspector-content" hidden={!inspectorOpen}>
-              {mode === "interior" ? (
+              {buildingGeneratorOpen ? (
+                <BuildingGeneratorPanel
+                  onPreview={setBuildingPreview}
+                  onCancel={closeBuildingGenerator}
+                  onCreate={async (generated) => {
+                    setCreatingGenerated(true);
+                    try {
+                      if (
+                        saved.current !== JSON.stringify(currentRef.current) &&
+                        !(await persist(currentRef.current))
+                      )
+                        throw new Error(
+                          "Save the current project or export a backup before creating another project.",
+                        );
+                      await onCreate(generated);
+                    } finally {
+                      setCreatingGenerated(false);
+                    }
+                  }}
+                />
+              ) : mode === "interior" ? (
                 generatorOpen ? (
                   <GeneratorPanel
                     project={current}
