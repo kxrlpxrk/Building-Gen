@@ -1,8 +1,10 @@
+import type { WindowPlacement } from "./windowPlacement";
 import ExteriorDetails from "./ExteriorDetails";
 import type { Building, Section, Architecture } from "./model";
 import { NumericField } from "./components";
 import {
   exteriorDefaults,
+  ridgeAlongX,
   defaultStyle,
   styleMaterial,
   STYLE_PRESETS,
@@ -18,7 +20,7 @@ export default function ExteriorInspector({
   section,
   onSelect,
   onChange,
-  onPreview,
+  windowPlacement,
   selectedWindowId,
   onWindow,
 }: {
@@ -26,7 +28,7 @@ export default function ExteriorInspector({
   section: Section;
   onSelect: (id: string) => void;
   onChange: (s: Section) => string | null;
-  onPreview: (b: Building | null) => void;
+  windowPlacement: WindowPlacement;
   selectedWindowId: string;
   onWindow: (id: string) => void;
 }) {
@@ -168,6 +170,53 @@ export default function ExteriorInspector({
               ))}
             </select>
           </label>
+          <label className="field">
+            <span>
+              {ex.roofStyle === "Shed" ? "Shed high edge" : "Ridge direction"}
+            </span>
+            {ex.roofStyle === "Shed" ? (
+              <select
+                aria-label="Shed high edge"
+                value={
+                  ex.shedHighEdge === "Auto"
+                    ? section.length >= section.width
+                      ? "+Y"
+                      : "+X"
+                    : ex.shedHighEdge
+                }
+                onChange={(e) =>
+                  edit({
+                    shedHighEdge: e.target
+                      .value as ExteriorSettings["shedHighEdge"],
+                  })
+                }
+              >
+                {["+X", "-X", "+Y", "-Y"].map((d) => (
+                  <option key={d} value={d}>
+                    Local {d}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                aria-label="Ridge direction"
+                value={ridgeAlongX(section) ? "X" : "Y"}
+                onChange={(e) =>
+                  edit({
+                    ridgeAxis: e.target.value as ExteriorSettings["ridgeAxis"],
+                  })
+                }
+              >
+                <option value="X">Ridge along local X axis</option>
+                <option value="Y">Ridge along local Y axis</option>
+              </select>
+            )}
+          </label>
+          <p>
+            Direction is relative to this section. Hip end slopes adjust to
+            retain a ridge on the chosen axis; the transverse pitch stays
+            unchanged.
+          </p>
           <NumericField
             label="Roof pitch"
             unit="°"
@@ -230,7 +279,7 @@ export default function ExteriorInspector({
         building={building}
         section={section}
         onChange={onChange}
-        onPreview={onPreview}
+        placement={windowPlacement}
         selected={selectedWindowId}
         onWindow={onWindow}
       />

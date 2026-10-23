@@ -1,3 +1,4 @@
+import type { WindowPlacement } from "./windowPlacement";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Building } from "./model";
 import { buildExterior } from "./exteriorGeometry";
@@ -8,17 +9,25 @@ export default function ExteriorViewer({
   onSelect,
   selectedWindowId,
   onWindow,
+  windowPlacement,
+  snapStep,
 }: {
   building: Building;
   selectedId: string;
   onSelect: (id: string) => void;
   selectedWindowId: string;
   onWindow: (sectionId: string, id: string) => void;
+  windowPlacement: WindowPlacement;
+  snapStep: number | null;
 }) {
   const host = useRef<HTMLDivElement>(null),
     scene = useRef<ExteriorScene | null>(null),
     pick = useRef(onSelect),
     windowPick = useRef(onWindow);
+  const windowControl = useRef(windowPlacement),
+    step = useRef(snapStep);
+  windowControl.current = windowPlacement;
+  step.current = snapStep;
   windowPick.current = onWindow;
   pick.current = onSelect;
   const [error, setError] = useState(""),
@@ -43,6 +52,8 @@ export default function ExteriorViewer({
         (id) => pick.current(id),
         setError,
         (sectionId, id) => windowPick.current(sectionId, id),
+        () => windowControl.current,
+        () => step.current,
       );
       scene.current = view;
       setReady(true);
@@ -72,6 +83,10 @@ export default function ExteriorViewer({
   );
   useEffect(() => scene.current?.projection(ortho), [ortho, ready, retry]);
   useEffect(() => scene.current?.pan(pan), [pan, ready, retry]);
+  useEffect(
+    () => scene.current?.windowPreview(windowPlacement.state),
+    [windowPlacement.state, ready, retry],
+  );
   const issue = error || geometry.error;
   return (
     <div
@@ -97,8 +112,69 @@ export default function ExteriorViewer({
       ) : (
         <>
           <span className="exterior-caption">EXTERIOR / GROUND FLOOR</span>
+          <div className="window-toolbar">
+            <button
+              onClick={windowPlacement.start}
+              aria-pressed={windowPlacement.state?.mode === "place"}
+            >
+              Place Window
+            </button>
+            {selectedWindowId && !windowPlacement.state && (
+              <button
+                onClick={() => {
+                  const section = building.sections.find((s) =>
+                    s.exterior.windows.some((w) => w.id === selectedWindowId),
+                  );
+                  const window = section?.exterior.windows.find(
+                    (w) => w.id === selectedWindowId,
+                  );
+                  if (section && window)
+                    windowPlacement.move({ sectionId: section.id, window });
+                }}
+              >
+                Move Window
+              </button>
+            )}
+            {windowPlacement.state && (
+              <>
+                <p
+                  role="status"
+                  className={
+                    windowPlacement.state.issue
+                      ? "placement-invalid"
+                      : "placement-valid"
+                  }
+                >
+                  {windowPlacement.state.issue ||
+                    (windowPlacement.state.draft
+                      ? "Valid window preview"
+                      : "Tap an exposed wall; drag to position")}{" "}
+                  · {snapStep ? `Snap ${snapStep / 1000} m` : "Free"}. Two
+                  fingers pan/zoom.
+                </p>
+                <button
+                  disabled={
+                    !windowPlacement.state.draft ||
+                    !!windowPlacement.state.issue
+                  }
+                  onClick={windowPlacement.commit}
+                >
+                  Confirm placement
+                </button>
+                <button onClick={windowPlacement.cancel}>
+                  Cancel placement
+                </button>
+              </>
+            )}
+          </div>
           <div className="viewer-controls" aria-label="3D camera controls">
-            <button aria-pressed={!pan} onClick={() => setPan(false)}>
+            <button
+              aria-pressed={!pan && !windowPlacement.state}
+              onClick={() => {
+                windowPlacement.cancel();
+                setPan(false);
+              }}
+            >
               Orbit
             </button>
             <button aria-pressed={pan} onClick={() => setPan(true)}>

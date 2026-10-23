@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import type { WindowPlacement } from "./windowPlacement";
+import { useState } from "react";
 import type { Building, Section } from "./model";
 import { NumericField } from "./components";
 import { openingContext } from "./assembly";
@@ -7,54 +8,34 @@ import {
   type ExteriorFeature,
   WINDOW_STYLES,
 } from "./exteriorSettings";
-import { validateExterior, windowOpening } from "./exteriorValidation";
+import { windowOpening } from "./exteriorValidation";
 import { openingGeometry } from "./openings";
 export default function ExteriorDetails({
   building,
   section,
   onChange,
-  onPreview,
+  placement,
   selected,
   onWindow,
 }: {
   building: Building;
   section: Section;
   onChange: (s: Section) => string | null;
-  onPreview: (b: Building | null) => void;
+  placement: WindowPlacement;
   selected: string;
   onWindow: (id: string) => void;
 }) {
-  const [error, setError] = useState(""),
-    [draft, setDraft] = useState<ExteriorWindow | null>(null);
+  const [error, setError] = useState("");
   const ex = section.exterior,
-    c = openingContext(building);
-  const hosts = c.hosts.filter(
-    (h) => h.ref.kind === "exterior" && h.ref.sectionId === section.id,
-  );
-  const current = ex.windows.find((w) => w.id === selected);
-  let preview: Building | null = null,
-    previewIssue = "";
-  if (draft) {
-    try {
-      preview = {
-        ...building,
-        sections: building.sections.map((s) =>
-          s.id === section.id
-            ? { ...s, exterior: { ...ex, windows: [...ex.windows, draft] } }
-            : s,
-        ),
-      };
-      validateExterior(preview);
-    } catch (e) {
-      previewIssue = (e as Error).message;
-      preview = null;
-    }
-  }
-  const previewKey = JSON.stringify(preview);
-  useEffect(() => {
-    onPreview(previewKey ? JSON.parse(previewKey) : null);
-    return () => onPreview(null);
-  }, [previewKey, onPreview]);
+    c = openingContext(building),
+    hosts = c.hosts.filter(
+      (h) => h.ref.kind === "exterior" && h.ref.sectionId === section.id,
+    );
+  const current = ex.windows.find((w) => w.id === selected),
+    session = placement.state;
+  const draft =
+    session?.draft?.sectionId === section.id ? session.draft.window : null;
+  const previewIssue = session?.issue ?? "";
   const write = (windows = ex.windows, features = ex.features) => {
     const issue = onChange({
       ...section,
@@ -71,27 +52,6 @@ export default function ExteriorDetails({
           ),
         )
       : null;
-  function begin() {
-    const host = hosts[0];
-    if (!host || host.ref.kind !== "exterior") {
-      setError("No eligible external wall on this section.");
-      return;
-    }
-    setDraft({
-      id: crypto.randomUUID(),
-      edge: host.ref.edge,
-      offset: Math.round(
-        (Math.abs(host.b.x - host.a.x) + Math.abs(host.b.y - host.a.y)) / 2,
-      ),
-      width: 900,
-      height: 1000,
-      sill: 1000,
-      style: "Timber shuttered",
-      shutters: true,
-      glazing: false,
-    });
-    setError("");
-  }
   function addFeature(kind: ExteriorFeature["kind"]) {
     const door = building.openings.find(
       (o) => o.host.kind === "exterior" && o.host.sectionId === section.id,
@@ -200,15 +160,41 @@ export default function ExteriorDetails({
           thresholds do not change rooms or circulation. Horizontal clearance is
           reserved for the full bay; stacked windows are not supported.
         </p>
-        <button onClick={begin}>Place window</button>
+        <button onClick={placement.start}>Place window</button>
+        {current && !session && (
+          <button
+            onClick={() =>
+              placement.move({ sectionId: section.id, window: current })
+            }
+          >
+            Move window
+          </button>
+        )}
+        {session && (
+          <>
+            <p role="status">
+              {session.issue ||
+                (session.draft
+                  ? "Valid placement · preview only, not saved"
+                  : "Tap an exposed wall in 3D. Drag to position; two fingers pan/zoom.")}
+            </p>
+            {!session.draft && (
+              <button onClick={() => placement.precision(section.id)}>
+                Use precision placement
+              </button>
+            )}
+            <button onClick={placement.cancel}>Cancel window</button>
+          </>
+        )}
         {draft && (
           <div className="window-draft">
             <h3>Window placement preview</h3>
-            <p role="status">
-              {previewIssue || "Valid placement · preview only, not saved"}
-            </p>
+
             {windowFields(draft, (v) => {
-              setDraft({ ...draft, ...v });
+              placement.preview({
+                sectionId: section.id,
+                window: { ...draft, ...v },
+              });
               return null;
             })}
             <svg viewBox="0 0 300 140" aria-label="Window elevation preview">
@@ -223,24 +209,8 @@ export default function ExteriorDetails({
                 strokeWidth="4"
               />
             </svg>
-            <button
-              disabled={!!previewIssue}
-              onClick={() => {
-                if (!write([...ex.windows, draft])) {
-                  onWindow(draft.id);
-                  setDraft(null);
-                }
-              }}
-            >
+            <button disabled={!!previewIssue} onClick={placement.commit}>
               Confirm window
-            </button>
-            <button
-              onClick={() => {
-                setDraft(null);
-                setError("");
-              }}
-            >
-              Cancel window
             </button>
           </div>
         )}
@@ -264,7 +234,7 @@ export default function ExteriorDetails({
                 ))}
               </select>
             </label>
-            {current && (
+            {current && !draft && (
               <>
                 {windowFields(current, patch)}
                 <button

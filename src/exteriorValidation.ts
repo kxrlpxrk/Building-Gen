@@ -1,7 +1,11 @@
 /** Exact model validation; no Three.js dependency. Windows never enter circulation. */
 import type { Building, Section } from "./model";
 import type { ExteriorWindow, ExteriorFeature } from "./exteriorSettings";
-import { readExterior } from "./exteriorSettings";
+import {
+  readExterior,
+  ridgeAlongX,
+  maximumRoofSlope,
+} from "./exteriorSettings";
 import { openingContext, canonicalVertices } from "./assembly";
 import {
   openingGeometry,
@@ -69,9 +73,7 @@ export function validateExterior(b: Building) {
     for (const w of s.exterior.windows) {
       const roofClearance = Math.max(
         250,
-        175 +
-          Math.tan((s.exterior.roofPitch * Math.PI) / 180) *
-            (w.shutters ? 200 : 115),
+        175 + maximumRoofSlope(s) * (w.shutters ? 200 : 115),
       );
       if (w.sill + w.height > s.exterior.wallHeight - roofClearance)
         throw new Error(
@@ -174,7 +176,7 @@ export function validateExterior(b: Building) {
       } else if (f.kind === "Gable ornament") {
         if (s.exterior.roofStyle !== "Gable")
           throw new Error("Gable ornament requires a rectangular gable roof.");
-        const longX = box.length >= box.width;
+        const longX = ridgeAlongX(s);
         for (const sign of [-1, 1]) {
           const p = featurePoint(b, s, {
             x: longX
@@ -213,7 +215,7 @@ export function validateExterior(b: Building) {
         if (s.exterior.wallHeight < 3100)
           throw new Error("Entrance canopy needs eaves at least 3.1 m high.");
         const reach = Math.min(900, s.exterior.overhang),
-          slope = Math.tan((s.exterior.roofPitch * Math.PI) / 180);
+          slope = maximumRoofSlope(s);
         if (
           s.exterior.wallHeight -
             120 -

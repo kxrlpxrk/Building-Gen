@@ -58,7 +58,7 @@ export type Building = {
   openings: Opening[];
 };
 export type Project = {
-  schemaVersion: 7;
+  schemaVersion: 8;
   id: string;
   name: string;
   architecture: Architecture;
@@ -70,7 +70,7 @@ export function createProject(name = "Untitled building"): Project {
   const now = new Date().toISOString(),
     sectionId = crypto.randomUUID();
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     id: crypto.randomUUID(),
     name,
     architecture: "Norse",
@@ -172,7 +172,7 @@ function section(
     floorCount: value.floorCount as number,
     exterior:
       version >= 6
-        ? readExterior(value.exterior, version === 6)
+        ? readExterior(value.exterior, version === 6, version < 8)
         : exteriorDefaults(
             architecture,
             version >= 3 ? (value.type as SectionType) : "Custom",
@@ -299,10 +299,10 @@ function readOpenings(value: unknown): Opening[] {
 export function validateProject(value: unknown): Project {
   if (
     !object(value) ||
-    ![1, 2, 3, 4, 5, 6, 7].includes(value.schemaVersion as number)
+    ![1, 2, 3, 4, 5, 6, 7, 8].includes(value.schemaVersion as number)
   )
     throw new Error(
-      "Unsupported project schema. BG-04D accepts schemaVersion 1–7.",
+      "Unsupported project schema. BG-04D.1 accepts schemaVersion 1–8.",
     );
   const version = value.schemaVersion as number;
   if (
@@ -334,6 +334,20 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error(
       "Exterior windows/features require schemaVersion 7; unsupported legacy data was not reset.",
+    );
+  if (
+    version < 8 &&
+    (value.building.sections as unknown[]).some(
+      (s) =>
+        object(s) &&
+        object(s.exterior) &&
+        [s.exterior.ridgeAxis, s.exterior.shedHighEdge].some(
+          (v) => v !== undefined && v !== "Auto",
+        ),
+    )
+  )
+    throw new Error(
+      "Explicit roof directions require schemaVersion 8; this record was not reset.",
     );
   const source = value.building,
     sections = (source.sections as unknown[]).map((s, i) =>
@@ -449,7 +463,7 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error("All project, interior and opening IDs must be distinct.");
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     id: value.id,
     name: value.name.trim(),
     architecture: value.architecture as Architecture,

@@ -1,6 +1,6 @@
-# Building Generator · BG-04D
+# Building Generator · BG-04D.1
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04D extends the existing lazy-loaded Three.js exterior with five architectural detail presets, physical exterior windows and editable roof/entrance features. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **0.9.0**; project schema is **version 7**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04D.1 repairs roof-skin junction returns, adds section-local roof directions and direct 3D window placement to the existing architectural exterior. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **0.9.1**; project schema is **version 8**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,28 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Roof repair, direction and visual windows · BG-04D.1
+
+**Roof defect and repair.** The old roof top facets covered the tested footprint domains, but unequal-height junction infill joined only the **top edges** of neighbouring roofs. The exposed lower part of each **120 mm roof skin** was left without a return; shallow steps and intersecting pitch planes could expose those cut edges. Perimeter fascia also had inward winding. Junction returns now span the complete cut profiles, split at every pitch-plane/height crossing, with consistent facing toward the lower roof. Fascia winds outward. Matching-height seams need no extra panel. No floating slabs, arbitrary caps or duplicate coplanar infill were added; ridge caps, courses, trim and overhang fallback remain tied to the same roof surfaces.
+
+Multi-section roofs still use the visible, documented **closed stepped/clerestory fallback**, rather than a universal valley solver. Concave roof planes remain clipped to their true footprint. Overhangs still fall back to the actual footprint when a clean offset is unsupported; rafter ends follow that choice. The Inspector explains these limits. Repair does not change footprints, walls, windows, doors or room topology.
+
+**Roof direction:** the Exterior Inspector exposes **Ridge along local X/Y** for Gable/Hip, and **High edge at local +X / -X / +Y / -Y** for Shed. Roof pitch and eaves height stay unchanged. Section rotation and the shared building frame transform these local settings normally. Gable infill, ornaments, caps, shingles/courses and roof-linked chimneys follow the new planes; incompatible ornaments/clearances reject the edit. Locks, Undo/Redo, save/reopen and JSON roundtrips apply normally.
+
+Legacy roofs use `ridgeAxis: "Auto"` and `shedHighEdge: "Auto"`, retaining exactly the old long-axis/default shed slopes. A direction becomes explicit when selected. Explicit Hip orientation preserves transverse pitch and steepens the end hips only as needed to leave a ridge at least 20% of the selected-axis span. Consequently end-hip pitch can differ from the Inspector's transverse pitch. Window/canopy clearance uses the highest derived slope conservatively, so an incompatible direction is rejected without deleting features; no structural roof-engineering accuracy is claimed.
+
+**Direct window workflow:** press **Place Window** in the viewport, tap an exposed wall, then drag the preview horizontally/vertically. The wall and source section are raycast automatically. Green/red preview and clearance text update live, using the current grid snap or Free setting. **Confirm placement** accepts one transaction; **Cancel placement** leaves saved geometry unchanged. A lightweight overlay previews windows without rebuilding the full detailed building on every pointer move. The real aperture is cut on acceptance.
+
+Tap an existing window to select it, choose **Move Window**, then drag it on its host or onto another exposed wall. A completed valid drag commits once; an invalid drag retains the original and leaves the red preview for correction/cancellation. Normal **Orbit** never repositions windows. A second finger cancels the pending one-finger change, restores its prior preview, and hands both pointers to OrbitControls for pinch/pan. Only the viewer captures those gestures; page scrolling and coordinates after document scrolling retain BG-02B.1 behavior. Leaving the mode or editing/undoing the underlying building discards temporary window previews.
+
+The Inspector retains width/height/sill/offset/style controls. **Use precision placement** offers numeric placement without a wall tap. Both workflows use the same `prepareBuilding` / `validateExterior` path, including source/destination locks, door/window/frame/shutter/corner/roof clearances and explicit wall references. Windows never enter room topology or the circulation graph. Internal open-plan joins are ineligible hosts.
+
+Schema **v8** adds only `ridgeAxis` and `shedHighEdge` to each section's exterior settings. v1–v7 migrate at read time with Auto directions, retaining every existing identity, dimension, material, roof setting, window/feature, opening, room, note, timestamp and lock. Unsupported explicit direction data in a legacy record is rejected instead of reset. Temporary tools/previews are not persisted and Three.js meshes remain derived. The IndexedDB database/version is unchanged.
+
+**Regression evidence:** `roofJunction.test.ts` checks actual projected facet area, full skin returns across equal/unequal Gable/Hip/Shed combinations, outward fascia, local directions, ornaments, history and migration. `windowPlacement.test.ts` checks snapped/free/grab-offset transforms, validated moves and populated v7 migration. `tests/exterior-repair.spec.ts` covers wall tap/drag/cancel, cross-wall moves, invalid previews, normal Orbit, native multi-touch handoff, direction persistence and **48 screenshots** (six fixtures × four angles × desktop/mobile). Screenshots are attached to the Playwright result and written under `test-results/exterior-repair-closed-*/junction-*-angle-*.png`; rerun that test to regenerate them. Fixtures include the 18 × 8 m three-extension longhouse, L/T outlines, perpendicular wings, equal eaves and mixed Gable/Hip/Shed roofs with High detail.
+
+**BG-04D.1 verification:** 235 unit/storage tests and 78 production desktop/mobile Chromium tests passed; 10 desktop-inapplicable native-touch cases skipped (mobile counterparts passed). TypeScript/Vite build and formatting passed. The isolated lazy Three.js chunk retains Vite’s standard >500 kB advisory (about 143 kB gzip). Physical iPhone Safari remains a device playtest requirement.
 
 ## Architectural detailing · BG-04D
 
@@ -176,9 +198,9 @@ Each section uses a simple orthogonal ring before rotation, with 4–64 vertices
 
 Shoelace area computes exact exterior area. Clear area and the continuous rendered external wall band use the **validated mitered inward offset of the merged boundary**, not sums of section interiors or bounding-box estimates. The offset must remain one positive connected ring, not reverse edges, cross boundaries or intrude within the wall clearance. Too-thick walls, tiny jogs, collapsing necks, split interiors, overlapping interiors, holes, corner-only contacts and detached sections are rejected. Common exterior walls must be at least 0.01 m. No invalid measurement is replaced by an estimated value.
 
-## Schema v7 and migration
+## Schema v8 and migration
 
-The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 7` retains:
+The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 8` retains:
 
 - `building.mainSectionId` and up to twelve `sections`.
 - Section `name`, `type`, `locked`, with the original rectangle or polygon geometry fields.
@@ -193,13 +215,13 @@ Schema v6 adds required `section.exterior: { wallHeight, roofPitch, roofStyle, o
 
 Schema v7 extends `section.exterior` with `stylePreset`, `detailLevel`, `covering`, `windows` and `features`. Window records carry stable IDs, source-wall edge index, integer-mm offset/width/height/sill, style, shutters and glazing. Feature records carry stable IDs, kind, integer-mm section-local placement/height, finish and an optional canopy `doorId`. The section itself supplies the shared stable section reference. v1–v6 migration adds default style/detail/covering and **empty** window/feature collections, retaining all original heights, roof settings, locks, IDs and interior data. Invalid v7 records are rejected, never replaced with defaults. Legacy v6 records containing non-empty unsupported feature collections are rejected rather than silently discarded.
 
-Pure read-time migration accepts schema **1, 2, 3, 4, 5, 6 and 7**. Versions 1–4 receive an empty opening collection. Populated BG-03A interiors retain every partition/room ID, coordinate and label. Versions 1–3 receive an empty interior plan without modifying their original geometry or metadata. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
+Pure read-time migration accepts schema **1, 2, 3, 4, 5, 6, 7 and 8**. Versions 1–4 receive an empty opening collection. Populated BG-03A interiors retain every partition/room ID, coordinate and label. Versions 1–3 receive an empty interior plan without modifying their original geometry or metadata. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
 
 The first accepted attachment enters **assembly** mode. Positions then share integer assembly axes anchored at that preserved origin; section quarter turns are relative to the frame axis. The frame's additional `rotation` is applied only for rendering/world transforms, so attachments stay exact. An assembly retains its frame even after its last extension is removed; remaining sections cannot jump, including moved/locked sections. Earlier-phase single-section projects retain their original arbitrary orientation and world-placement controls until attachment.
 
-Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section, connection, partition, room and opening identity** and remap section/partition host references, with independent geometry arrays. Exports use v7; v1–v6 imports remain supported, but older app versions cannot open v7 exports. Room geometric keys remain valid after identity rekeying.
+Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section, connection, partition, room and opening identity** and remap section/partition host references, with independent geometry arrays. Exports use v8; v1–v7 imports remain supported, but older app versions cannot open v8 exports. Room geometric keys remain valid after identity rekeying.
 
-Library reads never overwrite old records. A successfully validated legacy record is written as v7 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v7.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
+Library reads never overwrite old records. A successfully validated legacy record is written as v8 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v8.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
 
 ## BG-04C implementation map
 
@@ -289,3 +311,18 @@ WebKit is not installed in this machine (the official browser CDN was blocked du
 7. Switch all five detail presets on a longhouse/cottage/manor; compare boarding, framing, stone courses and coverings. Try Low/Standard/High at near/far zoom, then inspect an 18 × 8 m longhouse with three extensions for smoothness, attached details and closed junctions.
 8. Place a window on an exposed wall, preview/cancel, confirm, tap to select, edit width/height/sill and toggle shutters/glazing. Confirm the wall has a real aperture; test rejected door/window/corner overlaps and unsafe footprint edits. Rooms and access status must remain unchanged.
 9. Add/move a Stone/Brick chimney on each supported roof, add/remove a gable ornament and canopy over a real entrance. Try incompatible settings, locks, reset, Undo/Redo, save/reopen and JSON duplication; ensure no window, roof or interior data disappears silently.
+
+## BG-04D.1 implementation files
+
+- `exteriorGeometry.ts`, `exteriorSettings.ts`, `exteriorValidation.ts`, `ExteriorInspector.tsx`: roof returns/winding, local directions, dependent geometry/feature validation and controls.
+- `windowPlacement.ts`, `useWindowPlacement.ts`, `exteriorWindowGestures.ts`, `exteriorScene.ts`, `ExteriorViewer.tsx`, `ExteriorDetails.tsx`, `Studio.tsx`, `styles.css`: exact placement transactions, ephemeral previews, exposed-wall raycasting, single-pointer drag and two-pointer handoff.
+- `model.ts`, `buildingGenerator.ts`, `App.tsx`, package files, schema v8 and fixture: migrations, current identifiers and validation; legacy files remain intact.
+- New geometry/placement/browser suites and current-schema expectations in previous tests preserve all earlier regression coverage.
+
+## BG-04D.1 iPhone Safari retest
+
+1. Open an 18 × 8 m three-extension Norse longhouse, L/T footprints, perpendicular wings and mixed/equal-height roofs. Orbit all sides and inspect the undersides of stepped joins, fascia and gables at Low and High detail. Expect closed steps, not engineered valleys.
+2. Change ridge X/Y and all four Shed directions; check aligned trim/ornaments/chimneys, locks, Undo/Redo and save/reopen. Whole-building rotation must preserve local direction.
+3. Place a window by tapping, drag horizontally/vertically, confirm/cancel, then select → Move Window and drag onto another exposed wall. Check red invalid corner/overlap/roof/locked previews, one-step Undo and intact room/access data.
+4. While editing a window, add a second finger and pinch/pan: no window change may commit. Return to Orbit and ensure dragging a selected window only orbits. Scroll the portrait document, focus numeric inputs, vary Safari's address bar and rotate landscape/back; check coordinates, touch isolation and no overflow/scroll trap.
+5. Save/reopen, export/import/duplicate and background Safari; verify windows and directions persist and WebGL fallback/Retry preserves the project. Physical Safari performance requires this device check; Chromium emulation is not device certification.

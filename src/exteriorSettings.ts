@@ -42,6 +42,8 @@ export type ExteriorSettings = {
   wallHeight: number;
   roofPitch: number;
   roofStyle: (typeof ROOF_STYLES)[number];
+  ridgeAxis: "Auto" | "X" | "Y";
+  shedHighEdge: "Auto" | "+X" | "-X" | "+Y" | "-Y";
   overhang: number;
   material: Architecture;
 };
@@ -52,6 +54,8 @@ export function exteriorDefaults(
 ): ExteriorSettings {
   return {
     material,
+    ridgeAxis: "Auto",
+    shedHighEdge: "Auto",
     stylePreset: defaultStyle(material),
     detailLevel: "Standard",
     covering: material === "Medieval" ? "Slate" : "Wood shingles",
@@ -90,7 +94,11 @@ export const styleMaterial = (
     : style.startsWith("Medieval")
       ? "Medieval"
       : "Mixed";
-export function readExterior(value: unknown, legacy = false): ExteriorSettings {
+export function readExterior(
+  value: unknown,
+  legacy = false,
+  legacyDirection = false,
+): ExteriorSettings {
   const v = value as ExteriorSettings;
   if (
     !v ||
@@ -114,6 +122,15 @@ export function readExterior(value: unknown, legacy = false): ExteriorSettings {
   if (legacy && ((v.windows?.length ?? 0) > 0 || (v.features?.length ?? 0) > 0))
     throw new Error(
       "Exterior windows/features require schemaVersion 7; this legacy record was not reset.",
+    );
+  const direction =
+    legacy || legacyDirection ? { ridgeAxis: "Auto", shedHighEdge: "Auto" } : v;
+  if (
+    !["Auto", "X", "Y"].includes(direction.ridgeAxis) ||
+    !["Auto", "+X", "-X", "+Y", "-Y"].includes(direction.shedHighEdge)
+  )
+    throw new Error(
+      "Invalid roof direction. Choose a local ridge axis or shed high edge.",
     );
   const detail = legacy
     ? {
@@ -191,6 +208,8 @@ export function readExterior(value: unknown, legacy = false): ExteriorSettings {
     };
   });
   return {
+    ridgeAxis: direction.ridgeAxis as ExteriorSettings["ridgeAxis"],
+    shedHighEdge: direction.shedHighEdge as ExteriorSettings["shedHighEdge"],
     stylePreset: detail.stylePreset as ExteriorSettings["stylePreset"],
     detailLevel: detail.detailLevel as ExteriorSettings["detailLevel"],
     covering: detail.covering as ExteriorSettings["covering"],
@@ -203,3 +222,18 @@ export function readExterior(value: unknown, legacy = false): ExteriorSettings {
     material: v.material,
   };
 }
+
+export const ridgeAlongX = (s: Section) =>
+  s.exterior.ridgeAxis === "X" ||
+  (s.exterior.ridgeAxis === "Auto" && s.length >= s.width);
+
+/** Derived hip end pitch is shared by the mesh and conservative feature clearance checks. */
+export function hipEndSlopeRatio(s: Section) {
+  if (s.exterior.roofStyle !== "Hip" || s.exterior.ridgeAxis === "Auto")
+    return 1;
+  const span = ridgeAlongX(s) ? s.length : s.width,
+    cross = ridgeAlongX(s) ? s.width : s.length;
+  return cross / 2 / Math.min(cross / 2, span * 0.4);
+}
+export const maximumRoofSlope = (s: Section) =>
+  Math.tan((s.exterior.roofPitch * Math.PI) / 180) * hipEndSlopeRatio(s);

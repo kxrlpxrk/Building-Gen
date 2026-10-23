@@ -1,5 +1,9 @@
 import { featurePoint, windowOpening } from "./exteriorValidation";
-import type { ExteriorSettings } from "./exteriorSettings";
+import {
+  ridgeAlongX,
+  hipEndSlopeRatio,
+  type ExteriorSettings,
+} from "./exteriorSettings";
 import type { Building, Section } from "./model";
 import {
   canonicalVertices,
@@ -130,9 +134,32 @@ export function roofPlanes(s: Section, b: Building): Plane[] {
   });
   const x = [plane(ux, box.minX, 1), plane(ux, box.maxX, -1)],
     y = [plane(uy, box.minY, 1), plane(uy, box.maxY, -1)];
-  if (s.exterior.roofStyle === "Hip") return [...x, ...y];
-  const short = box.length >= box.width ? y : x;
-  return s.exterior.roofStyle === "Shed" ? [short[0]] : short;
+  const ridgeX = ridgeAlongX(s),
+    transverse = ridgeX ? y : x;
+  if (s.exterior.roofStyle === "Hip") {
+    if (s.exterior.ridgeAxis === "Auto") return [...x, ...y];
+    // Preserve transverse pitch. Steepen end hips only as necessary to leave
+    // a real ridge on the requested axis (at least 20% of its span).
+    const ratio = hipEndSlopeRatio(s);
+    const ends = (ridgeX ? x : y).map((p) => ({
+      a: p.a * ratio,
+      b: p.b * ratio,
+      c: s.exterior.wallHeight + (p.c - s.exterior.wallHeight) * ratio,
+    }));
+    return [...transverse, ...ends];
+  }
+  if (s.exterior.roofStyle === "Shed") {
+    const direction =
+      s.exterior.shedHighEdge === "Auto"
+        ? box.length >= box.width
+          ? "+Y"
+          : "+X"
+        : s.exterior.shedHighEdge;
+    return [
+      (direction.endsWith("X") ? x : y)[direction.startsWith("+") ? 0 : 1],
+    ];
+  }
+  return transverse;
 }
 const height = (planes: Plane[], p: Point) =>
   Math.min(...planes.map((f) => f.a * p.x + f.b * p.y + f.c));
@@ -533,13 +560,28 @@ export function buildExterior(b: Building): ExteriorModel {
           hq = height(pp, q),
           lp = qq ? height(qq, p) : hp - ROOF_THICKNESS,
           lq = qq ? height(qq, q) : hq - ROOF_THICKNESS;
-        quad(
-          data[c.owner].parts[n ? "wall" : "roof"],
-          { ...p, z: hp },
-          { ...q, z: hq },
-          { ...q, z: lq },
-          { ...p, z: lp },
-        );
+        if (n) {
+          // A junction is a real cut through both 120 mm roof skins. Connecting
+          // only their top edges leaves the lower skin open. One continuous
+          // return spans both cut profiles; no overlapping coplanar infill or
+          // unrelated cap is added. edgeBreaks splits pitch/height crossings.
+          if (Math.max(Math.abs(hp - lp), Math.abs(hq - lq)) > EPS) {
+            const aa = { ...p, z: Math.max(hp, lp) },
+              bb = { ...q, z: Math.max(hq, lq) },
+              cc = { ...q, z: Math.min(hq, lq) - ROOF_THICKNESS },
+              dd = { ...p, z: Math.min(hp, lp) - ROOF_THICKNESS };
+            if (hp + hq >= lp + lq)
+              quad(data[c.owner].parts.wall, dd, cc, bb, aa);
+            else quad(data[c.owner].parts.wall, aa, bb, cc, dd);
+          }
+        } else
+          quad(
+            data[c.owner].parts.roof,
+            { ...p, z: lp },
+            { ...q, z: lq },
+            { ...q, z: hq },
+            { ...p, z: hp },
+          );
         if (!n)
           beam(
             data[c.owner].parts.timber,
@@ -913,7 +955,7 @@ export function buildExterior(b: Building): ExteriorModel {
         maxHeight = Math.max(maxHeight, top);
       } else if (f.kind === "Gable ornament") {
         const box = bounds(footprintVertices(s)),
-          longX = box.length >= box.width;
+          longX = ridgeAlongX(s);
         for (const sign of [-1, 1]) {
           const local = {
               x: longX

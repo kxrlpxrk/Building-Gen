@@ -1,3 +1,9 @@
+import { installWindowGestures } from "./exteriorWindowGestures";
+import type {
+  WindowPlacement,
+  WindowSession,
+  WallHit,
+} from "./windowPlacement";
 import { openingContext } from "./assembly";
 import { openingGeometry } from "./openings";
 import { windowOpening } from "./exteriorValidation";
@@ -71,6 +77,8 @@ export function createExteriorScene(
   onPick: (id: string) => void,
   onFailure: (text: string) => void,
   onWindow: (sectionId: string, id: string) => void,
+  windowPlacement: () => WindowPlacement,
+  snapStep: () => number | null,
 ) {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -116,6 +124,8 @@ export function createExteriorScene(
     frame = 0,
     rebuilds = 0;
   let activeBuilding: Building | null = null;
+  let wallContext: ReturnType<typeof openingContext> | null = null;
+  let previewGroup: THREE.Group | null = null;
   let selectedWindow = "";
   let windowHelper: THREE.Box3Helper | null = null;
   let initialized = false;
@@ -363,6 +373,7 @@ export function createExteriorScene(
   }
   function update(model: ExteriorModel, b: Building) {
     activeBuilding = b;
+    wallContext = openingContext(b);
     const wanted = new Set(model.sections.map((s) => s.id));
     for (const [id, item] of groups)
       if (!wanted.has(id)) {
@@ -386,6 +397,7 @@ export function createExteriorScene(
           material(s.stylePreset, kind, s.covering),
         );
         mesh.userData.sectionId = s.id;
+        mesh.userData.surface = kind;
         mesh.userData.fineDetail = kind === "detail" || kind === "roofDetail";
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -459,6 +471,158 @@ export function createExteriorScene(
   controls.addEventListener("change", invalidate);
   const raycaster = new THREE.Raycaster(),
     pointers = new Set<number>();
+  function wallHit(
+    e: Pick<PointerEvent, "clientX" | "clientY">,
+  ): WallHit | null {
+    if (!activeBuilding || !wallContext) return null;
+    const r = canvas.getBoundingClientRect();
+    if (
+      e.clientX < r.left ||
+      e.clientX > r.right ||
+      e.clientY < r.top ||
+      e.clientY > r.bottom
+    )
+      return null;
+    raycaster.setFromCamera(
+      new THREE.Vector2(
+        ((e.clientX - r.left) / r.width) * 2 - 1,
+        (-(e.clientY - r.top) / r.height) * 2 + 1,
+      ),
+      camera,
+    );
+    const occluder = raycaster
+        .intersectObject(root, true)
+        .find((h) => h.object.userData.sectionId),
+      localRay = raycaster.ray
+        .clone()
+        .applyMatrix4(root.matrixWorld.clone().invert());
+    let nearest: { hit: WallHit; distance: number } | null = null;
+    for (const h of wallContext.hosts) {
+      if (h.ref.kind !== "exterior") continue;
+      const length = Math.hypot(h.b.x - h.a.x, h.b.y - h.a.y),
+        u = { x: (h.b.x - h.a.x) / length, y: (h.b.y - h.a.y) / length },
+        p = new THREE.Vector3();
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        enginePoint(h.inward!.x, h.inward!.y, 0).normalize(),
+        enginePoint(h.a.x, h.a.y, 0),
+      );
+      if (!localRay.intersectPlane(plane, p)) continue;
+      const x = p.x * 1000,
+        y = -p.z * 1000,
+        z = p.y * 1000,
+        offset = (x - h.a.x) * u.x + (y - h.a.y) * u.y;
+      const section = activeBuilding.sections.find(
+        (s) => h.ref.kind === "exterior" && s.id === h.ref.sectionId,
+      )!;
+      if (
+        offset < 0 ||
+        offset > length ||
+        z < 0 ||
+        z > section.exterior.wallHeight
+      )
+        continue;
+      if (
+        !wallContext.outer.some((a, i) => {
+          const b = wallContext!.outer[(i + 1) % wallContext!.outer.length];
+          return (
+            (Math.abs(a.x - b.x) < 0.001 &&
+              Math.abs(x - a.x) < 0.001 &&
+              y >= Math.min(a.y, b.y) - 0.001 &&
+              y <= Math.max(a.y, b.y) + 0.001) ||
+            (Math.abs(a.y - b.y) < 0.001 &&
+              Math.abs(y - a.y) < 0.001 &&
+              x >= Math.min(a.x, b.x) - 0.001 &&
+              x <= Math.max(a.x, b.x) + 0.001)
+          );
+        })
+      )
+        continue;
+      const distance = p
+        .applyMatrix4(root.matrixWorld)
+        .distanceTo(raycaster.ray.origin);
+      if (distance > (occluder?.distance ?? Infinity) + 0.3) continue;
+      if (!nearest || distance < nearest.distance)
+        nearest = {
+          hit: { sectionId: section.id, edge: h.ref.edge, offset, z },
+          distance,
+        };
+    }
+    return nearest?.hit ?? null;
+  }
+  const windowGestures = installWindowGestures(
+    canvas,
+    controls,
+    windowPlacement,
+    wallHit,
+    snapStep,
+  );
+  function clearPreview() {
+    if (!previewGroup) return;
+    root.remove(previewGroup);
+    previewGroup.traverse((o) => {
+      if (o instanceof THREE.Mesh || o instanceof THREE.LineLoop) {
+        o.geometry.dispose();
+        (o.material as THREE.Material).dispose();
+      }
+    });
+    previewGroup = null;
+  }
+  function windowPreview(state: WindowSession | null) {
+    clearPreview();
+    if (!state) windowGestures.reset();
+    if (state?.draft && activeBuilding && wallContext)
+      try {
+        const d = state.draft,
+          s = activeBuilding.sections.find((s) => s.id === d.sectionId)!;
+        const g = openingGeometry(wallContext, windowOpening(s, d.window)),
+          n = g.host.inward!,
+          w = d.window;
+        const points = [
+          [-w.width / 2, w.sill],
+          [w.width / 2, w.sill],
+          [w.width / 2, w.sill + w.height],
+          [-w.width / 2, w.sill + w.height],
+        ].map(([t, z]) =>
+          enginePoint(
+            g.host.a.x + g.u.x * (w.offset + t) - n.x * 180,
+            g.host.a.y + g.u.y * (w.offset + t) - n.y * 180,
+            z,
+          ),
+        );
+        const color = state.issue ? "#ce493b" : "#24a367";
+        previewGroup = new THREE.Group();
+        const geo = new THREE.BufferGeometry().setFromPoints(points);
+        geo.setIndex([0, 1, 2, 0, 2, 3]);
+        geo.computeVertexNormals();
+        previewGroup.add(
+          new THREE.Mesh(
+            geo,
+            new THREE.MeshBasicMaterial({
+              color,
+              transparent: true,
+              opacity: 0.35,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+          ),
+          new THREE.LineLoop(
+            new THREE.BufferGeometry().setFromPoints(points),
+            new THREE.LineBasicMaterial({ color }),
+          ),
+        );
+        root.add(previewGroup);
+      } catch {
+        /* Invalid/missing host is reported by the model validator, never saved. */
+      }
+    host.dataset.windowPreview = state?.draft
+      ? state.issue
+        ? "invalid"
+        : "valid"
+      : state
+        ? "waiting"
+        : "none";
+    invalidate();
+  }
   let start = { x: 0, y: 0 },
     multi = false;
   const down = (e: PointerEvent) => {
@@ -547,6 +711,7 @@ export function createExteriorScene(
   resize();
   return {
     update,
+    windowPreview,
     fit: () => fit(false),
     reset: () => fit(true),
     select: (id: string, windowId = "") => {
@@ -581,6 +746,8 @@ export function createExteriorScene(
       canvas.removeEventListener("pointerdown", down);
       canvas.removeEventListener("pointerup", up);
       canvas.removeEventListener("pointercancel", cancel);
+      windowGestures.dispose();
+      clearPreview();
       controls.dispose();
       if (helper) {
         helper.geometry.dispose();

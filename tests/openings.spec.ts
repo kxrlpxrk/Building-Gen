@@ -301,7 +301,7 @@ test("placement cancellation, scrolled drag/resize, protected hosts and independ
   expect(rows).toHaveLength(3);
   expect(
     rows.every(
-      (p) => p.schemaVersion === 7 && p.building.openings.length === 1,
+      (p) => p.schemaVersion === 8 && p.building.openings.length === 1,
     ),
   ).toBe(true);
   expect(new Set(rows.map((p) => p.building.openings[0].id)).size).toBe(3);
@@ -380,6 +380,11 @@ test("actual door gaps win over adjoining transparent jamb hit regions", async (
   await place(page, 6000, 4000);
   const first = (await stored(page))[0].building.openings[0];
   await tap(page, 6000, 6800);
+  // Wait for the new tap preview to replace the previous controlled input
+  // before fill selects its text (especially under mobile rendering load).
+  await expect(
+    page.getByRole("textbox", { name: "Opening position", exact: true }),
+  ).toHaveValue("6.5");
   await numeric(page, "Opening position", "5.2");
   await page
     .getByRole("button", { name: "Confirm opening", exact: true })

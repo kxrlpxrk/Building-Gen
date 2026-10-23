@@ -463,6 +463,9 @@ test("BG-04D window previews, exact aperture edits, features, history and persis
   await saved(page);
   const original = await records(page);
   await page.getByRole("button", { name: "Place window", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Use precision placement", exact: true })
+    .click();
   await numeric(page, "Window position along wall", "0.1");
   await expect(
     page.getByRole("button", { name: "Confirm window", exact: true }),
@@ -472,6 +475,9 @@ test("BG-04D window previews, exact aperture edits, features, history and persis
     .click();
   expect(await records(page)).toEqual(original);
   await page.getByRole("button", { name: "Place window", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Use precision placement", exact: true })
+    .click();
   await expect(
     page.getByText("Valid placement · preview only, not saved"),
   ).toBeVisible();
@@ -493,7 +499,7 @@ test("BG-04D window previews, exact aperture edits, features, history and persis
     .click();
   await saved(page);
   const p = (await records(page))[0];
-  expect(p.schemaVersion).toBe(7);
+  expect(p.schemaVersion).toBe(8);
   expect(p.building.sections[0].exterior.windows[0]).toMatchObject({
     width: 1100,
     sill: 1200,

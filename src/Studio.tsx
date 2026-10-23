@@ -1,3 +1,4 @@
+import { useWindowPlacement } from "./useWindowPlacement";
 import ExteriorInspector from "./ExteriorInspector";
 import ExteriorBoundary from "./ExteriorBoundary";
 import BuildingGeneratorPanel from "./BuildingGeneratorPanel";
@@ -32,12 +33,7 @@ import {
   validateFootprint,
 } from "./geometry";
 import { commit, initialHistory, redo, undo, type History } from "./history";
-import {
-  type Architecture,
-  type Project,
-  type Section,
-  type Building,
-} from "./model";
+import { type Architecture, type Project, type Section } from "./model";
 import {
   applyPreset,
   scaleFootprint,
@@ -125,7 +121,15 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
     "footprint",
   );
   const [selectedExteriorWindow, setSelectedExteriorWindow] = useState("");
-  const [exteriorPreview, setExteriorPreview] = useState<Building | null>(null);
+  const windowPlacement = useWindowPlacement(
+    current.building,
+    (b) => edit({ ...currentRef.current, building: b }),
+    (sectionId, id) => {
+      selectSection(sectionId);
+      setSelectedExteriorWindow(id);
+    },
+  );
+  useEffect(() => windowPlacement.cancel(), [mode, current.building]);
   const [interiorTool, setInteriorTool] = useState<InteriorTool>("wall");
   const [interiorSelection, setInteriorSelection] =
     useState<InteriorSelection>(null);
@@ -506,7 +510,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-04D</span>
+        <span className="version">BG-04D.1</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -827,9 +831,11 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                 }
               >
                 <ExteriorViewer
-                  building={exteriorPreview ?? current.building}
+                  building={current.building}
                   selectedId={section.id}
                   selectedWindowId={selectedExteriorWindow}
+                  windowPlacement={windowPlacement}
+                  snapStep={snapEnabled ? grid : null}
                   onSelect={selectSection}
                   onWindow={(sectionId, id) => {
                     selectSection(sectionId);
@@ -970,7 +976,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                   section={section}
                   onSelect={selectSection}
                   onChange={changeSection}
-                  onPreview={setExteriorPreview}
+                  windowPlacement={windowPlacement}
                   selectedWindowId={selectedExteriorWindow}
                   onWindow={setSelectedExteriorWindow}
                 />

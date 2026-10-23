@@ -2232,3 +2232,36 @@ h3 {
   font-size: 14px;
   overflow-wrap: anywhere;
 }
+.window-toolbar {
+  position: absolute;
+  top: 32px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: none;
+  align-items: flex-start;
+}
+.window-toolbar button {
+  pointer-events: auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: #fafbf2ee;
+  font-size: 12px;
+}
+.window-toolbar p {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: 6px 9px;
+  background: #fafbf2ee;
+  font-size: 12px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.placement-valid {
+  color: #165c39;
+}
+.placement-invalid {
+  color: #9a302b;
+}
