@@ -93,6 +93,21 @@ test("lazy 3D architecture, real style/height/pitch changes, camera controls and
   await saved(page);
   const original = (await records(page))[0];
   expect(chunks).toBe(0);
+  // Wait for the initial ResizeObserver fit, rather than recording the 600 px
+  // bootstrap viewport under concurrent screenshot/rendering load.
+  await expect
+    .poll(() =>
+      page.locator(".plan-canvas").evaluate((node) => {
+        const svg = node as SVGSVGElement,
+          box = svg.getBoundingClientRect();
+        return (
+          box.width > 0 &&
+          Math.abs(svg.viewBox.baseVal.width - box.width) < 0.5 &&
+          Math.abs(svg.viewBox.baseVal.height - box.height) < 0.5
+        );
+      }),
+    )
+    .toBe(true);
   const oldCamera = await page
     .locator(".plan-canvas > g")
     .first()

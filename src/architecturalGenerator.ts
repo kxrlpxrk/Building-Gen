@@ -1,4 +1,11 @@
-/** BG-05 orchestration. Canonical records only; no alternate geometry engine. */
+import {
+  generateArchitecturalDetails,
+  advancedArchitectureSummary,
+  CROSS_GABLE_COMPLEXITIES,
+  type CrossGableComplexity,
+} from "./architecturalDetailGenerator";
+import { ORNAMENT_LEVELS, type OrnamentLevel } from "./ornamentation";
+/** BG-05 / BG-06C orchestration. Canonical records only; no alternate geometry engine. */
 import {
   generateBuildings,
   type BuildingConfig,
@@ -23,6 +30,8 @@ import { polygonArea } from "./polygon";
 export const SCALES = ["Small", "Medium", "Large", "Custom"] as const;
 export const DENSITIES = ["None", "Few", "Moderate", "Many"] as const;
 export type ArchitecturalConfig = {
+  crossGables?: CrossGableComplexity;
+  ornamentation?: OrnamentLevel;
   purpose: BuildingPurpose;
   style: ExteriorSettings["stylePreset"];
   scale: (typeof SCALES)[number];
@@ -51,6 +60,8 @@ export function purposeDefaults(purpose: BuildingPurpose): ArchitecturalConfig {
   const [length, width, extensions] = proportions[purpose];
   return {
     purpose,
+    crossGables: "None",
+    ornamentation: "None",
     length,
     width,
     extensions,
@@ -80,11 +91,15 @@ export function architecturalConfigError(
     !Object.hasOwn(proportions, c.purpose) ||
     !STYLE_PRESETS.includes(c.style) ||
     !SCALES.includes(c.scale) ||
+    (c.crossGables !== undefined &&
+      !CROSS_GABLE_COMPLEXITIES.includes(c.crossGables)) ||
+    (c.ornamentation !== undefined &&
+      !ORNAMENT_LEVELS.includes(c.ornamentation)) ||
     !DENSITIES.includes(c.windows) ||
     !["Simple", "Organic", "Grand"].includes(c.complexity) ||
     !["Low", "Standard", "High"].includes(c.detail)
   )
-    return "Choose supported purpose, style, scale, complexity, windows and detail settings.";
+    return "Choose supported purpose, style, scale, complexity, cross-gables, ornamentation, windows and detail settings.";
   if (
     !Array.isArray(c.roofs) ||
     !c.roofs.length ||
@@ -116,7 +131,12 @@ export function generateArchitecturalBuildings(
 ): BuildingResult {
   const error = architecturalConfigError(c);
   if (error) throw new Error(error);
-  c = { ...c, roofs: ROOF_STYLES.filter((roof) => c.roofs.includes(roof)) };
+  c = {
+    ...c,
+    crossGables: c.crossGables ?? "None",
+    ornamentation: c.ornamentation ?? "None",
+    roofs: ROOF_STYLES.filter((roof) => c.roofs.includes(roof)),
+  };
   const material = styleMaterial(c.style),
     multiplier = c.scale === "Small" ? 0.75 : c.scale === "Large" ? 1.3 : 1;
   const dimensions = proportions[c.purpose];
@@ -152,6 +172,10 @@ export function generateArchitecturalBuildings(
           c.ornaments,
           c.canopies,
           c.seed,
+          // Preserve pre-BG-06C seeded compositions when both options are None.
+          ...(c.crossGables === "None" && c.ornamentation === "None"
+            ? []
+            : [c.crossGables, c.ornamentation]),
         ]),
       ),
     ),
@@ -399,7 +423,7 @@ export function generateArchitecturalBuildings(
         doorId: null,
         finish: material === "Medieval" ? "Brick" : "Stone",
       });
-    if (c.ornaments)
+    if (c.ornaments && c.ornamentation === "None")
       feature({
         id: b.id + "-ornament",
         kind: "Gable ornament",
@@ -427,6 +451,20 @@ export function generateArchitecturalBuildings(
         );
     }
     try {
+      const advanced = generateArchitecturalDetails(
+        p.project,
+        {
+          crossGables: c.crossGables!,
+          ornamentation: c.ornamentation!,
+          seed: c.seed,
+        },
+        variant,
+      );
+      warnings.push(...advanced.warnings);
+      if (c.ornaments && c.ornamentation !== "None")
+        warnings.push(
+          "Legacy gable finials replaced by the selected canonical ornamentation set to avoid conflicting terminals.",
+        );
       p.project = validateProject(p.project);
       const mesh = buildExterior(b);
       if (
@@ -452,6 +490,7 @@ export function generateArchitecturalBuildings(
       p.project.name = `${c.style} ${c.purpose}`;
       p.warnings = [...p.warnings, ...warnings, ...mesh.warnings];
       p.explanation.push(
+        advancedArchitectureSummary(b.sections, c.ornamentation!),
         `${c.style}: dominant ${main.exterior.wallHeight / 1000} m hall with coordinated lower supporting roofs.`,
         `${placedWindows} validated windows; ${b.openings.length} exterior entrance; ${b.sections.reduce((n, s) => n + s.exterior.features.length, 0)} supported features.`,
         ...b.sections.map(

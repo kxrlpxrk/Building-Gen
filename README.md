@@ -1,6 +1,6 @@
-# Building Generator · BG-06B
+# Building Generator · BG-06C
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06B adds editable carved timber ornamentation, dragon-head terminals, knotwork and grounded architectural details. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.2.0**; project schema is **version 10**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06C extends the unified generator with validated crossing gables and coordinated carved ornamentation. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.3.0**; project schema remains **version 10**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,39 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Automated advanced roof and fantasy ornament generation · BG-06C
+
+BG-06B passed the user’s **30/30 physical iPhone Safari checks**. This release adds generation orchestration on top of that approved roof, ornament and rendering baseline; it does not introduce a new geometry system.
+
+Choose **Generate Architectural Building**, then **Cross-gable complexity: None / Occasional / Prominent** and **Generated ornamentation: None / Subtle / Ornate / Fantasy**. Both default to **None**, including when older transient BG-05 configurations omit these fields. Existing saved projects are never decorated automatically. Purpose, style, scale, extensions, roofs, windows, detail, seed and advanced feature controls remain available. The original simple gable-finial preference still works with ornamentation None; an explicit new ornamentation level replaces that legacy terminal request to avoid conflicting motifs.
+
+### Design integration and limits
+
+`architecturalDetailGenerator.ts` runs inside the existing cancellable architectural worker, after the base building, entrance, windows and optional features have been assembled. It attempts roof-only features first, validates them through `validateProject()`/`roofFeatures.ts`, and then resolves decoration anchors on the final roofs and actual exterior walls. Completed proposals must also pass the existing `buildExterior()` checks before display. No changes were made to `roofSurface.ts`, the renderer or the canonical footprint/interior model.
+
+- **Occasional** targets one supported crossing-gable bay. **Prominent** targets up to two, on the main hall or a compatible supporting section. Native roof directions, pitches and the dominant/lower-wing height hierarchy coordinate the additions. Centred full crossings and offset one-sided gables offer distinct silhouettes where support permits.
+- Placement tries exposed bays, alternate widths, offsets and sides, with at most **64 roof trials per proposal**. Gable hosts must be rectangular; unsupported Hip/Shed hosts, concealed facades, chimney conflicts, unburied cutoffs and overlapping bays are rejected by the established validators. A preference can be reduced to fewer or zero features, with an explicit warning. This is not a universal valley solver.
+- Ornaments use the existing `ornamentPreset()`, `suggestedOrnament()` and exact anchor validation. A deterministic ID factory replaces random UUID creation **only inside temporary generator proposals**. Same configuration/seed reproduces complete roof, ornament, opening and ID records.
+- The main structure receives the requested ornament level; supporting wings receive **Subtle**, with at most three pieces each. Rustic Norse main halls use a more restrained cap; chieftain and fantasy halls can emphasise main/cross-gable terminals and entrance carvings. Medieval styles use finials instead of automatic dragons and omit shield displays. Windows, doors, chimneys and section joins remain clearance constraints.
+- Existing limits remain **12 ornaments per section / 48 per building**, with bounded preset searches, merged/cached meshes and camera-distance simplification. The generator does not fill every facade or maximise feature count. Clearances and composition budgets produce explicit omitted-preference messages.
+
+Proposals A/B/C show cross-gable count, ornamentation level/count, section roof/covering summaries and warnings. Compare uses the existing 2D thumbnails and one interactive 3D preview. **Cancel** terminates the worker and preserves the original project; **Create New Project** independently rekeys and saves ordinary editable records. Generated roof features and carvings use the same manual inspectors, preview/Cancel, Undo/Redo, autosave, JSON and duplication paths. Interior room generation remains available afterwards; this phase adds no rooms.
+
+### Data, validation and evidence
+
+No migration is needed: **schema v10** and v1–v9 imports are retained. Generator configuration and previews remain transient. Existing defaults keep the previous seed-to-footprint hash when both new options are None; no legacy project geometry, appearance or identities are rewritten.
+
+New unit tests cover all requested purposes and five styles, every cross-gable/ornamentation option, complete seeded determinism, variation, exposed support, exact structural roof-skin closure, unsupported-preference warnings, independent acceptance, manual ornament editing, JSON/duplication and storage. Existing BG-04D.2, BG-06A, BG-06B and BG-05 tests remain in the suite. Browser tests exercise real worker cancellation, independent creation and ordinary ornament history, plus all six requested generated examples from front/rear/above/opposite angles with **section outline OFF**.
+
+Validation: **329 unit/storage tests across 17 files pass**. The production browser sweep ran 108 cases: 97 passed, 10 desktop-inapplicable touch cases were skipped (their mobile counterparts passed), and one older test captured the bootstrap SVG viewport before ResizeObserver initialization. That test now waits for actual layout, retains its exact camera-preservation assertion, and passes on both desktop and iPhone-sized Chromium on rerun: **98 distinct browser cases verified**. Production build and formatting pass; Vite retains its existing lazy Three.js chunk-size advisory. The final 22 generator tests also compare geometry without IDs when checking variation.
+
+[Screenshot gallery and reproduction instructions](docs/advanced-generation/README.md). Physical Safari approval of BG-06B does not replace a BG-06C retest:
+
+1. Generate Subtle Rustic, Ornate Chieftain and Grand Fantasy halls. Compare A/B/C; inspect cross-gables, dragons, roof undersides and valleys from all sides, then Regenerate.
+2. Generate a Medieval Cottage/Manor and Mixed building. Confirm medieval finials, meaningful silhouettes and clear omitted-preference warnings; try Hip-only with Prominent crossings.
+3. Cancel during generation and preview. Create a new project, edit generated roof/carving records, Undo/Redo, reopen, duplicate and JSON-roundtrip; the original must remain unchanged.
+4. At High detail with three extensions, orbit/pan/pinch/Fit, switch projection, scroll the full portrait page, focus controls and rotate to landscape. Check responsiveness, no overflow and no nested scroll trap.
 
 ## Architectural ornamentation · BG-06B
 
@@ -48,7 +81,7 @@ Budgets are **12 ornaments per section / 48 per building**, with a bounded 64-en
 
 Validation: **307 unit/storage tests across 16 files pass**. The full production browser suite passes **94 tests**, with 10 desktop-inapplicable touch cases skipped and their mobile equivalents passing. The affected six ornament workflow/evidence/performance cases are also rerun against the final production bundle. Production build and formatting pass. Vite retains its existing lazy Three.js chunk-size advisory.
 
-Screenshots with section outlines **OFF**: [six architectural examples, multiple angles and close-ups](docs/ornamentation/README.md). Captures use desktop and iPhone-sized Chromium; they do not certify physical Safari performance. BG-06B still needs this physical iPhone Safari retest over HTTPS:
+Screenshots with section outlines **OFF**: [six architectural examples, multiple angles and close-ups](docs/ornamentation/README.md). Captures use desktop and iPhone-sized Chromium; they do not certify physical Safari performance. The user subsequently approved BG-06B on physical iPhone Safari (30/30 checks). Its original checklist over HTTPS was:
 
 1. Compare None/Subtle/Ornate/Fantasy on a Norse hall; inspect dragon jaws, horns, wood relief, roof mounting and layered trims from all sides. Confirm a medieval preset adds finials rather than dragons.
 2. Add a cross-gable dragon, change pitch/direction and whole-building rotation; verify supports remain attached or receive a clear validation error. Inspect valleys and roof undersides for regressions.
@@ -102,7 +135,7 @@ BG_E2E_PREVIEW=1 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run t
 
 Validation: **283 unit/storage tests across 15 files** and **88 full production browser tests** pass. Ten desktop-inapplicable touch cases are skipped; their mobile counterparts pass. The targeted roof workflow also checks atomic host/cross-ridge rotation against the final bundle. Production build and formatting pass. Vite retains its existing advisory for the lazy Three.js chunk size.
 
-No new dependency, shadow effect or draw-call group was added. Lazy Three.js loading, on-demand rendering, context-loss recovery, existing mesh/cell/detail budgets and GPU disposal are retained. The user subsequently approved BG-06A on physical iPhone Safari (30/30 checks). BG-06B additions require the new retest above.
+No new dependency, shadow effect or draw-call group was added. Lazy Three.js loading, on-demand rendering, context-loss recovery, existing mesh/cell/detail budgets and GPU disposal are retained. The user subsequently approved BG-06A on physical iPhone Safari (30/30 checks). BG-06B was also subsequently approved (30/30 checks); BG-06C requires the new retest above.
 
 Physical iPhone Safari retest (HTTPS):
 

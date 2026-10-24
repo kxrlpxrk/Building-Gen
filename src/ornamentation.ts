@@ -565,7 +565,12 @@ export function suggestedOrnament(
   };
 }
 /** Bounded explicit preset proposal. Omitted optional anchors are reported, never faked. */
-export function ornamentPreset(b: Building, s: Section, level: OrnamentLevel) {
+export function ornamentPreset(
+  b: Building,
+  s: Section,
+  level: OrnamentLevel,
+  nextId: () => string = () => crypto.randomUUID(),
+) {
   const items: Ornament[] = [],
     messages: string[] = [];
   if (level === "None") return { ornamentation: { level, items }, messages };
@@ -603,7 +608,7 @@ export function ornamentPreset(b: Building, s: Section, level: OrnamentLevel) {
       ? "Gable finial"
       : "Dragon head";
   for (const end of ["Negative", "Positive"] as const) {
-    const o = suggestedOrnament(b, s, roof);
+    const o = suggestedOrnament(b, s, roof, nextId());
     o.anchor = {
       kind: "roof",
       roofFeatureId: null,
@@ -621,12 +626,15 @@ export function ornamentPreset(b: Building, s: Section, level: OrnamentLevel) {
   }
   if (level !== "Subtle") {
     for (const end of ["Negative", "Positive"] as const) {
-      const o = suggestedOrnament(b, s, "Bargeboard");
+      const o = suggestedOrnament(b, s, "Bargeboard", nextId());
       o.anchor = { kind: "roof", roofFeatureId: null, end, offset: 0 };
       o.variant = level === "Fantasy" ? 3 : 2;
-      append(o);
+      if (!append(o))
+        messages.push(
+          `Bargeboard at ${end} omitted: no exposed compatible support.`,
+        );
     }
-    const entrance = suggestedOrnament(b, s, "Entrance pillars");
+    const entrance = suggestedOrnament(b, s, "Entrance pillars", nextId());
     if (!append(entrance))
       messages.push("Entrance pillars omitted: no compatible entrance bay.");
   }
@@ -634,14 +642,14 @@ export function ornamentPreset(b: Building, s: Section, level: OrnamentLevel) {
     for (const end of (level === "Fantasy"
       ? ["Negative", "Positive"]
       : ["Negative"]) as ("Negative" | "Positive")[]) {
-      const panel = suggestedOrnament(b, s, "Gable panel");
+      const panel = suggestedOrnament(b, s, "Gable panel", nextId());
       panel.anchor = { kind: "roof", roofFeatureId: null, end, offset: 0 };
       if (!append(panel))
         messages.push(
           `Gable panel at ${end} omitted: no clear supported gable.`,
         );
     }
-    const trim = suggestedOrnament(b, s, "Ridge trim");
+    const trim = suggestedOrnament(b, s, "Ridge trim", nextId());
     if (!append(trim))
       messages.push("Ridge trim omitted: roof or feature clearance.");
   }
@@ -661,7 +669,7 @@ export function ornamentPreset(b: Building, s: Section, level: OrnamentLevel) {
       if (placed) break;
       const length = Math.abs(h.a.x - h.b.x) + Math.abs(h.a.y - h.b.y);
       for (let t = 1000; t < length - 500 && attempts++ < 64; t += 1500) {
-        const o = suggestedOrnament(b, s, type);
+        const o = suggestedOrnament(b, s, type, nextId());
         o.anchor = {
           kind: "wall",
           edge: h.ref.kind === "exterior" ? h.ref.edge : 0,

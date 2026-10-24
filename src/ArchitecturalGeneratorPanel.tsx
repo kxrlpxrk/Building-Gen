@@ -1,3 +1,5 @@
+import { CROSS_GABLE_COMPLEXITIES } from "./architecturalDetailGenerator";
+import { ORNAMENT_LEVELS } from "./ornamentation";
 import { useEffect, useRef, useState } from "react";
 import {
   PURPOSES,
@@ -198,6 +200,12 @@ export default function ArchitecturalGeneratorPanel({
               ))}
             </select>
           </label>
+          {select(
+            "Cross-gable complexity",
+            "crossGables",
+            CROSS_GABLE_COMPLEXITIES,
+          )}
+          {select("Generated ornamentation", "ornamentation", ORNAMENT_LEVELS)}
           <details>
             <summary>Advanced architectural options</summary>
             <fieldset className="building-preferences">
@@ -225,12 +233,20 @@ export default function ArchitecturalGeneratorPanel({
               "Standard",
               "High",
             ])}
+            <p>
+              Gable ornaments is the original simple finial option. A selected
+              ornamentation level replaces it with coordinated editable
+              carvings.
+            </p>
             <fieldset className="building-preferences">
               <legend>Optional features</legend>
               {(["chimneys", "ornaments", "canopies"] as const).map((key) => (
                 <label key={key}>
                   <input
                     type="checkbox"
+                    disabled={
+                      key === "ornaments" && config.ornamentation !== "None"
+                    }
                     checked={config[key]}
                     onChange={(e) => update({ [key]: e.target.checked })}
                   />
