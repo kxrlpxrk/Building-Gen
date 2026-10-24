@@ -1,3 +1,8 @@
+import {
+  emptyOrnamentation,
+  readOrnamentation,
+  type Ornamentation,
+} from "./ornamentation";
 import type { Architecture, Section } from "./model";
 export const ROOF_STYLES = ["Gable", "Hip", "Shed"] as const;
 export const STYLE_PRESETS = [
@@ -44,6 +49,7 @@ export type RoofFeature = {
   relativeHeight: number;
 };
 export type ExteriorSettings = {
+  ornamentation: Ornamentation;
   stylePreset: (typeof STYLE_PRESETS)[number];
   detailLevel: "Low" | "Standard" | "High";
   covering: (typeof COVERINGS)[number];
@@ -70,6 +76,7 @@ export function exteriorDefaults(
     stylePreset: defaultStyle(material),
     detailLevel: "Standard",
     covering: material === "Medieval" ? "Slate" : "Wood shingles",
+    ornamentation: emptyOrnamentation(),
     roofFeatures: [],
     windows: [],
     features: [],
@@ -111,6 +118,7 @@ export function readExterior(
   legacy = false,
   legacyDirection = false,
   legacyRoofFeatures = false,
+  legacyOrnamentation = false,
 ): ExteriorSettings {
   const v = value as ExteriorSettings;
   if (
@@ -208,6 +216,20 @@ export function readExterior(
       relativeHeight: r.relativeHeight,
     };
   });
+  if (
+    legacyOrnamentation &&
+    v.ornamentation !== undefined &&
+    (!v.ornamentation ||
+      v.ornamentation.level !== "None" ||
+      !Array.isArray(v.ornamentation.items) ||
+      v.ornamentation.items.length > 0)
+  )
+    throw new Error(
+      "Ornamentation requires schemaVersion 10; legacy data was not reset.",
+    );
+  const ornamentation = legacyOrnamentation
+    ? emptyOrnamentation()
+    : readOrnamentation(v.ornamentation);
   const windows = detail.windows.map((w: ExteriorWindow) => {
     if (
       !w ||
@@ -263,6 +285,7 @@ export function readExterior(
     stylePreset: detail.stylePreset as ExteriorSettings["stylePreset"],
     detailLevel: detail.detailLevel as ExteriorSettings["detailLevel"],
     covering: detail.covering as ExteriorSettings["covering"],
+    ornamentation,
     roofFeatures: roofs,
     windows,
     features,

@@ -58,7 +58,7 @@ export type Building = {
   openings: Opening[];
 };
 export type Project = {
-  schemaVersion: 9;
+  schemaVersion: 10;
   id: string;
   name: string;
   architecture: Architecture;
@@ -70,7 +70,7 @@ export function createProject(name = "Untitled building"): Project {
   const now = new Date().toISOString(),
     sectionId = crypto.randomUUID();
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     id: crypto.randomUUID(),
     name,
     architecture: "Norse",
@@ -172,7 +172,13 @@ function section(
     floorCount: value.floorCount as number,
     exterior:
       version >= 6
-        ? readExterior(value.exterior, version === 6, version < 8, version < 9)
+        ? readExterior(
+            value.exterior,
+            version === 6,
+            version < 8,
+            version < 9,
+            version < 10,
+          )
         : exteriorDefaults(
             architecture,
             version >= 3 ? (value.type as SectionType) : "Custom",
@@ -299,10 +305,10 @@ function readOpenings(value: unknown): Opening[] {
 export function validateProject(value: unknown): Project {
   if (
     !object(value) ||
-    ![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(value.schemaVersion as number)
+    ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(value.schemaVersion as number)
   )
     throw new Error(
-      "Unsupported project schema. BG-06A accepts schemaVersion 1–9.",
+      "Unsupported project schema. BG-06B accepts schemaVersion 1–10.",
     );
   const version = value.schemaVersion as number;
   if (
@@ -362,6 +368,27 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error(
       "Roof architecture requires schemaVersion 9; legacy data was not reset.",
+    );
+  if (
+    version < 10 &&
+    value.building.sections.some((s: unknown) => {
+      if (
+        !object(s) ||
+        !object(s.exterior) ||
+        s.exterior.ornamentation === undefined
+      )
+        return false;
+      const o = s.exterior.ornamentation;
+      return (
+        !object(o) ||
+        o.level !== "None" ||
+        !Array.isArray(o.items) ||
+        o.items.length > 0
+      );
+    })
+  )
+    throw new Error(
+      "Ornamentation requires schemaVersion 10; legacy data was not reset.",
     );
   const source = value.building,
     sections = (source.sections as unknown[]).map((s, i) =>
@@ -470,6 +497,7 @@ export function validateProject(value: unknown): Project {
       ...s.exterior.windows,
       ...s.exterior.features,
       ...s.exterior.roofFeatures,
+      ...s.exterior.ornamentation.items,
     ]),
   ].map((v) => v.id);
   if (
@@ -478,7 +506,7 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error("All project, interior and opening IDs must be distinct.");
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     id: value.id,
     name: value.name.trim(),
     architecture: value.architecture as Architecture,
@@ -528,6 +556,11 @@ export function duplicateProject(
   const doorIds = new Map(
     copy.building.openings.map((o) => [o.id, crypto.randomUUID()]),
   );
+  const roofIds = new Map(
+    copy.building.sections.flatMap((s) =>
+      s.exterior.roofFeatures.map((f) => [f.id, crypto.randomUUID()]),
+    ),
+  );
   copy.building.sections = copy.building.sections.map((s) => ({
     ...s,
     exterior: {
@@ -538,8 +571,26 @@ export function duplicateProject(
       })),
       roofFeatures: s.exterior.roofFeatures.map((f) => ({
         ...f,
-        id: crypto.randomUUID(),
+        id: roofIds.get(f.id)!,
       })),
+      ornamentation: {
+        level: s.exterior.ornamentation.level,
+        items: s.exterior.ornamentation.items.map((o) => ({
+          ...o,
+          id: crypto.randomUUID(),
+          anchor:
+            o.anchor.kind === "roof"
+              ? {
+                  ...o.anchor,
+                  roofFeatureId: o.anchor.roofFeatureId
+                    ? roofIds.get(o.anchor.roofFeatureId)!
+                    : null,
+                }
+              : o.anchor.kind === "entrance"
+                ? { ...o.anchor, doorId: doorIds.get(o.anchor.doorId)! }
+                : { ...o.anchor },
+        })),
+      },
       features: s.exterior.features.map((f) => ({
         ...f,
         id: crypto.randomUUID(),

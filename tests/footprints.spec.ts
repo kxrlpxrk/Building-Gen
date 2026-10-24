@@ -49,7 +49,7 @@ test("all presets, exact edges, validation, undo, reload, duplicate and v2 JSON 
   page,
 }) => {
   await create(page, "Polygon hall");
-  await expect(page.getByText("BG-06A", { exact: true })).toBeVisible();
+  await expect(page.getByText("BG-06B", { exact: true })).toBeVisible();
   for (const shape of [
     "L-shape",
     "T-shape",
@@ -146,7 +146,7 @@ test("all presets, exact edges, validation, undo, reload, duplicate and v2 JSON 
   await back(page);
   const records = await raw(page);
   expect(records).toHaveLength(3);
-  expect(records.every((p) => p.schemaVersion === 9)).toBe(true);
+  expect(records.every((p) => p.schemaVersion === 10)).toBe(true);
   expect(new Set(records.map((p) => p.id)).size).toBe(3);
 });
 test("real edge and vertex drags remain orthogonal and undo as whole transactions", async ({
@@ -212,7 +212,7 @@ test("legacy database and JSON migrate without resetting invalid or unsupported 
   ).toBeVisible();
   const unsupported = {
     id: "unsupported-keep-me",
-    schemaVersion: 999,
+    schemaVersion: 1099,
     preciousData: "Do not reset",
   };
   await page.evaluate(

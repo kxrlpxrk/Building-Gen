@@ -203,7 +203,7 @@ function baseProject(c: BuildingConfig, ns: string, shape: Shape): Project {
     openings: [],
   });
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     id: ns + "-project",
     name: `${c.architecture} ${c.purpose}`,
     architecture: c.architecture,

@@ -124,7 +124,7 @@ it("migrates populated v7 plans, windows and roof features without changing any 
   }
   const bytes = JSON.stringify(old),
     next = validateProject(old);
-  expect(next).toMatchObject({ ...old, schemaVersion: 9 });
+  expect(next).toMatchObject({ ...old, schemaVersion: 10 });
   expect(JSON.stringify(old)).toBe(bytes);
   expect(parseProject(serializeProject(next))).toEqual(next);
   const invalid = structuredClone(old);

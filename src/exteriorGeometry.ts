@@ -1,3 +1,4 @@
+import { appendOrnaments } from "./ornamentGeometry";
 import { roofPlanes, roofHeight } from "./roofFields";
 import { crossRoofFields } from "./roofFeatures";
 import {
@@ -32,7 +33,11 @@ export type Surface =
   | "detail"
   | "glass"
   | "brick"
-  | "roofDetail";
+  | "roofDetail"
+  | "ornamentWood"
+  | "ornamentDark"
+  | "ornamentOchre"
+  | "ornamentPale";
 export type SectionExterior = {
   id: string;
   material: Section["exterior"]["material"];
@@ -190,6 +195,10 @@ export function buildExterior(b: Building): ExteriorModel {
         glass: [],
         brick: [],
         roofDetail: [],
+        ornamentWood: [],
+        ornamentDark: [],
+        ornamentOchre: [],
+        ornamentPale: [],
       } as Record<Surface, number[]>,
     }));
   const warnings: string[] = [];
@@ -1262,6 +1271,19 @@ export function buildExterior(b: Building): ExteriorModel {
       }
     }
   }
+  for (let i = 0; i < b.sections.length; i++)
+    appendOrnaments(
+      b,
+      b.sections[i],
+      data[i].parts,
+      visibleHeight,
+      beam,
+      context,
+    );
+  for (const section of data)
+    for (const points of Object.values(section.parts))
+      for (let i = 2; i < points.length; i += 3)
+        maxHeight = Math.max(maxHeight, points[i]);
   if (
     data.reduce(
       (n, s) => n + Object.values(s.parts).reduce((m, a) => m + a.length, 0),

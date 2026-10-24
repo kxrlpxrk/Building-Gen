@@ -233,7 +233,7 @@ describe("schema v3 and lossless BG-01 migration", () => {
       migrated = validateProject(old);
     expect(migrated).toEqual({
       ...old,
-      schemaVersion: 9,
+      schemaVersion: 10,
       building: {
         ...old.building,
         sections: old.building.sections.map((s) => ({
@@ -253,7 +253,7 @@ describe("schema v3 and lossless BG-01 migration", () => {
     });
     expect(old).toEqual(before);
     expect(parseProject(JSON.stringify(old))).toEqual(migrated);
-    expect(serializeProject(migrated)).toContain('"schemaVersion": 9');
+    expect(serializeProject(migrated)).toContain('"schemaVersion": 10');
   });
   it.each(SHAPES)(
     "roundtrips %s polygons, metadata, extents and stable IDs",
@@ -278,7 +278,7 @@ describe("schema v3 and lossless BG-01 migration", () => {
   });
   it("rejects invalid v1/v2 and unsupported versions without replacing data", () => {
     const old = legacy();
-    expect(() => validateProject({ ...old, schemaVersion: 999 })).toThrow(
+    expect(() => validateProject({ ...old, schemaVersion: 1099 })).toThrow(
       /Unsupported/,
     );
     const invalid = structuredClone(old);

@@ -1,3 +1,4 @@
+import OrnamentationPanel from "./OrnamentationPanel";
 import RoofArchitecture from "./RoofArchitecture";
 import type { WindowPlacement } from "./windowPlacement";
 import ExteriorDetails from "./ExteriorDetails";
@@ -15,7 +16,7 @@ import {
   type ExteriorSettings,
 } from "./exteriorSettings";
 import { buildExterior } from "./exteriorGeometry";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 export default function ExteriorInspector({
   building,
   onPreviewRoof,
@@ -39,6 +40,9 @@ export default function ExteriorInspector({
   selectedWindowId: string;
   onWindow: (id: string) => void;
 }) {
+  const [architecturePanel, setArchitecturePanel] = useState<
+    "roof" | "ornaments"
+  >("roof");
   const analysis = useMemo(() => {
     try {
       return { model: buildExterior(building), error: "" };
@@ -262,6 +266,7 @@ export default function ExteriorInspector({
                     section.type,
                     section.id === building.mainSectionId,
                   ),
+                  ornamentation: ex.ornamentation,
                   roofFeatures: ex.roofFeatures,
                   windows: ex.windows,
                   features: ex.features,
@@ -282,15 +287,41 @@ export default function ExteriorInspector({
           </p>
         </section>
       </fieldset>
-      <RoofArchitecture
-        key={section.id}
-        building={building}
-        section={section}
-        onChange={onChange}
-        onPreview={onPreviewRoof}
-        selected={selectedRoof}
-        onSelect={onRoof}
-      />
+      <section className="inspector-section">
+        <div className="section-actions">
+          <button
+            aria-pressed={architecturePanel === "roof"}
+            onClick={() => setArchitecturePanel("roof")}
+          >
+            Roof Architecture
+          </button>
+          <button
+            aria-pressed={architecturePanel === "ornaments"}
+            onClick={() => setArchitecturePanel("ornaments")}
+          >
+            Architectural Ornamentation
+          </button>
+        </div>
+      </section>
+      {architecturePanel === "roof" ? (
+        <RoofArchitecture
+          key={section.id}
+          building={building}
+          section={section}
+          onChange={onChange}
+          onPreview={onPreviewRoof}
+          selected={selectedRoof}
+          onSelect={onRoof}
+        />
+      ) : (
+        <OrnamentationPanel
+          key={section.id}
+          building={building}
+          section={section}
+          onChange={onChange}
+          onPreview={onPreviewRoof}
+        />
+      )}
       <ExteriorDetails
         key={section.id}
         building={building}

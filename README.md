@@ -1,6 +1,6 @@
-# Building Generator · BG-06A
+# Building Generator · BG-06B
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06A adds roof-only crossing gables and offset roof projections through the existing repaired roof-envelope engine. BG-05 complete architectural generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.1.0**; project schema is **version 9**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06B adds editable carved timber ornamentation, dragon-head terminals, knotwork and grounded architectural details. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.2.0**; project schema is **version 10**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,47 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Architectural ornamentation · BG-06B
+
+The starting BG-06A release passed the user’s **30/30 physical iPhone Safari checks**. This release keeps its roof engine and canonical floor plan authoritative. No ornaments are added automatically to existing or generated projects.
+
+In **Exterior 3D**, select an unlocked section and open **Architectural Ornamentation**. Choose **None / Subtle / Ornate / Fantasy** to preview a curated set, or **Add ornament preview** for an individual piece. Presets replace only that section’s decoration collection after acceptance. Medieval styles use finials instead of automatic dragon heads; dragons remain available by explicit selection.
+
+- **Subtle:** restrained finials and a carved support post.
+- **Ornate:** dragon terminals for Norse/Mixed, decorated gables, bargeboards, ridge trim and supported entrance/wall carvings.
+- **Fantasy:** larger crested carvings, layered bargeboards and richer panels/braces, without lights, magical effects or unsupported floating elements.
+- **None:** no new ornament geometry. An explicit accepted reset clears the saved collection; migrating or merely opening an old project never changes its appearance.
+
+Select a saved or draft piece using **Selected ornament**. Edit its variant, **60–150%** scale, mirror, and Oiled/Dark/Ochre/Weathered finish. Roof ornaments select a main or cross-gable feature, exposed end and supported ridge inset. Wall pieces select an exposed source edge, along-wall offset and elevation; entrance pillars reference a real exterior door. **Accept ornamentation** commits the entire preview in one Undo transaction; **Cancel ornament preview** preserves the saved project exactly. Invalid candidates explain the problem and cannot be accepted. Reset/removal also preview before committing. Section locks apply.
+
+### Types, geometry and attachment safety
+
+Eleven types are supported: **Dragon head, Gable finial, Carved post, Entrance pillars, Knotwork panel, Gable panel, Bargeboard, Ridge trim, Shield, Carved brace and Beam ends**. Dragon variants are **Serpent / Hooked snout / Crested wyrm** with extruded curved neck, carved jaw/snout, eyes, horns and crest geometry. Panels have raised interlaced wood relief; shields have curved faces, bosses and mounting blocks. These are lightweight procedural meshes, not stickers or downloaded assets.
+
+`ornamentation.ts` resolves stable section/roof-feature/door/source-edge anchors against the existing `roofSurface.ts` field and actual exterior boundary. Ridge support is checked at every affine profile break and intermediate span, including cross-roof coverage. `ornamentGeometry.ts` creates local carved geometry and transforms it into the same section coordinate system. Roof facets, valleys, skin, windows, doors and room topology are not rewritten. Roof-height, pitch, direction and compatible section edits recompute attachments; incompatible edits are rejected rather than silently deleting or detaching decorations.
+
+Wall decorations reserve clearance around actual doors, full window/shutter bays, wall ends, rooflines and other ornaments. Hidden section joins are not eligible facades. New terminals are inset when a legacy gable ornament already exists. Presets report unsupported omissions instead of inventing support. Roof decorations require a supported rectangular Gable main roof or an exposed BG-06A crossing-gable end; arbitrary Hip/Shed terminals, concealed gables and universal sculptural placement are not supported. Placement/selection uses inspector anchors and live 3D previews; individual ornaments do not yet have direct 3D dragging or picking.
+
+### Schema v10, performance and verification
+
+`schemas/project-v10.schema.json` adds only `section.exterior.ornamentation: { level, items }`. Records contain stable IDs, validated anchor references, variant, permille scale, mirror and finish. **v1–v9 migrate with `None` and an empty collection**, retaining all original geometry, roof features, appearance, IDs, interiors and openings. Invalid/unsupported decorations are rejected, never reset. Project duplication rekeys ornament, roof-feature and door references independently. Existing IndexedDB storage, autosave, JSON and history are reused. No render meshes are persisted.
+
+Budgets are **12 ornaments per section / 48 per building**, with a bounded 64-entry reusable CPU mesh cache. Geometry is merged into at most four new finish buffers per section, rather than one draw call per carving. Low detail omits fine relief; the existing camera-distance detail culling, on-demand rendering, lazy Three.js loading, context recovery and GPU disposal remain active. There are no new packages, shadow effects or external assets. The regression fixture combines an 18 × 8 m High-detail hall, three extensions, a crossing gable and ornaments; its browser check bounds draw calls below 180 and visible triangles below 150,000.
+
+Validation: **307 unit/storage tests across 16 files pass**. The full production browser suite passes **94 tests**, with 10 desktop-inapplicable touch cases skipped and their mobile equivalents passing. The affected six ornament workflow/evidence/performance cases are also rerun against the final production bundle. Production build and formatting pass. Vite retains its existing lazy Three.js chunk-size advisory.
+
+Screenshots with section outlines **OFF**: [six architectural examples, multiple angles and close-ups](docs/ornamentation/README.md). Captures use desktop and iPhone-sized Chromium; they do not certify physical Safari performance. BG-06B still needs this physical iPhone Safari retest over HTTPS:
+
+1. Compare None/Subtle/Ornate/Fantasy on a Norse hall; inspect dragon jaws, horns, wood relief, roof mounting and layered trims from all sides. Confirm a medieval preset adds finials rather than dragons.
+2. Add a cross-gable dragon, change pitch/direction and whole-building rotation; verify supports remain attached or receive a clear validation error. Inspect valleys and roof undersides for regressions.
+3. Add/move/resize/mirror a panel, shield and entrance surround; try a window/door overlap and a locked section. Invalid changes must leave the saved project intact.
+4. Cancel a preview, Accept, Undo/Redo, save/reopen Safari, duplicate and JSON-roundtrip. Check all ornament IDs/references, rooms, windows, doors and cross-gables survive.
+5. Orbit/pan/pinch/Fit the High-detail three-extension hall. Scroll the full portrait inspector page, focus numeric fields, rotate to landscape and return. Check responsiveness, no horizontal overflow and no scroll trap.
+
+```sh
+BG_E2E_PREVIEW=1 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- tests/ornamentation.spec.ts --project=desktop-chromium --project=iphone-chromium
+```
 
 ## Cross-gables and roof architecture · BG-06A
 
@@ -61,7 +102,7 @@ BG_E2E_PREVIEW=1 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run t
 
 Validation: **283 unit/storage tests across 15 files** and **88 full production browser tests** pass. Ten desktop-inapplicable touch cases are skipped; their mobile counterparts pass. The targeted roof workflow also checks atomic host/cross-ridge rotation against the final bundle. Production build and formatting pass. Vite retains its existing advisory for the lazy Three.js chunk size.
 
-No new dependency, shadow effect or draw-call group was added. Lazy Three.js loading, on-demand rendering, context-loss recovery, existing mesh/cell/detail budgets and GPU disposal are retained. BG-06A has **not** been playtested on a physical iPhone here; the user's 36/36 approval applies to BG-05.
+No new dependency, shadow effect or draw-call group was added. Lazy Three.js loading, on-demand rendering, context-loss recovery, existing mesh/cell/detail budgets and GPU disposal are retained. The user subsequently approved BG-06A on physical iPhone Safari (30/30 checks). BG-06B additions require the new retest above.
 
 Physical iPhone Safari retest (HTTPS):
 
@@ -335,9 +376,9 @@ Each section uses a simple orthogonal ring before rotation, with 4–64 vertices
 
 Shoelace area computes exact exterior area. Clear area and the continuous rendered external wall band use the **validated mitered inward offset of the merged boundary**, not sums of section interiors or bounding-box estimates. The offset must remain one positive connected ring, not reverse edges, cross boundaries or intrude within the wall clearance. Too-thick walls, tiny jogs, collapsing necks, split interiors, overlapping interiors, holes, corner-only contacts and detached sections are rejected. Common exterior walls must be at least 0.01 m. No invalid measurement is replaced by an estimated value.
 
-## Schema v8 and migration
+## Current schema v10 and migration
 
-The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 8` retains:
+The existing `building-generator-bg01` IndexedDB database, database version 1, and `projects` object store are retained. `schemaVersion: 10` retains:
 
 - `building.mainSectionId` and up to twelve `sections`.
 - Section `name`, `type`, `locked`, with the original rectangle or polygon geometry fields.
@@ -352,13 +393,15 @@ Schema v6 adds required `section.exterior: { wallHeight, roofPitch, roofStyle, o
 
 Schema v7 extends `section.exterior` with `stylePreset`, `detailLevel`, `covering`, `windows` and `features`. Window records carry stable IDs, source-wall edge index, integer-mm offset/width/height/sill, style, shutters and glazing. Feature records carry stable IDs, kind, integer-mm section-local placement/height, finish and an optional canopy `doorId`. The section itself supplies the shared stable section reference. v1–v6 migration adds default style/detail/covering and **empty** window/feature collections, retaining all original heights, roof settings, locks, IDs and interior data. Invalid v7 records are rejected, never replaced with defaults. Legacy v6 records containing non-empty unsupported feature collections are rejected rather than silently discarded.
 
-Pure read-time migration accepts schema **1, 2, 3, 4, 5, 6, 7 and 8**. Versions 1–4 receive an empty opening collection. Populated BG-03A interiors retain every partition/room ID, coordinate and label. Versions 1–3 receive an empty interior plan without modifying their original geometry or metadata. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
+Schema v8 adds local roof directions; v9 adds validated roof-feature records; v10 adds explicit ornamentation (documented above).
+
+Pure read-time migration accepts schema **1–10**. Versions 1–4 receive an empty opening collection. Populated BG-03A interiors retain every partition/room ID, coordinate and label. Versions 1–3 receive an empty interior plan without modifying their original geometry or metadata. Valid BG-01/BG-02A sections retain **all original IDs, names, architecture, geometry, position, rotation, wall/floor measurements and timestamps**. New section metadata defaults to Main building / Custom / unlocked. Legacy rectangles remain rectangles; polygons retain their original vertices and ordering. `frame.mode: "legacy"` preserves the single section's world transform and precision; its initial origin/axis mirror the section without rewriting geometry.
 
 The first accepted attachment enters **assembly** mode. Positions then share integer assembly axes anchored at that preserved origin; section quarter turns are relative to the frame axis. The frame's additional `rotation` is applied only for rendering/world transforms, so attachments stay exact. An assembly retains its frame even after its last extension is removed; remaining sections cannot jump, including moved/locked sections. Earlier-phase single-section projects retain their original arbitrary orientation and world-placement controls until attachment.
 
-Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section, connection, partition, room and opening identity** and remap section/partition host references, with independent geometry arrays. Exports use v8; v1–v7 imports remain supported, but older app versions cannot open v8 exports. Room geometric keys remain valid after identity rekeying.
+Connections are derived from real shared section edges and persisted explicitly. Edits recompute segments and retain connection IDs for the same endpoint-edge pair. Imports require connection records to match the geometry exactly, rather than silently repairing stale relationships. Project duplication and conflicting-ID imports rekey **every section, connection, partition, room and opening identity** and remap section/partition host references, with independent geometry arrays. Exports use v10; v1–v9 imports remain supported, but older app versions cannot open v10 exports. Room geometric keys remain valid after identity rekeying.
 
-Library reads never overwrite old records. A successfully validated legacy record is written as v8 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v8.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
+Library reads never overwrite old records. A successfully validated legacy record is written as v10 on the next edit/save/exit. Invalid/unsupported records stay untouched and are reported; loading failures never create fallback projects. The legacy JSON schemas remain alongside `schemas/project-v10.schema.json`. Runtime validation adds connectivity, lock-transition, geometry and cross-field checks beyond structural JSON Schema.
 
 ## BG-04C implementation map
 

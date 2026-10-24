@@ -94,7 +94,7 @@ import { attachmentPreview } from "./attachments";
 it("loads BG-02A from existing IndexedDB without rewriting it or unsupported neighbours", async () => {
   const unsupported = {
     id: "keep-unsupported-storage-test",
-    schemaVersion: 900,
+    schemaVersion: 1000,
     name: "Never reset",
   };
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -116,7 +116,7 @@ it("loads BG-02A from existing IndexedDB without rewriting it or unsupported nei
     tx.onabort = () => reject(tx.error);
   });
   const migrated = await loadProject(legacyV2.id);
-  expect(migrated).toMatchObject({ ...legacyV2, schemaVersion: 9 });
+  expect(migrated).toMatchObject({ ...legacyV2, schemaVersion: 10 });
   expect(await read(legacyV2.id)).toEqual(legacyV2);
   expect((await listProjects()).invalidCount).toBe(1);
   await saveProject(migrated);

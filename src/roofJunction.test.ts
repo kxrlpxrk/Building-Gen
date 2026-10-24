@@ -180,7 +180,7 @@ it.each(["+X", "-X", "+Y", "-Y"] as const)(
 it("direction migration, ornaments, locks, history, save JSON and duplication preserve the canonical plan", () => {
   const old = JSON.stringify(oldV7),
     migrated = validateProject(oldV7);
-  expect(migrated).toMatchObject({ ...oldV7, schemaVersion: 9 });
+  expect(migrated).toMatchObject({ ...oldV7, schemaVersion: 10 });
   expect(JSON.stringify(oldV7)).toBe(old);
   expect(migrated.building.sections[0].exterior.ridgeAxis).toBe("Auto");
   const p = createProject(),

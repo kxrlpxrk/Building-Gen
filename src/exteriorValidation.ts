@@ -1,3 +1,4 @@
+import { validateOrnamentation } from "./ornamentation";
 import { validateRoofFeatures } from "./roofFeatures";
 /** Exact model validation; no Three.js dependency. Windows never enter circulation. */
 import type { Building, Section } from "./model";
@@ -41,6 +42,7 @@ export function featurePoint(
 export function validateExterior(b: Building) {
   for (const s of b.sections) readExterior(s.exterior);
   validateRoofFeatures(b);
+  validateOrnamentation(b);
   const ids = [
     b.id,
     ...b.sections.map((s) => s.id),
@@ -53,6 +55,7 @@ export function validateExterior(b: Building) {
         ...s.exterior.windows,
         ...s.exterior.features,
         ...s.exterior.roofFeatures,
+        ...s.exterior.ornamentation.items,
       ].map((f) => f.id),
     ),
   ];
@@ -318,20 +321,58 @@ export function validateExterior(b: Building) {
   }
 }
 export function reanchorExterior(before: Building, after: Building) {
-  if (!after.sections.some((s) => s.exterior.windows.length)) return after;
+  if (
+    !after.sections.some(
+      (s) =>
+        s.exterior.windows.length ||
+        s.exterior.ornamentation.items.some((o) => o.anchor.kind === "wall"),
+    )
+  )
+    return after;
   const old = openingContext(before),
     next = openingContext(after);
   return {
     ...after,
     sections: after.sections.map((s) => {
       const prior = before.sections.find((t) => t.id === s.id);
-      if (!prior || !s.exterior.windows.length) return s;
+      if (!prior) return s;
       const windows = s.exterior.windows.map((w) => {
         if (!prior.exterior.windows.some((t) => t.id === w.id)) return w;
         const [o] = reanchorOpenings(old, next, [windowOpening(prior, w)]);
         return { ...w, offset: o.offset };
       });
-      return { ...s, exterior: { ...s.exterior, windows } };
+      const items = s.exterior.ornamentation.items.map((o) => {
+        const previous = prior.exterior.ornamentation.items.find(
+          (t) => t.id === o.id,
+        );
+        if (
+          o.anchor.kind !== "wall" ||
+          previous?.anchor.kind !== "wall" ||
+          o.anchor.edge !== previous.anchor.edge
+        )
+          return o;
+        const fake = {
+          id: o.id,
+          host: {
+            kind: "exterior" as const,
+            sectionId: s.id,
+            edge: o.anchor.edge,
+          },
+          offset: o.anchor.offset,
+          width: 400,
+          type: "passage" as const,
+        };
+        const [anchored] = reanchorOpenings(old, next, [fake]);
+        return { ...o, anchor: { ...o.anchor, offset: anchored.offset } };
+      });
+      return {
+        ...s,
+        exterior: {
+          ...s.exterior,
+          windows,
+          ornamentation: { ...s.exterior.ornamentation, items },
+        },
+      };
     }),
   };
 }

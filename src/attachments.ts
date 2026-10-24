@@ -107,7 +107,13 @@ export function attachmentPreview(
         },
         c.shape,
       );
-  if (source)
+  if (source) {
+    const roofIds = new Map(
+      candidate.exterior.roofFeatures.map((f, i) => [
+        f.id,
+        `${c.id}-roof-${i}`,
+      ]),
+    );
     candidate.exterior = {
       ...candidate.exterior,
       windows: candidate.exterior.windows.map((w, i) => ({
@@ -118,10 +124,37 @@ export function attachmentPreview(
         ...f,
         id: `${c.id}-roof-${i}`,
       })),
+      ornamentation: {
+        level: candidate.exterior.ornamentation.level,
+        items: candidate.exterior.ornamentation.items.map((o, i) => ({
+          ...o,
+          id: `${c.id}-ornament-${i}`,
+          anchor:
+            o.anchor.kind === "roof"
+              ? {
+                  ...o.anchor,
+                  roofFeatureId: o.anchor.roofFeatureId
+                    ? roofIds.get(o.anchor.roofFeatureId)!
+                    : null,
+                }
+              : o.anchor,
+        })),
+      },
       features: candidate.exterior.features.map((f, i) => ({
         ...f,
         id: `${c.id}-f-${i}`,
       })),
+    };
+  }
+  if (
+    source?.exterior.ornamentation.items.some(
+      (o) => o.anchor.kind === "entrance",
+    )
+  )
+    return {
+      candidate,
+      error:
+        "Remove entrance ornaments before duplicating a section; doors are duplicated only with complete projects.",
     };
   // Strip polygon-only fields from rectangular templates copied from a polygon main.
   if (!source && c.shape === "Rectangle")

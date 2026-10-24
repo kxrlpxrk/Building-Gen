@@ -218,7 +218,7 @@ test("migrates a BG-02A polygon, attaches to its rotated edge and preserves all 
   await exact(page, "Building rotation", "23.125");
   await saved(page);
   const p = (await records(page))[0];
-  expect(p.schemaVersion).toBe(9);
+  expect(p.schemaVersion).toBe(10);
   expect(p.building.sections[0]).toMatchObject(legacyV2.building.sections[0]);
   expect(p.building.sections[0].id).toBe(legacyV2.building.sections[0].id);
   expect(p.building.connections).toHaveLength(1);

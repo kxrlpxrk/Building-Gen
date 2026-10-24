@@ -219,8 +219,8 @@ it.each([v1, v2, v3, v4, v5])(
   (old) => {
     const before = JSON.stringify(old),
       p = validateProject(old);
-    expect(p.schemaVersion).toBe(9);
-    expect(p).toMatchObject({ ...old, schemaVersion: 9 });
+    expect(p.schemaVersion).toBe(10);
+    expect(p).toMatchObject({ ...old, schemaVersion: 10 });
     expect(JSON.stringify(old)).toBe(before);
     expect(
       p.building.sections.every((s) => s.exterior.material === p.architecture),

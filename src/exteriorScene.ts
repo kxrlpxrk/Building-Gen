@@ -154,14 +154,22 @@ export function createExteriorScene(
     const c = document.createElement("canvas");
     c.width = c.height = 128;
     const ctx = c.getContext("2d")!;
+    const ornamentColours: Record<string, string> = {
+      ornamentWood: "#755035",
+      ornamentDark: "#362a23",
+      ornamentOchre: "#94633c",
+      ornamentPale: "#ab9270",
+    };
+    const palette = palettes[style] as Record<string, string>;
     ctx.fillStyle =
-      kind === "roof"
+      ornamentColours[kind] ??
+      (kind === "roof"
         ? covering === "Clay tiles"
           ? "#795441"
           : covering === "Slate"
             ? "#454e50"
-            : palettes[style][kind]
-        : palettes[style][kind];
+            : palette[kind]
+        : palette[kind]);
     ctx.fillRect(0, 0, 128, 128);
     let seed = 17;
     const rand = () => {
