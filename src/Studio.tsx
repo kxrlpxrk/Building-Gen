@@ -1,3 +1,4 @@
+import ArchitecturalGeneratorPanel from "./ArchitecturalGeneratorPanel";
 import { useWindowPlacement } from "./useWindowPlacement";
 import ExteriorInspector from "./ExteriorInspector";
 import ExteriorBoundary from "./ExteriorBoundary";
@@ -94,12 +95,14 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
   const [saveError, setSaveError] = useState("");
   const [leaving, setLeaving] = useState(false),
     [leaveError, setLeaveError] = useState(false);
+  const [architecturalGenerator, setArchitecturalGenerator] = useState(false);
   const [buildingGeneratorOpen, setBuildingGeneratorOpen] = useState(false);
   const [buildingPreview, setBuildingPreview] =
     useState<BuildingProposal | null>(null);
   const [creatingGenerated, setCreatingGenerated] = useState(false);
   const closeBuildingGenerator = () => {
     setBuildingGeneratorOpen(false);
+    setArchitecturalGenerator(false);
     setBuildingPreview(null);
     setTool("edit");
   };
@@ -510,7 +513,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-04D.2</span>
+        <span className="version">BG-05</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -586,6 +589,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
               setTool("pan");
               setAttachment(null);
               setBuildingGeneratorOpen(true);
+              setArchitecturalGenerator(false);
               setInspectorOpen(true);
               setGeometryError("");
             }}
@@ -593,6 +597,25 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             Generate Building
           </button>
         )}
+        <button
+          disabled={creatingGenerated}
+          aria-pressed={architecturalGenerator && buildingGeneratorOpen}
+          onClick={() => {
+            closeGenerator();
+            windowPlacement.cancel();
+            setAttachment(null);
+            setOpeningDraft(null);
+            setArchitecturalGenerator(true);
+            setBuildingGeneratorOpen(true);
+            setBuildingPreview(null);
+            setMode("exterior");
+            setInspectorOpen(true);
+            setTool("pan");
+            setGeometryError("");
+          }}
+        >
+          Generate Architectural Building
+        </button>
         {mode === "interior" && (
           <>
             <button
@@ -831,13 +854,15 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                 }
               >
                 <ExteriorViewer
-                  building={current.building}
-                  selectedId={section.id}
+                  building={viewBuilding}
+                  readOnly={buildingGeneratorOpen}
+                  selectedId={buildingGeneratorOpen ? "" : section.id}
                   selectedWindowId={selectedExteriorWindow}
                   windowPlacement={windowPlacement}
                   snapStep={snapEnabled ? grid : null}
-                  onSelect={selectSection}
+                  onSelect={buildingGeneratorOpen ? () => {} : selectSection}
                   onWindow={(sectionId, id) => {
+                    if (buildingGeneratorOpen) return;
                     selectSection(sectionId);
                     setSelectedExteriorWindow(id);
                   }}
@@ -951,7 +976,8 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
           {(inspectorOpen || anyGenerator) && (
             <div className="inspector-content" hidden={!inspectorOpen}>
               {buildingGeneratorOpen ? (
-                <BuildingGeneratorPanel
+                <BuildingProposalPanel
+                  architectural={architecturalGenerator}
                   onPreview={setBuildingPreview}
                   onCancel={closeBuildingGenerator}
                   onCreate={async (generated) => {
@@ -1569,5 +1595,18 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
         </Modal>
       )}
     </div>
+  );
+}
+
+function BuildingProposalPanel({
+  architectural,
+  ...props
+}: React.ComponentProps<typeof BuildingGeneratorPanel> & {
+  architectural: boolean;
+}) {
+  return architectural ? (
+    <ArchitecturalGeneratorPanel {...props} />
+  ) : (
+    <BuildingGeneratorPanel {...props} />
   );
 }

@@ -302,7 +302,7 @@ export function validateProject(value: unknown): Project {
     ![1, 2, 3, 4, 5, 6, 7, 8].includes(value.schemaVersion as number)
   )
     throw new Error(
-      "Unsupported project schema. BG-04D.2 accepts schemaVersion 1–8.",
+      "Unsupported project schema. BG-05 accepts schemaVersion 1–8.",
     );
   const version = value.schemaVersion as number;
   if (

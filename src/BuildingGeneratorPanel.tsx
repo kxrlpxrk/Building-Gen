@@ -14,7 +14,7 @@ import {
 } from "./buildingGenerator";
 import type { BuildingWorkerReply } from "./buildingWorker";
 import type { Project } from "./model";
-function Thumbnail({ proposal }: { proposal: BuildingProposal }) {
+export function Thumbnail({ proposal }: { proposal: BuildingProposal }) {
   const b = proposal.project.building,
     g = combinedGeometry(b),
     box = bounds(g.vertices),

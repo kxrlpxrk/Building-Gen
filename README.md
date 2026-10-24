@@ -1,6 +1,6 @@
-# Building Generator · BG-04D.2
+# Building Generator · BG-05
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04D.2 repairs connected roof intersections, wall/roof overlap and floating junction detail while preserving the existing architectural editor. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **0.9.2**; project schema is **version 8**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-05 unifies connected footprint generation with coordinated roofs, architectural styles, real entrances, validated windows and supported exterior features. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.0.0**; project schema is **version 8**.
 
 ## Run, validate and deploy
 
@@ -19,9 +19,45 @@ For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
 
+## Unified architectural generation · BG-05
+
+Open a project and choose **Generate Architectural Building**. Choose a purpose and architectural preset, scale and complexity, then generate up to three complete designs. **Advanced architectural options** contains roof preferences, window density, detail budget and feature preferences. Purpose changes restore sensible defaults. Custom dimensions are metres with integer-millimetre validation; they and the requirement for a real exterior entrance are mandatory. Extension count, roof types and optional details are preferences with explicit omission warnings.
+
+The comparison uses lightweight 2D thumbnails. Only the selected proposal occupies the existing interactive Exterior 3D viewer. Geometry/window edits are disabled during preview; orbit, perspective/orthographic projection, pan, pinch, Reset and Fit remain available. Configuration and proposals live in memory, never IndexedDB. Generate/Regenerate runs in a terminable worker, so **Cancel architectural generation** also cancels work in progress. Cancel leaves the complete original project unchanged.
+
+**Create New Project** validates again and independently rekeys project, building, section, connection, door, window and feature IDs/references using the existing duplication path. The original project is preserved. Accepted geometry, windows, entrance and exterior settings are ordinary editable schema-v8 records, with normal autosave, JSON interchange and editing Undo/Redo. No generated rooms or partitions are added. BG-04A remains available afterwards and safely reports failure on footprints it cannot solve. There is no source-project replacement option.
+
+Final production preview captures: [18 × 8 m Norse hall with three extensions, High detail](docs/architectural-generator/longhouse.png) · [Medieval Manor](docs/architectural-generator/manor.png). These are browser renders, not historical-accuracy or structural-engineering certification.
+
+### Supported designs and safety
+
+- All seven purposes: Longhouse, Cottage, Farmhouse, Workshop, Tavern/Inn, Manor and Trading Hall. Medium defaults range from a 10 × 7 m cottage to a 20 × 9 m trading hall; Small/Large scale those proportions. Custom main dimensions support the existing 4–60 m bounded generator limits. Longhouses retain the existing minimum 1.8:1 proportion requirement.
+- All five existing presets: Rustic Norse, Norse Chieftain's Hall, Medieval Timber Cottage, Medieval Manor and Mixed Architectural Fantasy. Styles coordinate cladding/framing, materials and coverings with purpose-specific proportions, eaves and pitches. Norse halls retain gable dominance when permitted. Supporting wings are lower, rather than independently randomised roof masses. Lean-tos use a shallow 12° pitch and high edges face their actual attachment in local coordinates, with lower eaves where the supported minimum allows.
+- Rectangular main structures and up to five connected rectangular support sections, creating L/T and multi-wing compositions. Simple is compact, Organic varies offsets and proportions, Grand favours larger/multiple-direction wings without increasing the requested count. Source rectangles deliberately avoid unsupported concave single-section roof generation.
+- BG-04B remains the footprint solver. Each search has at most 32 composition attempts / 1,600 attachment trials. If necessary, the requested extension preference is reduced by a bounded sequence of searches (at most six total); the result states the reduction. No arbitrary footprint repair or bounding-box area estimates are used.
+- Existing runtime validators place a real exterior entrance, then bounded, evenly spaced exposed-wall window bays (at most 160 attempts). Windows reserve full frames/shutters, exclude doors and joins, and respect roof clearances. Storage, porches and narrow wings do not receive generated windows. Window density is a target, not a guaranteed count.
+- Optional main-hall chimney, paired gable ornament and entrance canopy use existing validators. Unsafe/unsupported features are omitted with the reason, never decorative fake openings or detached features. Unused roof preferences are disclosed. Generated entrances do not imply building-code compliance or an interior circulation plan.
+- Every complete candidate passes `validateProject` and the repaired `buildExterior` pipeline, including finite facet/mesh and whole-footprint roof coverage checks. Existing `roofSurface.ts` pitch intersections, skin closure, mobile geometry limits and documented closed stepped/no-overhang fallbacks remain authoritative. No second roof engine or universal valley solver was added.
+- At most three candidates are enriched and scored for inherited composition quality, entrance validity, useful window provision and omitted preferences. Variants differ in attachment geometry, heights and/or supported roof composition. A fixed footprint can still have three height/roof silhouettes. Complete temporary records and door/window placement reproduce from the same canonical settings and seed; only accepting a new project assigns fresh IDs and timestamps.
+
+**Limitations:** bounded heuristic search, not exhaustive architectural optimisation; only rectangular source sections in this workflow; complex joins may use disclosed closed steps or omitted overhang. Optional features/windows are not guaranteed. No interior layout, upper floors, stairs, furnishings, dormers or export/conversion is generated. There is no physical iPhone performance certification from Chromium emulation.
+
+### Validation and iPhone playtest
+
+`architecturalGenerator.test.ts` covers every purpose and style, deterministic complete data, meaningful variations, complexity, each roof family with High detail and top/bottom skin coverage, validated/omitted features, independent acceptance, persistence/JSON/duplication and subsequent BG-04A layout generation. `architecture-generator.spec.ts` exercises real workers, comparison, cancellation, source preservation, independent creation/reopen, edit availability and horizontal overflow on desktop and iPhone-sized Chromium; it captures generated longhouse/manor preview screenshots as test artifacts. All earlier roof, editor, storage and migration regressions remain in the suite. No schema migration is needed: schema v8 and v1–v7 import compatibility are preserved.
+
+Validation for BG-05: **271 unit/storage tests pass** across 14 files, including all prior geometry/migration tests. The full production desktop + iPhone-sized Chromium suite passes **84 tests**, with **10 desktop-inapplicable touch skips** (mobile counterparts pass). The four affected architectural workflow cases are also rerun against the final production bundle. `npm run build` and `npm run format:check` pass. Vite retains the existing lazy Three.js chunk-size advisory; no new package was added. Physical iPhone Safari/WebKit performance is not verified here.
+
+Physical iPhone Safari checklist (HTTPS):
+
+1. Generate an 18 × 8 m Norse hall with three extensions and High detail. Compare A/B/C; orbit above and around each roof, pinch, pan and Fit; inspect entrances, windows and supported trim/features.
+2. Generate a Medieval Manor and a cottage. Check their silhouettes/materials, omission warnings and roof coverage, including the opposite side. Toggle roof preferences and regenerate; cancel while busy.
+3. Swipe through the expanded configuration/Inspector in portrait and landscape. The whole page must scroll, with no horizontal overflow; gestures outside the viewer must not orbit or edit.
+4. Create a new project, verify the original remains, then edit windows/roof direction and Undo/Redo. Reopen Safari and roundtrip JSON. Run BG-04A afterwards on a supported rectangular design; a safe no-solution result for a complex wing is acceptable.
+
 ## Roof intersections and floating geometry · BG-04D.2
 
-This release keeps **schema v8** and all saved footprints, section settings, openings, rooms and feature identities. It changes derived roof geometry only, with necessary facade/feature reanchoring. No Three.js meshes or new persistent fields are stored, no dependency was added, and no BG-05 work is included.
+This release keeps **schema v8** and all saved footprints, section settings, openings, rooms and feature identities. It changes derived roof geometry only, with necessary facade/feature reanchoring. No Three.js meshes or new persistent fields are stored, no dependency was added, and no later-phase work was included in that repair.
 
 The BG-04D.1 diagnosis was incomplete. The additional causes were:
 

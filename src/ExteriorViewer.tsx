@@ -5,6 +5,7 @@ import { buildExterior } from "./exteriorGeometry";
 import { createExteriorScene, type ExteriorScene } from "./exteriorScene";
 export default function ExteriorViewer({
   building,
+  readOnly = false,
   selectedId,
   onSelect,
   selectedWindowId,
@@ -13,6 +14,7 @@ export default function ExteriorViewer({
   snapStep,
 }: {
   building: Building;
+  readOnly?: boolean;
   selectedId: string;
   onSelect: (id: string) => void;
   selectedWindowId: string;
@@ -36,6 +38,7 @@ export default function ExteriorViewer({
     [ortho, setOrtho] = useState(false),
     [pan, setPan] = useState(false),
     [outline, setOutline] = useState(true);
+  const previewBuilding = useRef("");
   const geometry = useMemo(() => {
     try {
       return { model: buildExterior(building), error: "" };
@@ -72,12 +75,15 @@ export default function ExteriorViewer({
     if (scene.current && geometry.model)
       try {
         scene.current.update(geometry.model, building);
+        if (readOnly && previewBuilding.current !== building.id)
+          scene.current.fit();
+        previewBuilding.current = building.id;
       } catch (e) {
         setError(
           `3D rebuild failed: ${(e as Error).message}. Your plan is preserved.`,
         );
       }
-  }, [geometry, building, retry, ready]);
+  }, [geometry, building, retry, ready, readOnly]);
   useEffect(
     () => scene.current?.select(outline ? selectedId : "", selectedWindowId),
     [selectedId, selectedWindowId, outline, geometry, ready, retry],
@@ -115,6 +121,7 @@ export default function ExteriorViewer({
           <span className="exterior-caption">EXTERIOR / GROUND FLOOR</span>
           <div className="window-toolbar">
             <button
+              disabled={readOnly}
               onClick={windowPlacement.start}
               aria-pressed={windowPlacement.state?.mode === "place"}
             >
@@ -127,7 +134,7 @@ export default function ExteriorViewer({
             >
               Section outline
             </button>
-            {selectedWindowId && !windowPlacement.state && (
+            {!readOnly && selectedWindowId && !windowPlacement.state && (
               <button
                 onClick={() => {
                   const section = building.sections.find((s) =>
