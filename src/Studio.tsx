@@ -1,3 +1,4 @@
+import type { Building } from "./model";
 import ArchitecturalGeneratorPanel from "./ArchitecturalGeneratorPanel";
 import { useWindowPlacement } from "./useWindowPlacement";
 import ExteriorInspector from "./ExteriorInspector";
@@ -116,7 +117,10 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
     setLayoutPreview(null);
     setTool("edit");
   };
+  const [roofPreview, setRoofPreview] = useState<Building | null>(null);
+  const [selectedRoof, setSelectedRoof] = useState("");
   const viewBuilding =
+    roofPreview ??
     buildingPreview?.project.building ??
     layoutPreview?.building ??
     current.building;
@@ -513,7 +517,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-05</span>
+        <span className="version">BG-06A</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -860,6 +864,11 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                   selectedWindowId={selectedExteriorWindow}
                   windowPlacement={windowPlacement}
                   snapStep={snapEnabled ? grid : null}
+                  onRoof={(sectionId, id) => {
+                    if (buildingGeneratorOpen) return;
+                    selectSection(sectionId);
+                    setSelectedRoof(id);
+                  }}
                   onSelect={buildingGeneratorOpen ? () => {} : selectSection}
                   onWindow={(sectionId, id) => {
                     if (buildingGeneratorOpen) return;
@@ -999,6 +1008,9 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
               ) : mode === "exterior" ? (
                 <ExteriorInspector
                   building={current.building}
+                  onPreviewRoof={setRoofPreview}
+                  selectedRoof={selectedRoof}
+                  onRoof={setSelectedRoof}
                   section={section}
                   onSelect={selectSection}
                   onChange={changeSection}

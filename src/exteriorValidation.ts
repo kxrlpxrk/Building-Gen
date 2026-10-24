@@ -1,3 +1,4 @@
+import { validateRoofFeatures } from "./roofFeatures";
 /** Exact model validation; no Three.js dependency. Windows never enter circulation. */
 import type { Building, Section } from "./model";
 import type { ExteriorWindow, ExteriorFeature } from "./exteriorSettings";
@@ -38,6 +39,8 @@ export function featurePoint(
   };
 }
 export function validateExterior(b: Building) {
+  for (const s of b.sections) readExterior(s.exterior);
+  validateRoofFeatures(b);
   const ids = [
     b.id,
     ...b.sections.map((s) => s.id),
@@ -46,14 +49,17 @@ export function validateExterior(b: Building) {
     ...b.interior.partitions.map((w) => w.id),
     ...b.interior.rooms.map((r) => r.id),
     ...b.sections.flatMap((s) =>
-      [...s.exterior.windows, ...s.exterior.features].map((f) => f.id),
+      [
+        ...s.exterior.windows,
+        ...s.exterior.features,
+        ...s.exterior.roofFeatures,
+      ].map((f) => f.id),
     ),
   ];
   if (new Set(ids).size !== ids.length)
     throw new Error(
       "All building, window and architectural feature IDs must be distinct.",
     );
-  for (const s of b.sections) readExterior(s.exterior);
   if (
     !b.sections.some(
       (s) => s.exterior.windows.length || s.exterior.features.length,

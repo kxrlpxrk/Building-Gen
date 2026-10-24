@@ -58,7 +58,7 @@ export type Building = {
   openings: Opening[];
 };
 export type Project = {
-  schemaVersion: 8;
+  schemaVersion: 9;
   id: string;
   name: string;
   architecture: Architecture;
@@ -70,7 +70,7 @@ export function createProject(name = "Untitled building"): Project {
   const now = new Date().toISOString(),
     sectionId = crypto.randomUUID();
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     id: crypto.randomUUID(),
     name,
     architecture: "Norse",
@@ -172,7 +172,7 @@ function section(
     floorCount: value.floorCount as number,
     exterior:
       version >= 6
-        ? readExterior(value.exterior, version === 6, version < 8)
+        ? readExterior(value.exterior, version === 6, version < 8, version < 9)
         : exteriorDefaults(
             architecture,
             version >= 3 ? (value.type as SectionType) : "Custom",
@@ -299,10 +299,10 @@ function readOpenings(value: unknown): Opening[] {
 export function validateProject(value: unknown): Project {
   if (
     !object(value) ||
-    ![1, 2, 3, 4, 5, 6, 7, 8].includes(value.schemaVersion as number)
+    ![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(value.schemaVersion as number)
   )
     throw new Error(
-      "Unsupported project schema. BG-05 accepts schemaVersion 1–8.",
+      "Unsupported project schema. BG-06A accepts schemaVersion 1–9.",
     );
   const version = value.schemaVersion as number;
   if (
@@ -348,6 +348,20 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error(
       "Explicit roof directions require schemaVersion 8; this record was not reset.",
+    );
+  if (
+    version < 9 &&
+    value.building.sections.some(
+      (s: unknown) =>
+        object(s) &&
+        object(s.exterior) &&
+        s.exterior.roofFeatures !== undefined &&
+        (!Array.isArray(s.exterior.roofFeatures) ||
+          s.exterior.roofFeatures.length),
+    )
+  )
+    throw new Error(
+      "Roof architecture requires schemaVersion 9; legacy data was not reset.",
     );
   const source = value.building,
     sections = (source.sections as unknown[]).map((s, i) =>
@@ -455,6 +469,7 @@ export function validateProject(value: unknown): Project {
     ...building.sections.flatMap((s) => [
       ...s.exterior.windows,
       ...s.exterior.features,
+      ...s.exterior.roofFeatures,
     ]),
   ].map((v) => v.id);
   if (
@@ -463,7 +478,7 @@ export function validateProject(value: unknown): Project {
   )
     throw new Error("All project, interior and opening IDs must be distinct.");
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     id: value.id,
     name: value.name.trim(),
     architecture: value.architecture as Architecture,
@@ -519,6 +534,10 @@ export function duplicateProject(
       ...s.exterior,
       windows: s.exterior.windows.map((w) => ({
         ...w,
+        id: crypto.randomUUID(),
+      })),
+      roofFeatures: s.exterior.roofFeatures.map((f) => ({
+        ...f,
         id: crypto.randomUUID(),
       })),
       features: s.exterior.features.map((f) => ({

@@ -215,7 +215,9 @@ export function prepareBuilding(b: Building, previous?: Building): Building {
     for (const old of previous.sections) {
       if (
         !b.sections.some((s) => s.id === old.id) &&
-        (old.exterior.windows.length || old.exterior.features.length)
+        (old.exterior.windows.length ||
+          old.exterior.features.length ||
+          old.exterior.roofFeatures.length)
       )
         throw new Error(
           "Remove this section’s exterior windows/features explicitly before removing the section. No exterior data was deleted.",

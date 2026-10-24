@@ -1,3 +1,5 @@
+import { roofPlanes, roofHeight } from "./roofFields";
+import { crossRoofFields } from "./roofFeatures";
 import {
   roofSurface,
   intersectionDomains,
@@ -9,11 +11,7 @@ import {
   type RoofFacet,
 } from "./roofSurface";
 import { featurePoint, windowOpening } from "./exteriorValidation";
-import {
-  ridgeAlongX,
-  hipEndSlopeRatio,
-  type ExteriorSettings,
-} from "./exteriorSettings";
+import { ridgeAlongX, type ExteriorSettings } from "./exteriorSettings";
 import type { Building, Section } from "./model";
 import {
   canonicalVertices,
@@ -63,7 +61,6 @@ export type ExteriorModel = {
 };
 export const ROOF_THICKNESS = 120;
 export const EXTERIOR_CELL_LIMIT = 40000;
-type Plane = { a: number; b: number; c: number };
 type Cell = {
   x: number;
   y: number;
@@ -151,58 +148,7 @@ export function beam(out: number[], a: V3, b: V3, size: number) {
 function ring(s: Section, b: Building) {
   return canonicalVertices(s, b);
 }
-/** Roofs are minima of affine planes, giving true planar Gable/Hip/Shed faces. */
-export function roofPlanes(s: Section, b: Building): Plane[] {
-  const box = bounds(footprintVertices(s)),
-    angle = s.orientation - b.frame.axis,
-    origin = {
-      x: s.position.x - b.frame.origin.x,
-      y: s.position.y - b.frame.origin.y,
-    };
-  const ux = rotate({ x: 1, y: 0 }, angle),
-    uy = rotate({ x: 0, y: 1 }, angle),
-    slope = Math.tan((s.exterior.roofPitch * Math.PI) / 180);
-  const plane = (v: Point, k: number, sign: number): Plane => ({
-    a: v.x * sign * slope,
-    b: v.y * sign * slope,
-    c:
-      s.exterior.wallHeight +
-      (-origin.x * v.x - origin.y * v.y - k) * sign * slope,
-  });
-  const x = [plane(ux, box.minX, 1), plane(ux, box.maxX, -1)],
-    y = [plane(uy, box.minY, 1), plane(uy, box.maxY, -1)];
-  const ridgeX = ridgeAlongX(s),
-    transverse = ridgeX ? y : x;
-  if (s.exterior.roofStyle === "Hip") {
-    if (s.exterior.ridgeAxis === "Auto") return [...x, ...y];
-    // Preserve transverse pitch. Steepen end hips only as necessary to leave
-    // a real ridge on the requested axis (at least 20% of its span).
-    const ratio = hipEndSlopeRatio(s);
-    const ends = (ridgeX ? x : y).map((p) => ({
-      a: p.a * ratio,
-      b: p.b * ratio,
-      c: s.exterior.wallHeight + (p.c - s.exterior.wallHeight) * ratio,
-    }));
-    return [...transverse, ...ends];
-  }
-  if (s.exterior.roofStyle === "Shed") {
-    const direction =
-      s.exterior.shedHighEdge === "Auto"
-        ? box.length >= box.width
-          ? "+Y"
-          : "+X"
-        : s.exterior.shedHighEdge;
-    return [
-      (direction.endsWith("X") ? x : y)[direction.startsWith("+") ? 0 : 1],
-    ];
-  }
-  return transverse;
-}
-const height = (planes: Plane[], p: Point) =>
-  Math.min(...planes.map((f) => f.a * p.x + f.b * p.y + f.c));
-export function roofHeight(s: Section, b: Building, p: Point) {
-  return height(roofPlanes(s, b), p);
-}
+export { roofPlanes, roofHeight } from "./roofFields";
 const clip = clipRoof;
 const rectangle = (x: number, y: number, w: number, h: number): Point[] => [
   { x, y },
@@ -221,6 +167,8 @@ function distance(p: Point, v: Point[]) {
     }),
   );
 }
+const height = (planes: { a: number; b: number; c: number }[], p: Point) =>
+  Math.min(...planes.map((f) => f.a * p.x + f.b * p.y + f.c));
 const edgeBreaks = profileBreaks;
 export function buildExterior(b: Building): ExteriorModel {
   const g = combinedGeometry(b),
@@ -372,7 +320,17 @@ export function buildExterior(b: Building): ExteriorModel {
     b.sections.map((s) => s.id),
     g.vertices,
   );
-  const domains = [...nativeDomains, ...joins.domains];
+  const roofParents = b.sections.map((_, i) => i);
+  const crossDomains: RoofDomain[] = [];
+  b.sections.forEach((s, parent) => {
+    for (const field of crossRoofFields(s, b)) {
+      const owner = planes.length;
+      planes.push(field.planes);
+      roofParents.push(parent);
+      crossDomains.push({ polygon: field.domain, owner, kind: "intersection" });
+    }
+  });
+  const domains = [...nativeDomains, ...joins.domains, ...crossDomains];
   let surface = roofSurface(planes, domains);
   if (b.sections.length > 1)
     warnings.push(
@@ -458,7 +416,7 @@ export function buildExterior(b: Building): ExteriorModel {
   try {
     makeRoofCells();
   } catch {
-    surface = roofSurface(planes, nativeDomains);
+    surface = roofSurface(planes, [...nativeDomains, ...crossDomains]);
     makeRoofCells();
     warnings.push(
       "Roof complexity fallback: projected intersections exceeded the mobile facet limit. Native roof domains use closed stepped transitions; project geometry is unchanged.",
@@ -596,8 +554,8 @@ export function buildExterior(b: Building): ExteriorModel {
       for (const { polygon: face, plane: f, owner: roofOwner } of roofCells.get(
         `${ix},${iy}`,
       )!.facets) {
-        const out = data[roofOwner].parts,
-          settings = b.sections[roofOwner].exterior;
+        const out = data[roofParents[roofOwner]].parts,
+          settings = b.sections[roofParents[roofOwner]].exterior;
         const upper = face.map((p) => ({
             ...p,
             z: f.a * p.x + f.b * p.y + f.c,
@@ -760,8 +718,9 @@ export function buildExterior(b: Building): ExteriorModel {
               n.candidates.find(
                 (i) => Math.abs(height(planes[i], mid) - otherHeight) < 0.001,
               ) ?? n.owner;
-          const highOut = data[highC ? roofOwner : otherOwner].parts,
-            lowOut = data[highC ? otherOwner : roofOwner].parts;
+          const highOut =
+              data[roofParents[highC ? roofOwner : otherOwner]].parts,
+            lowOut = data[roofParents[highC ? otherOwner : roofOwner]].parts;
           if ((highP - lowP + highQ - lowQ) / 2 >= ROOF_THICKNESS) {
             band(
               lowOut.roof,
@@ -803,7 +762,7 @@ export function buildExterior(b: Building): ExteriorModel {
           });
         } else {
           quad(
-            data[roofOwner].parts.roof,
+            data[roofParents[roofOwner]].parts.roof,
             { ...p, z: lp },
             { ...q, z: lq },
             { ...q, z: hq },
@@ -819,7 +778,7 @@ export function buildExterior(b: Building): ExteriorModel {
         }
         if (!n)
           beam(
-            data[roofOwner].parts.timber,
+            data[roofParents[roofOwner]].parts.timber,
             { ...p, z: hp - 65 },
             { ...q, z: hq - 65 },
             65,

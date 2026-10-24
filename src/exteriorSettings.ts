@@ -33,10 +33,21 @@ export type ExteriorFeature = {
   doorId: string | null;
   finish: "Stone" | "Brick";
 };
+export type RoofFeature = {
+  id: string;
+  ridgeAxis: "X" | "Y";
+  side: "Negative" | "Positive" | "Both";
+  offset: number;
+  width: number;
+  depth: number;
+  pitch: number;
+  relativeHeight: number;
+};
 export type ExteriorSettings = {
   stylePreset: (typeof STYLE_PRESETS)[number];
   detailLevel: "Low" | "Standard" | "High";
   covering: (typeof COVERINGS)[number];
+  roofFeatures: RoofFeature[];
   windows: ExteriorWindow[];
   features: ExteriorFeature[];
   wallHeight: number;
@@ -59,6 +70,7 @@ export function exteriorDefaults(
     stylePreset: defaultStyle(material),
     detailLevel: "Standard",
     covering: material === "Medieval" ? "Slate" : "Wood shingles",
+    roofFeatures: [],
     windows: [],
     features: [],
     wallHeight:
@@ -98,6 +110,7 @@ export function readExterior(
   value: unknown,
   legacy = false,
   legacyDirection = false,
+  legacyRoofFeatures = false,
 ): ExteriorSettings {
   const v = value as ExteriorSettings;
   if (
@@ -158,6 +171,43 @@ export function readExterior(
   const id = (s: unknown) =>
     typeof s === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(s);
   const integer = (n: unknown) => Number.isSafeInteger(n);
+  if (
+    legacyRoofFeatures &&
+    v.roofFeatures !== undefined &&
+    (!Array.isArray(v.roofFeatures) || v.roofFeatures.length)
+  )
+    throw new Error(
+      "Roof architecture requires schemaVersion 9; legacy data was not reset.",
+    );
+  const roofFeatures = legacyRoofFeatures ? [] : v.roofFeatures;
+  if (!Array.isArray(roofFeatures) || roofFeatures.length > 2)
+    throw new Error("A section supports at most two roof features.");
+  const roofs = roofFeatures.map((r: RoofFeature) => {
+    if (
+      !r ||
+      !id(r.id) ||
+      !["X", "Y"].includes(r.ridgeAxis) ||
+      !["Negative", "Positive", "Both"].includes(r.side) ||
+      ![r.offset, r.width, r.depth, r.relativeHeight].every(integer) ||
+      !Number.isFinite(r.pitch) ||
+      r.pitch < 20 ||
+      r.pitch > 60 ||
+      Math.abs(r.pitch * 10 - Math.round(r.pitch * 10)) > 1e-6
+    )
+      throw new Error(
+        "Invalid cross-gable parameters: use integer millimetres and pitch 20–60° (0.1°).",
+      );
+    return {
+      id: r.id,
+      ridgeAxis: r.ridgeAxis,
+      side: r.side,
+      offset: r.offset,
+      width: r.width,
+      depth: r.depth,
+      pitch: r.pitch,
+      relativeHeight: r.relativeHeight,
+    };
+  });
   const windows = detail.windows.map((w: ExteriorWindow) => {
     if (
       !w ||
@@ -213,6 +263,7 @@ export function readExterior(
     stylePreset: detail.stylePreset as ExteriorSettings["stylePreset"],
     detailLevel: detail.detailLevel as ExteriorSettings["detailLevel"],
     covering: detail.covering as ExteriorSettings["covering"],
+    roofFeatures: roofs,
     windows,
     features,
     wallHeight: v.wallHeight,

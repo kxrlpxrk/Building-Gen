@@ -1,6 +1,6 @@
-# Building Generator · BG-05
+# Building Generator · BG-06A
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-05 unifies connected footprint generation with coordinated roofs, architectural styles, real entrances, validated windows and supported exterior features. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.0.0**; project schema is **version 8**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06A adds roof-only crossing gables and offset roof projections through the existing repaired roof-envelope engine. BG-05 complete architectural generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.1.0**; project schema is **version 9**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,57 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Cross-gables and roof architecture · BG-06A
+
+The user-approved BG-05 physical iPhone Safari baseline (36/36 checks) is preserved as the starting point. BG-06A adds **Roof Architecture** in Exterior 3D. Choose a supported rectangular **Gable** section, then **Add cross-gable preview**. A roof feature adds no section, room or footprint extension: the new gable is carried by the building's existing exposed facade wall.
+
+Choose a feature in the inspector or tap its actual sloping roof face in 3D. Adjust placement, width, pitch, relative eaves and one-sided depth. **Both facades** produces a full crossing roof; Negative/Positive produces a T-style projection, and an offset bay produces an L-style silhouette. Both-facade features span the host completely, so depth is disabled in that mode. Covering, structural framing and detail follow the host's existing architectural style.
+
+Changes are temporary. A valid preview uses the existing interactive viewer; an invalid preview explains the problem and shows the saved roof. **Accept roof architecture** commits the complete change as one history transaction. **Cancel roof preview** restores the source exactly. Removal and Reset are previews too. Other committed changes to the selected section discard its temporary roof preview. No proposal mesh is saved.
+
+**Rotate crossing roof frame preview** rotates the host and secondary ridge axes together, preserves feature widths and rescales local placement. If the new transverse span cannot fit a width, narrow it in preview before accepting. The secondary direction selector also validates perpendicular compatibility; parallel secondary/host ridges are unsupported. Existing section roof controls remain authoritative and reject incompatible edits rather than deleting features. Section locks apply to every accepted edit.
+
+### Geometry and supported forms
+
+`roofFields.ts` extracts the existing native Gable/Hip/Shed affine fields unchanged. `roofFeatures.ts` derives perpendicular secondary gable fields from persisted parameters and validates their support. `exteriorGeometry.ts` inserts these fields and their bounded domains into the existing **`roofSurface.ts` upper-envelope solver**. The solver clips native faces against secondary pitch planes at exact affine intersections; valleys are real boundaries between exposed sloping facets. The secondary ridge may be centred or offset, with a different pitch or relative elevation.
+
+Roof-only field ownership maps back to the existing section ID and material group. It does not create fake floor-plan sections or an independent roof model. Native and secondary facets share the established top/bottom skin, ridge-cap/course generation, fascia closure and resolved-underside wall infill. The same resolved surface anchors chimneys and facade trim. Exact quarter-turn basis components prevent microscopic cells caused by trigonometric roundoff. No floating caps, duplicate roof layers or BG-04D.1 return-wall construction was introduced.
+
+Supported limits:
+
+- Rectangular Gable hosts, crossing ridges on either local axis; full cross, one-sided T and offset L-style projections. Existing connected L/T and multi-wing assemblies can carry a feature on any host bay whose required gable ends are exposed.
+- At most **two separated bays per section / eight roof features per building**. Width 1.8–16 m with at least 0.5 m host-end margins; depth 1 m to host span; secondary pitch 20–60° at 0.1° precision; relative eaves −1 to +1 m. Bays must be separated by at least 0.4 m.
+- The internal end of a one-sided projection must be fully buried at least one roof-skin thickness (120 mm) below the native host field. Every facade-reaching gable band must sit on a genuine exposed wall. Shared open-plan section joins are not roof-only gable supports.
+- Unsupported: Hip/Shed or concave **hosts for new roof-only features**, parallel secondary ridges, overlapping bays, unsupported gable ends and cutoffs that would leave a raised panel. Fully buried, invisible secondary gables are also rejected. These are rejected in preview/import and structural edits; no approximation is substituted. Existing Hip/Shed roofs and the documented BG-04D.2 closed stepped/no-overhang fallbacks remain available and unchanged.
+- This is bounded piecewise-planar roof composition, not a universal valley, dormer, structural-engineering or upper-floor planning system. Feature parameters may be valid while a pathological whole project exceeds the existing renderer budget; preview build checks catch that before acceptance.
+
+### Schema v9 and preservation
+
+Schema v9 persists only `exterior.roofFeatures` with stable IDs, local ridge axis, side, offset, width, depth, pitch and relative height. `schemas/project-v9.schema.json` documents the format. All v1–v8 imports migrate with an empty roof-feature collection; existing geometry, IDs, openings, rooms, roofs, directions, materials and other features are retained. Legacy records containing nonempty v9-only data are rejected instead of reset. Current v9 records must explicitly contain the collection.
+
+IndexedDB and autosave remain unchanged. Raw legacy records are not rewritten during loading. Duplication rekeys roof-feature IDs along with existing references; section duplication also rekeys its roof features. Removing a host requires explicitly removing its architectural features first. Footprint edits that invalidate a bay or cutoff are rejected. BG-05 generation continues to create ordinary projects with an empty roof-feature collection; no existing design receives a cross-gable automatically.
+
+### Tests, screenshots and iPhone retest
+
+`roofFeatures.test.ts` adds analytic valley/ridge checks, top/bottom projected coverage, nondegenerate triangles, underside-safe walls, offset/height/pitch variations, both ridge directions, quarter-turn sections, rotation, invalid arrangements, locks, legacy migration, persistence, independent duplication and real door/window/chimney preservation. Existing BG-04D.2 regression fixtures remain in the suite. Migration assertions now expect schema v9 while retaining the original v8 golden fixture.
+
+`tests/roof-architecture.spec.ts` tests the real preview/Cancel/Accept flow, invalid depth, atomic Undo/Redo, removal and reopening. It captures **48 images** across desktop and iPhone-sized Chromium: an 18 × 8 m full crossing hall, offset L/T projection and a generated three-extension chieftain hall, each from above/front/rear/opposite with section outlines enabled and disabled. Toggling selection must leave triangle and GPU rebuild counts unchanged. Production browser screenshots are test artifacts; a desktop set is retained in [docs/cross-gables](docs/cross-gables).
+
+```sh
+BG_E2E_PREVIEW=1 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- tests/roof-architecture.spec.ts --project=desktop-chromium --project=iphone-chromium
+```
+
+Validation: **283 unit/storage tests across 15 files** and **88 full production browser tests** pass. Ten desktop-inapplicable touch cases are skipped; their mobile counterparts pass. The targeted roof workflow also checks atomic host/cross-ridge rotation against the final bundle. Production build and formatting pass. Vite retains its existing advisory for the lazy Three.js chunk size.
+
+No new dependency, shadow effect or draw-call group was added. Lazy Three.js loading, on-demand rendering, context-loss recovery, existing mesh/cell/detail budgets and GPU disposal are retained. BG-06A has **not** been playtested on a physical iPhone here; the user's 36/36 approval applies to BG-05.
+
+Physical iPhone Safari retest (HTTPS):
+
+1. Add a full crossing gable to an 18 × 8 m longhouse at High detail. Orbit through above/front/rear/opposite views with section outline on/off. Inspect valleys, underside, gable framing, fascia and roof courses; pinch, pan and Fit.
+2. Preview a narrow one-sided roof, move it off centre, edit depth/pitch/relative eaves, and try an invalid shallow cutoff. Cancel must retain the original; Accept followed by Undo/Redo must restore complete roofs.
+3. Rotate the crossing frame, correct any width warning, and test a feature on an exposed bay of a three-extension hall. Existing doors/windows/chimneys must remain intact and anchored.
+4. In portrait/landscape, scroll the whole inspector page and focus numeric inputs; check for overflow or scroll traps. Save/reopen Safari, duplicate and roundtrip JSON. Confirm BG-05 generation and ordinary window dragging still work.
 
 ## Unified architectural generation · BG-05
 

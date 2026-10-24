@@ -1,3 +1,4 @@
+import RoofArchitecture from "./RoofArchitecture";
 import type { WindowPlacement } from "./windowPlacement";
 import ExteriorDetails from "./ExteriorDetails";
 import type { Building, Section, Architecture } from "./model";
@@ -17,6 +18,9 @@ import { buildExterior } from "./exteriorGeometry";
 import { useMemo } from "react";
 export default function ExteriorInspector({
   building,
+  onPreviewRoof,
+  selectedRoof,
+  onRoof,
   section,
   onSelect,
   onChange,
@@ -25,6 +29,9 @@ export default function ExteriorInspector({
   onWindow,
 }: {
   building: Building;
+  onPreviewRoof: (b: Building | null) => void;
+  selectedRoof: string;
+  onRoof: (id: string) => void;
   section: Section;
   onSelect: (id: string) => void;
   onChange: (s: Section) => string | null;
@@ -255,6 +262,7 @@ export default function ExteriorInspector({
                     section.type,
                     section.id === building.mainSectionId,
                   ),
+                  roofFeatures: ex.roofFeatures,
                   windows: ex.windows,
                   features: ex.features,
                 },
@@ -274,6 +282,15 @@ export default function ExteriorInspector({
           </p>
         </section>
       </fieldset>
+      <RoofArchitecture
+        key={section.id}
+        building={building}
+        section={section}
+        onChange={onChange}
+        onPreview={onPreviewRoof}
+        selected={selectedRoof}
+        onSelect={onRoof}
+      />
       <ExteriorDetails
         key={section.id}
         building={building}

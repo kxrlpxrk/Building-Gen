@@ -197,8 +197,8 @@ it("migrates v6 exterior heights, roofs, locks and IDs losslessly; adds no windo
   const old = structuredClone(legacy),
     before = JSON.stringify(old),
     p = validateProject(old);
-  expect(p.schemaVersion).toBe(8);
-  expect(p).toMatchObject({ ...old, schemaVersion: 8 });
+  expect(p.schemaVersion).toBe(9);
+  expect(p).toMatchObject({ ...old, schemaVersion: 9 });
   expect(JSON.stringify(old)).toBe(before);
   expect(p.building.sections[0].exterior.windows).toEqual([]);
   expect(p.building.sections[0].exterior.features).toEqual([]);

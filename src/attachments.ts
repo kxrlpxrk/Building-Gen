@@ -114,6 +114,10 @@ export function attachmentPreview(
         ...w,
         id: `${c.id}-w-${i}`,
       })),
+      roofFeatures: candidate.exterior.roofFeatures.map((f, i) => ({
+        ...f,
+        id: `${c.id}-roof-${i}`,
+      })),
       features: candidate.exterior.features.map((f, i) => ({
         ...f,
         id: `${c.id}-f-${i}`,

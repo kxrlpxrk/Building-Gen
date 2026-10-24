@@ -1,3 +1,6 @@
+import { crossRoofFields } from "./roofFeatures";
+import { fieldHeight, onRing } from "./roofSurface";
+import { containsPoint } from "./interior";
 import { installWindowGestures } from "./exteriorWindowGestures";
 import type {
   WindowPlacement,
@@ -79,6 +82,7 @@ export function createExteriorScene(
   onWindow: (sectionId: string, id: string) => void,
   windowPlacement: () => WindowPlacement,
   snapStep: () => number | null,
+  onRoof: (sectionId: string, id: string) => void = () => {},
 ) {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -687,7 +691,24 @@ export function createExteriorScene(
           }
       }
       if (windowHit) onWindow(windowHit.sectionId, windowHit.id);
-      else if (hit) onPick(hit.object.userData.sectionId);
+      else if (hit) {
+        const s = activeBuilding?.sections.find(
+          (s) => s.id === hit.object.userData.sectionId,
+        );
+        const point = root.worldToLocal(hit.point.clone());
+        const p = { x: point.x * 1000, y: -point.z * 1000 },
+          z = point.y * 1000;
+        const feature =
+          s && activeBuilding && hit.object.userData.surface === "roof"
+            ? crossRoofFields(s, activeBuilding).find(
+                (f) =>
+                  (containsPoint(f.domain, p) || onRing(f.domain, p)) &&
+                  Math.abs(fieldHeight(f.planes, p) - z) < 2,
+              )
+            : null;
+        if (feature && s) onRoof(s.id, feature.feature.id);
+        else onPick(hit.object.userData.sectionId);
+      }
     }
     pointers.delete(e.pointerId);
   };

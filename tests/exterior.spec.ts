@@ -499,7 +499,7 @@ test("BG-04D window previews, exact aperture edits, features, history and persis
     .click();
   await saved(page);
   const p = (await records(page))[0];
-  expect(p.schemaVersion).toBe(8);
+  expect(p.schemaVersion).toBe(9);
   expect(p.building.sections[0].exterior.windows[0]).toMatchObject({
     width: 1100,
     sill: 1200,

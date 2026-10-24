@@ -8,6 +8,7 @@ export default function ExteriorViewer({
   readOnly = false,
   selectedId,
   onSelect,
+  onRoof = () => {},
   selectedWindowId,
   onWindow,
   windowPlacement,
@@ -17,6 +18,7 @@ export default function ExteriorViewer({
   readOnly?: boolean;
   selectedId: string;
   onSelect: (id: string) => void;
+  onRoof?: (sectionId: string, id: string) => void;
   selectedWindowId: string;
   onWindow: (sectionId: string, id: string) => void;
   windowPlacement: WindowPlacement;
@@ -26,6 +28,8 @@ export default function ExteriorViewer({
     scene = useRef<ExteriorScene | null>(null),
     pick = useRef(onSelect),
     windowPick = useRef(onWindow);
+  const roofPick = useRef(onRoof);
+  roofPick.current = onRoof;
   const windowControl = useRef(windowPlacement),
     step = useRef(snapStep);
   windowControl.current = windowPlacement;
@@ -58,6 +62,7 @@ export default function ExteriorViewer({
         (sectionId, id) => windowPick.current(sectionId, id),
         () => windowControl.current,
         () => step.current,
+        (sectionId, id) => roofPick.current(sectionId, id),
       );
       scene.current = view;
       setReady(true);
