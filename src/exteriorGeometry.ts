@@ -1,3 +1,13 @@
+import {
+  roofSurface,
+  intersectionDomains,
+  clipRoof,
+  profileBreaks,
+  cleanPolygon,
+  onRing,
+  type RoofDomain,
+  type RoofFacet,
+} from "./roofSurface";
 import { featurePoint, windowOpening } from "./exteriorValidation";
 import {
   ridgeAlongX,
@@ -42,13 +52,39 @@ export type ExteriorModel = {
   doorCount: number;
   roofArea: number;
   cellCount: number;
+  roofFacets: RoofFacet[];
+  roofTransitions: {
+    a: Point;
+    b: Point;
+    high: [number, number];
+    low: [number, number];
+    kind: "step" | "fascia";
+  }[];
 };
 export const ROOF_THICKNESS = 120;
 export const EXTERIOR_CELL_LIMIT = 40000;
 type Plane = { a: number; b: number; c: number };
-type Cell = { x: number; y: number; w: number; h: number; owner: number };
+type Cell = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  owner: number;
+  candidates: number[];
+  facets: RoofFacet[];
+};
 const EPS = 1e-6;
 function triangle(out: number[], a: V3, b: V3, c: V3) {
+  const ux = b.x - a.x,
+    uy = b.y - a.y,
+    uz = b.z - a.z,
+    vx = c.x - a.x,
+    vy = c.y - a.y,
+    vz = c.z - a.z;
+  if (
+    Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) < 1e-5
+  )
+    return;
   out.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
 }
 function quad(out: number[], a: V3, b: V3, c: V3, d: V3) {
@@ -60,11 +96,12 @@ function prism(
   poly: Point[],
   lo: number,
   top: (p: Point) => number,
+  capTop = true,
 ) {
   const bottom = poly.map((p) => ({ ...p, z: lo })),
     upper = poly.map((p) => ({ ...p, z: top(p) }));
   for (let i = 1; i < poly.length - 1; i++) {
-    triangle(out, upper[0], upper[i], upper[i + 1]);
+    if (capTop) triangle(out, upper[0], upper[i], upper[i + 1]);
     triangle(out, bottom[0], bottom[i + 1], bottom[i]);
   }
   for (let i = 0; i < poly.length; i++) {
@@ -166,38 +203,7 @@ const height = (planes: Plane[], p: Point) =>
 export function roofHeight(s: Section, b: Building, p: Point) {
   return height(roofPlanes(s, b), p);
 }
-function clip(poly: Point[], f: Plane): Point[] {
-  const result: Point[] = [];
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i],
-      b = poly[(i + 1) % poly.length],
-      fa = f.a * a.x + f.b * a.y + f.c,
-      fb = f.a * b.x + f.b * b.y + f.c;
-    if (fa <= EPS) result.push(a);
-    if ((fa < -EPS && fb > EPS) || (fa > EPS && fb < -EPS)) {
-      const t = fa / (fa - fb);
-      result.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
-    }
-  }
-  return result;
-}
-function faces(
-  poly: Point[],
-  planes: Plane[],
-  callback: (p: Point[], plane: Plane) => void,
-) {
-  for (let i = 0; i < planes.length; i++) {
-    let p = poly;
-    for (let j = 0; j < planes.length && p.length >= 3; j++)
-      if (i !== j)
-        p = clip(p, {
-          a: planes[i].a - planes[j].a,
-          b: planes[i].b - planes[j].b,
-          c: planes[i].c - planes[j].c,
-        });
-    if (p.length >= 3) callback(p, planes[i]);
-  }
-}
+const clip = clipRoof;
 const rectangle = (x: number, y: number, w: number, h: number): Point[] => [
   { x, y },
   { x: x + w, y },
@@ -215,25 +221,7 @@ function distance(p: Point, v: Point[]) {
     }),
   );
 }
-function edgeBreaks(a: Point, b: Point, planes: Plane[][]) {
-  const cuts = [0, 1];
-  for (const pp of [planes.flat()])
-    for (let i = 0; i < pp.length; i++)
-      for (let j = i + 1; j < pp.length; j++) {
-        const f = {
-            a: pp[i].a - pp[j].a,
-            b: pp[i].b - pp[j].b,
-            c: pp[i].c - pp[j].c,
-          },
-          v = f.a * a.x + f.b * a.y + f.c,
-          d = f.a * (b.x - a.x) + f.b * (b.y - a.y);
-        if (Math.abs(d) > EPS) {
-          const t = -v / d;
-          if (t > EPS && t < 1 - EPS) cuts.push(t);
-        }
-      }
-  return [...new Set(cuts)].sort((a, b) => a - b);
-}
+const edgeBreaks = profileBreaks;
 export function buildExterior(b: Building): ExteriorModel {
   const g = combinedGeometry(b),
     rings = b.sections.map((s) => ring(s, b)),
@@ -260,10 +248,6 @@ export function buildExterior(b: Building): ExteriorModel {
   if (b.sections.some((s) => s.kind === "polygon"))
     warnings.push(
       "Concave roof fallback: section pitch planes are clipped to the actual outline. This is a simplified roof, not a calculated valley/hip intersection.",
-    );
-  if (b.sections.length > 1)
-    warnings.push(
-      "Joined roof fallback: roofs are clipped to disjoint section domains with closed vertical step/clerestory junctions. No valleys, trusses or engineered roof intersections are calculated.",
     );
   const sign = Math.sign(signedArea(g.vertices)),
     segments: { a: Point; b: Point; owner: number; n: Point }[] = [];
@@ -348,6 +332,58 @@ export function buildExterior(b: Building): ExteriorModel {
         "Overhang fallback: unequal adjacent eaves or a tight notch prevents a simple clean perimeter offset. Overhang is omitted for this assembly; stored settings are retained.",
       );
   }
+  const nativeDomains: RoofDomain[] = rings.map((polygon, owner) => ({
+    polygon,
+    owner,
+    kind: "section",
+  }));
+  if (roofRing !== g.vertices)
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i],
+        o = b.sections[seg.owner].exterior.overhang;
+      for (const polygon of [
+        [
+          seg.a,
+          seg.b,
+          { x: seg.b.x + seg.n.x * o, y: seg.b.y + seg.n.y * o },
+          { x: seg.a.x + seg.n.x * o, y: seg.a.y + seg.n.y * o },
+        ],
+        rectangle(
+          Math.min(seg.a.x, expanded[i].x),
+          Math.min(seg.a.y, expanded[i].y),
+          Math.abs(seg.a.x - expanded[i].x),
+          Math.abs(seg.a.y - expanded[i].y),
+        ),
+      ]) {
+        const clean = cleanPolygon(polygon);
+        if (clean.length)
+          nativeDomains.push({
+            polygon: clean,
+            owner: seg.owner,
+            kind: "eave",
+          });
+      }
+    }
+  const joins = intersectionDomains(
+    rings,
+    planes,
+    b.sections.map((s) => s.kind === "rectangle"),
+    g.contacts,
+    b.sections.map((s) => s.id),
+    g.vertices,
+  );
+  const domains = [...nativeDomains, ...joins.domains];
+  let surface = roofSurface(planes, domains);
+  if (b.sections.length > 1)
+    warnings.push(
+      joins.refused
+        ? `Joined roof fallback: ${joins.domains.length} safe projected domains form exact pitched intersections; unsupported/raised or concave cutoffs retain closed stepped transitions. No universal valley solver is claimed.`
+        : "Joined roof surfaces use clipped upper-envelope pitch intersections. Roof valleys are geometric, not structural engineering.",
+    );
+  const visibleHeight = (p: Point, fallback = 0) => {
+    const h = surface.at(p);
+    return Number.isFinite(h) ? h : fallback;
+  };
   const context = openingContext(b),
     doors = b.openings
       .filter((o) => o.host.kind === "exterior")
@@ -372,6 +408,7 @@ export function buildExterior(b: Building): ExteriorModel {
     ...g.inner,
     ...roofRing,
     ...rings.flat(),
+    ...domains.flatMap((d) => d.polygon),
     ...apertures.flatMap((d) =>
       rectangle(
         d.geometry.gap.x,
@@ -388,6 +425,92 @@ export function buildExterior(b: Building): ExteriorModel {
       `This footprint exceeds the mobile 3D limit of ${EXTERIOR_CELL_LIMIT.toLocaleString()} exact cells. Your 2D plan and saved data are unchanged.`,
     );
   const roofCells = new Map<string, Cell>();
+  const roofFacets: RoofFacet[] = [];
+  const roofTransitions: ExteriorModel["roofTransitions"] = [];
+  function makeRoofCells() {
+    roofCells.clear();
+    roofFacets.length = 0;
+    for (let ix = 0; ix < xs.length - 1; ix++)
+      for (let iy = 0; iy < ys.length - 1; iy++) {
+        const x = xs[ix],
+          y = ys[iy],
+          w = xs[ix + 1] - x,
+          h = ys[iy + 1] - y,
+          p = { x: x + w / 2, y: y + h / 2 };
+        if (!containsPoint(roofRing, p)) continue;
+        const candidates = surface.candidates(p);
+        if (!candidates.length) throw new Error("Uncovered roof domain.");
+        const facets = surface.facets(rectangle(x, y, w, h), candidates);
+        roofCells.set(`${ix},${iy}`, {
+          x,
+          y,
+          w,
+          h,
+          owner: owner(p),
+          candidates,
+          facets,
+        });
+        roofFacets.push(...facets);
+        if (roofFacets.length > 40000)
+          throw new Error("Roof intersection facet budget.");
+      }
+  }
+  try {
+    makeRoofCells();
+  } catch {
+    surface = roofSurface(planes, nativeDomains);
+    makeRoofCells();
+    warnings.push(
+      "Roof complexity fallback: projected intersections exceeded the mobile facet limit. Native roof domains use closed stepped transitions; project geometry is unchanged.",
+    );
+  }
+
+  // Overhang material cannot support a tall clerestory outside the actual walls.
+  // A discontinuous eave envelope uses the established no-overhang fallback.
+  if (roofRing !== g.vertices) {
+    let unsafe = roofFacets.some((f) =>
+      f.polygon.some(
+        (p) =>
+          f.plane.a * p.x + f.plane.b * p.y + f.plane.c - ROOF_THICKNESS < 350,
+      ),
+    );
+    for (const [key, c] of roofCells) {
+      const [ix, iy] = key.split(",").map(Number);
+      for (const n of [
+        roofCells.get(`${ix + 1},${iy}`),
+        roofCells.get(`${ix},${iy + 1}`),
+      ]) {
+        if (!n || unsafe) continue;
+        const a = c.x + c.w === n.x ? { x: n.x, y: c.y } : { x: c.x, y: n.y },
+          q =
+            c.x + c.w === n.x
+              ? { x: n.x, y: c.y + c.h }
+              : { x: c.x + c.w, y: n.y };
+        const mid = { x: (a.x + q.x) / 2, y: (a.y + q.y) / 2 };
+        if (containsPoint(g.vertices, mid)) continue;
+        for (const t of edgeBreaks(
+          a,
+          q,
+          [...c.candidates, ...n.candidates].map((i) => planes[i]),
+        )) {
+          const p = { x: a.x + (q.x - a.x) * t, y: a.y + (q.y - a.y) * t };
+          if (
+            Math.abs(
+              surface.height(c.candidates, p) - surface.height(n.candidates, p),
+            ) > 0.001
+          )
+            unsafe = true;
+        }
+      }
+    }
+    if (unsafe) {
+      roofRing = g.vertices;
+      makeRoofCells();
+      warnings.push(
+        "Overhang fallback: the eaves would require unsupported infill outside the walls or intersect the foundation. Overhang is omitted; stored settings are retained.",
+      );
+    }
+  }
   let roofDetailBudget = 0;
   let wallArea = 0,
     roofArea = 0,
@@ -401,9 +524,7 @@ export function buildExterior(b: Building): ExteriorModel {
         p = { x: x + w / 2, y: y + h / 2 },
         inside = containsPoint(g.vertices, p),
         s = owner(p),
-        out = data[s].parts,
-        settings = b.sections[s].exterior,
-        poly = rectangle(x, y, w, h);
+        out = data[s].parts;
       if (inside && !containsPoint(g.inner, p)) {
         wallArea += w * h;
         const gaps = apertures
@@ -415,38 +536,68 @@ export function buildExterior(b: Building): ExteriorModel {
               p.y < d.geometry.gap.y + d.geometry.gap.height + EPS,
           )
           .sort((a, b) => a.low - b.low);
+        const ranges: { lo: number; hi: number }[] = [];
         let bottom = 0;
-        for (const gap of [
-          ...gaps,
-          { low: settings.wallHeight, high: settings.wallHeight },
-        ]) {
-          if (gap.low > bottom) {
-            if (bottom < 350)
-              prism(out.stone, poly, bottom, () => Math.min(350, gap.low));
-            if (gap.low > Math.max(bottom, 350))
-              prism(out.wall, poly, Math.max(bottom, 350), () => gap.low);
-          }
+        for (const gap of [...gaps, { low: Infinity, high: Infinity }]) {
+          if (gap.low > bottom) ranges.push({ lo: bottom, hi: gap.low });
           bottom = Math.max(bottom, gap.high);
         }
-        faces(poly, planes[s], (face, f) => {
-          const clipped = clip(face, {
-            a: -f.a,
-            b: -f.b,
-            c: settings.wallHeight - f.c,
-          });
-          if (clipped.length >= 3)
-            prism(
-              out.wall,
-              clipped,
-              settings.wallHeight,
-              (q) => f.a * q.x + f.b * q.y + f.c,
-            );
-        });
+        for (const { polygon: face, plane: f } of roofCells.get(`${ix},${iy}`)!
+          .facets) {
+          // Wall/gable tops finish at the actual roof UNDERSIDE. The old prism
+          // ended on the roof top, emitting a second coplanar triangle surface
+          // through the shingles (the apparent cutouts / floating wall patches).
+          const ceiling = { ...f, c: f.c - ROOF_THICKNESS };
+          for (const range of ranges)
+            for (const [lo, hi, target] of [
+              [range.lo, Math.min(range.hi, 350), out.stone],
+              [Math.max(range.lo, 350), range.hi, out.wall],
+            ] as const) {
+              if (hi <= lo) continue;
+              const base = clip(face, {
+                a: -ceiling.a,
+                b: -ceiling.b,
+                c: lo - ceiling.c,
+              });
+              if (!base.length) continue;
+              if (Number.isFinite(hi)) {
+                const below = clip(base, {
+                    a: ceiling.a,
+                    b: ceiling.b,
+                    c: ceiling.c - hi,
+                  }),
+                  above = clip(base, {
+                    a: -ceiling.a,
+                    b: -ceiling.b,
+                    c: hi - ceiling.c,
+                  });
+                if (below.length)
+                  prism(
+                    target,
+                    below,
+                    lo,
+                    (p) => ceiling.a * p.x + ceiling.b * p.y + ceiling.c,
+                    false,
+                  );
+                if (above.length) prism(target, above, lo, () => hi);
+              } else
+                prism(
+                  target,
+                  base,
+                  lo,
+                  (p) => ceiling.a * p.x + ceiling.b * p.y + ceiling.c,
+                  false,
+                );
+            }
+        }
       }
       if (!containsPoint(roofRing, p)) continue;
       roofArea += w * h;
-      roofCells.set(`${ix},${iy}`, { x, y, w, h, owner: s });
-      faces(poly, planes[s], (face, f) => {
+      for (const { polygon: face, plane: f, owner: roofOwner } of roofCells.get(
+        `${ix},${iy}`,
+      )!.facets) {
+        const out = data[roofOwner].parts,
+          settings = b.sections[roofOwner].exterior;
         const upper = face.map((p) => ({
             ...p,
             z: f.a * p.x + f.b * p.y + f.c,
@@ -488,9 +639,10 @@ export function buildExterior(b: Building): ExteriorModel {
             const a = face[i],
               d = face[(i + 1) % face.length];
             if (
-              planes[s].some(
+              planes[roofOwner].some(
                 (other) =>
-                  planes[s].indexOf(other) > planes[s].indexOf(f) &&
+                  planes[roofOwner].indexOf(other) >
+                    planes[roofOwner].indexOf(f) &&
                   Math.abs(
                     (other.a - f.a) * a.x +
                       (other.b - f.b) * a.y +
@@ -517,7 +669,7 @@ export function buildExterior(b: Building): ExteriorModel {
           triangle(out.roof, upper[0], upper[i], upper[i + 1]);
           triangle(out.roof, lower[0], lower[i + 1], lower[i]);
         }
-      });
+      }
     }
   // Close every perimeter and every unequal roof junction, never overlap planes.
   for (const [key, c] of roofCells) {
@@ -545,10 +697,11 @@ export function buildExterior(b: Building): ExteriorModel {
         },
       ];
     for (const { a, z, neighbour: n } of edges) {
-      if ((n && n.owner === c.owner) || (n && n.owner < c.owner)) continue;
-      const pp = planes[c.owner],
-        qq = n ? planes[n.owner] : null,
-        ts = edgeBreaks(a, z, qq ? [pp, qq] : [pp]);
+      if (n && (n.x < c.x || n.y < c.y)) continue;
+      const sets = [...c.candidates, ...(n?.candidates ?? [])].map(
+          (i) => planes[i],
+        ),
+        ts = edgeBreaks(a, z, sets, [0, ROOF_THICKNESS, -ROOF_THICKNESS]);
       const point = (t: number) => ({
         x: a.x + (z.x - a.x) * t,
         y: a.y + (z.y - a.y) * t,
@@ -556,35 +709,117 @@ export function buildExterior(b: Building): ExteriorModel {
       for (let j = 0; j < ts.length - 1; j++) {
         const p = point(ts[j]),
           q = point(ts[j + 1]);
-        const hp = height(pp, p),
-          hq = height(pp, q),
-          lp = qq ? height(qq, p) : hp - ROOF_THICKNESS,
-          lq = qq ? height(qq, q) : hq - ROOF_THICKNESS;
+        const hp = surface.height(c.candidates, p),
+          hq = surface.height(c.candidates, q),
+          lp = n ? surface.height(n.candidates, p) : hp - ROOF_THICKNESS,
+          lq = n ? surface.height(n.candidates, q) : hq - ROOF_THICKNESS;
+        const mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+        const roofOwner =
+          c.facets.find(
+            (f) =>
+              Math.abs(
+                f.plane.a * mid.x +
+                  f.plane.b * mid.y +
+                  f.plane.c -
+                  surface.height(c.candidates, mid),
+              ) < 0.001,
+          )?.owner ?? c.owner;
         if (n) {
-          // A junction is a real cut through both 120 mm roof skins. Connecting
-          // only their top edges leaves the lower skin open. One continuous
-          // return spans both cut profiles; no overlapping coplanar infill or
-          // unrelated cap is added. edgeBreaks splits pitch/height crossings.
-          if (Math.max(Math.abs(hp - lp), Math.abs(hq - lq)) > EPS) {
-            const aa = { ...p, z: Math.max(hp, lp) },
-              bb = { ...q, z: Math.max(hq, lq) },
-              cc = { ...q, z: Math.min(hq, lq) - ROOF_THICKNESS },
-              dd = { ...p, z: Math.min(hp, lp) - ROOF_THICKNESS };
-            if (hp + hq >= lp + lq)
-              quad(data[c.owner].parts.wall, dd, cc, bb, aa);
-            else quad(data[c.owner].parts.wall, aa, bb, cc, dd);
+          if (Math.max(Math.abs(hp - lp), Math.abs(hq - lq)) <= 0.001) continue;
+          const highP = Math.max(hp, lp),
+            highQ = Math.max(hq, lq),
+            lowP = Math.min(hp, lp),
+            lowQ = Math.min(hq, lq),
+            highC = hp + hq >= lp + lq;
+          const band = (
+            out: number[],
+            bottomP: number,
+            bottomQ: number,
+            topP: number,
+            topQ: number,
+          ) => {
+            if (highC)
+              quad(
+                out,
+                { ...p, z: bottomP },
+                { ...q, z: bottomQ },
+                { ...q, z: topQ },
+                { ...p, z: topP },
+              );
+            else
+              quad(
+                out,
+                { ...p, z: topP },
+                { ...q, z: topQ },
+                { ...q, z: bottomQ },
+                { ...p, z: bottomP },
+              );
+          };
+          const otherHeight = surface.height(n.candidates, mid),
+            otherOwner =
+              n.candidates.find(
+                (i) => Math.abs(height(planes[i], mid) - otherHeight) < 0.001,
+              ) ?? n.owner;
+          const highOut = data[highC ? roofOwner : otherOwner].parts,
+            lowOut = data[highC ? otherOwner : roofOwner].parts;
+          if ((highP - lowP + highQ - lowQ) / 2 >= ROOF_THICKNESS) {
+            band(
+              lowOut.roof,
+              lowP - ROOF_THICKNESS,
+              lowQ - ROOF_THICKNESS,
+              lowP,
+              lowQ,
+            );
+            band(
+              highOut.wall,
+              lowP,
+              lowQ,
+              highP - ROOF_THICKNESS,
+              highQ - ROOF_THICKNESS,
+            );
+            band(
+              highOut.roof,
+              highP - ROOF_THICKNESS,
+              highQ - ROOF_THICKNESS,
+              highP,
+              highQ,
+            );
+          } else {
+            band(
+              lowOut.roof,
+              lowP - ROOF_THICKNESS,
+              lowQ - ROOF_THICKNESS,
+              highP - ROOF_THICKNESS,
+              highQ - ROOF_THICKNESS,
+            );
+            band(highOut.roof, lowP, lowQ, highP, highQ);
           }
-        } else
+          roofTransitions.push({
+            a: p,
+            b: q,
+            high: [highP, highQ],
+            low: [lowP, lowQ],
+            kind: "step",
+          });
+        } else {
           quad(
-            data[c.owner].parts.roof,
+            data[roofOwner].parts.roof,
             { ...p, z: lp },
             { ...q, z: lq },
             { ...q, z: hq },
             { ...p, z: hp },
           );
+          roofTransitions.push({
+            a: p,
+            b: q,
+            high: [hp, hq],
+            low: [lp, lq],
+            kind: "fascia",
+          });
+        }
         if (!n)
           beam(
-            data[c.owner].parts.timber,
+            data[roofOwner].parts.timber,
             { ...p, z: hp - 65 },
             { ...q, z: hq - 65 },
             65,
@@ -637,7 +872,16 @@ export function buildExterior(b: Building): ExteriorModel {
         beam(
           parts.timber,
           point(t, 350),
-          point(t, Math.max(ex.wallHeight, roofHeight(s, b, p)) - 100),
+          point(
+            t,
+            Math.max(
+              ex.wallHeight,
+              visibleHeight(
+                { x: p.x - n.x * 25, y: p.y - n.y * 25 },
+                roofHeight(s, b, p),
+              ),
+            ) - 100,
+          ),
           rich ? 180 : 140,
         );
       }
@@ -772,8 +1016,15 @@ export function buildExterior(b: Building): ExteriorModel {
           };
         beam(
           parts.detail,
-          { ...p, z: roofHeight(s, b, p) - 160 },
-          { ...q, z: roofHeight(s, b, q) - 160 },
+          {
+            ...p,
+            z:
+              visibleHeight(
+                { x: p.x - n.x * 25, y: p.y - n.y * 25 },
+                roofHeight(s, b, p),
+              ) - 160,
+          },
+          { ...q, z: visibleHeight(q, roofHeight(s, b, q)) - 160 },
           rich ? 110 : 80,
         );
       }
@@ -799,12 +1050,28 @@ export function buildExterior(b: Building): ExteriorModel {
       }
     }
     // Gable sloping bar gives clear architectural silhouette on pronounced ends.
-    const breaks = edgeBreaks(a, z, [planes[seg.owner]]);
+    const breaks = [
+      ...new Set([
+        ...edgeBreaks(a, z, planes),
+        ...domains
+          .flatMap((d) => d.polygon)
+          .flatMap((p) => {
+            const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len;
+            return t > 0 &&
+              t < 1 &&
+              Math.abs((p.x - a.x) * n.x + (p.y - a.y) * n.y) < 0.001
+              ? [t]
+              : [];
+          }),
+      ]),
+    ].sort((a, b) => a - b);
     for (let j = 0; j < breaks.length - 1; j++) {
       const p = point(breaks[j] * len, 0),
         q = point(breaks[j + 1] * len, 0),
-        hp = roofHeight(s, b, p),
-        hq = roofHeight(s, b, q);
+        mid = { x: (p.x + q.x) / 2 - n.x * 25, y: (p.y + q.y) / 2 - n.y * 25 },
+        owners = surface.candidates(mid),
+        hp = surface.height(owners, { x: p.x - n.x * 25, y: p.y - n.y * 25 }),
+        hq = surface.height(owners, { x: q.x - n.x * 25, y: q.y - n.y * 25 });
       if (Math.max(hp, hq) > ex.wallHeight + 100)
         beam(parts.timber, { ...p, z: hp - 100 }, { ...q, z: hq - 100 }, 110);
     }
@@ -921,25 +1188,41 @@ export function buildExterior(b: Building): ExteriorModel {
       if (f.kind === "Chimney") {
         const p = featurePoint(b, s, f),
           poly = rectangle(p.x - 300, p.y - 300, 600, 600),
-          zs = poly.map((q) => roofHeight(s, b, q)),
+          flashing = rectangle(p.x - 390, p.y - 390, 780, 780),
+          flashFacets = surface.over(flashing),
+          zs = flashFacets.flatMap((f) =>
+            f.polygon.map((p) => f.plane.a * p.x + f.plane.b * p.y + f.plane.c),
+          ),
           top = Math.max(...zs) + f.height;
-        // Shaft starts below every roof intersection. Sloped flashing bridges the
-        // penetration; this is exterior geometry only, never a modelled flue.
+        // Anchor to the resolved roof, including ridges inside the flashing.
+        // A thin parallel skin replaces the old flat-bottom wedge, which could
+        // invert on steep pitches and bury the chimney cap beneath the roof.
         prism(
           f.finish === "Brick" ? out.brick : out.stone,
           poly,
           Math.min(...zs) - 180,
           () => top,
         );
-        const flashing = rectangle(p.x - 390, p.y - 390, 780, 780);
-        faces(flashing, planes[i], (face, plane) =>
-          prism(
-            out.roof,
-            face,
-            Math.min(...zs) - 40,
-            (q) => plane.a * q.x + plane.b * q.y + plane.c + 45,
-          ),
-        );
+        for (const facet of flashFacets) {
+          const upper = facet.polygon.map((p) => ({
+              ...p,
+              z: facet.plane.a * p.x + facet.plane.b * p.y + facet.plane.c + 30,
+            })),
+            lower = upper.map((p) => ({ ...p, z: p.z - 4 }));
+          for (let j = 1; j < upper.length - 1; j++) {
+            triangle(out.roof, upper[0], upper[j], upper[j + 1]);
+            triangle(out.roof, lower[0], lower[j + 1], lower[j]);
+          }
+          for (let j = 0; j < upper.length; j++) {
+            const k = (j + 1) % upper.length,
+              mid = {
+                x: (upper[j].x + upper[k].x) / 2,
+                y: (upper[j].y + upper[k].y) / 2,
+              };
+            if (onRing(flashing, mid))
+              quad(out.roof, lower[j], lower[k], upper[k], upper[j]);
+          }
+        }
         prism(
           out.stone,
           rectangle(p.x - 360, p.y - 360, 720, 720),
@@ -970,7 +1253,7 @@ export function buildExterior(b: Building): ExteriorModel {
                   : box.maxY,
             },
             p = featurePoint(b, s, local),
-            z = roofHeight(s, b, p);
+            z = visibleHeight(p, roofHeight(s, b, p));
           beam(
             out.timber,
             { ...p, z: z - 100 },
@@ -1038,5 +1321,7 @@ export function buildExterior(b: Building): ExteriorModel {
     doorCount: doors.length,
     roofArea,
     cellCount: (xs.length - 1) * (ys.length - 1),
+    roofFacets,
+    roofTransitions,
   };
 }

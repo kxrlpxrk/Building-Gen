@@ -4,7 +4,7 @@ import { applyPreset } from "./footprint";
 import { generateBuildings, defaultBuildingConfig } from "./buildingGenerator";
 import { buildExterior } from "./exteriorGeometry";
 import { attachmentPreview } from "./attachments";
-import { combinedGeometry } from "./assembly";
+import { containsPoint } from "./interior";
 import { roofHeight } from "./exteriorGeometry";
 import { Vector3, Triangle } from "three";
 import { readExterior } from "./exteriorSettings";
@@ -69,35 +69,26 @@ function perpendicular() {
   p.building = r.building!;
   return p;
 }
-it("closes the exposed lower skin at unequal-height roof junctions", () => {
+it("joins a perpendicular roof through its valley instead of inserting an attachment-line wall", () => {
   const p = perpendicular(),
     b = p.building,
-    join = combinedGeometry(b).contacts[0];
-  const point = {
-    x: (join.start.x + join.end.x) / 2,
-    y: (join.start.y + join.end.y) / 2,
-  };
-  const heights = b.sections.map((s) => roofHeight(s, b, point));
-  expect(Math.abs(heights[0] - heights[1])).toBeGreaterThan(120);
-  const q = new Vector3(point.x, point.y, Math.min(...heights) - 60),
-    closest = new Vector3();
-  const m = buildExterior(b),
-    triangles = m.sections.flatMap((s) => s.parts.wall);
-  let covered = false;
-  for (let i = 0; i < triangles.length; i += 9) {
-    const t = new Triangle(
-      new Vector3(...(triangles.slice(i, i + 3) as [number, number, number])),
-      new Vector3(
-        ...(triangles.slice(i + 3, i + 6) as [number, number, number]),
-      ),
-      new Vector3(
-        ...(triangles.slice(i + 6, i + 9) as [number, number, number]),
-      ),
-    );
-    t.closestPointToPoint(q, closest);
-    if (closest.distanceTo(q) < 0.001) covered = true;
-  }
-  expect(covered).toBe(true);
+    m = buildExterior(b);
+  const q = { x: 6000, y: 500 };
+  const facet = m.roofFacets.find((f) => containsPoint(f.polygon, q));
+  expect(facet).toBeDefined();
+  expect(
+    facet!.plane.a * q.x + facet!.plane.b * q.y + facet!.plane.c,
+  ).toBeCloseTo(roofHeight(b.sections[1], b, q));
+  expect(
+    m.roofTransitions.filter(
+      (t) =>
+        t.kind === "step" &&
+        t.a.y === 0 &&
+        t.b.y === 0 &&
+        Math.min(t.a.x, t.b.x) < 6000 &&
+        Math.max(t.a.x, t.b.x) > 6000,
+    ),
+  ).toHaveLength(0);
 });
 
 function hasFace(points: number[], p: Vector3) {
@@ -113,7 +104,7 @@ function hasFace(points: number[], p: Vector3) {
   }
   return false;
 }
-it("closes skin returns through every pitch crossing for equal/unequal Gable/Hip/Shed wings", () => {
+it("closes actual stepped profiles and fascia, without requiring a wall inside a continuous valley", () => {
   for (const a of ["Gable", "Hip", "Shed"] as const)
     for (const z of ["Gable", "Hip", "Shed"] as const)
       for (const equal of [true, false]) {
@@ -123,25 +114,26 @@ it("closes skin returns through every pitch crossing for equal/unequal Gable/Hip
         b.sections[1].exterior.roofStyle = z;
         b.sections[1].exterior.wallHeight = equal ? 3800 : 2800;
         b.sections.forEach((s) => (s.exterior.detailLevel = "Low"));
-        const join = combinedGeometry(b).contacts[0],
-          m = buildExterior(b),
-          points = m.sections.flatMap((s) => s.parts.wall);
-        for (const t of [0.11, 0.27, 0.5, 0.73, 0.89]) {
-          const q = {
-              x: join.start.x + (join.end.x - join.start.x) * t,
-              y: join.start.y + (join.end.y - join.start.y) * t,
-            },
-            h = b.sections.map((s) => roofHeight(s, b, q));
-          if (Math.abs(h[0] - h[1]) < 0.001) continue;
-          for (const height of [
-            Math.min(...h) - 60,
-            (Math.min(...h) + Math.max(...h)) / 2,
-            Math.max(...h) - 20,
-          ])
-            expect(
-              hasFace(points, new Vector3(q.x, q.y, height)),
-              `${a}/${z}/${equal}/${t}/${height}`,
-            ).toBe(true);
+        const m = buildExterior(b),
+          points = m.sections.flatMap((s) => [
+            ...s.parts.wall,
+            ...s.parts.roof,
+          ]);
+        for (const t of m.roofTransitions) {
+          const x = (t.a.x + t.b.x) / 2,
+            y = (t.a.y + t.b.y) / 2,
+            low = (t.low[0] + t.low[1]) / 2,
+            high = (t.high[0] + t.high[1]) / 2;
+          const heights =
+            t.kind === "fascia"
+              ? [(low + high) / 2]
+              : [
+                  low - 120 + Math.min(120, high - low) / 2,
+                  high - Math.min(120, high - low) / 2,
+                  ...(high - low > 120 ? [(low + high - 120) / 2] : []),
+                ];
+          for (const height of heights)
+            expect(hasFace(points, new Vector3(x, y, height))).toBe(true);
         }
       }
 });

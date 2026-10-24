@@ -1,6 +1,6 @@
-# Building Generator · BG-04D.1
+# Building Generator · BG-04D.2
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04D.1 repairs roof-skin junction returns, adds section-local roof directions and direct 3D window placement to the existing architectural exterior. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **0.9.1**; project schema is **version 8**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-04D.2 repairs connected roof intersections, wall/roof overlap and floating junction detail while preserving the existing architectural editor. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **0.9.2**; project schema is **version 8**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,56 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Roof intersections and floating geometry · BG-04D.2
+
+This release keeps **schema v8** and all saved footprints, section settings, openings, rooms and feature identities. It changes derived roof geometry only, with necessary facade/feature reanchoring. No Three.js meshes or new persistent fields are stored, no dependency was added, and no BG-05 work is included.
+
+The BG-04D.1 diagnosis was incomplete. The additional causes were:
+
+1. Roofs stopped at source-section boundaries even when a perpendicular pitch should continue into its neighbour. Large vertical return panels substituted for the missing intersection, producing the fin/notch appearance.
+2. Wall and gable prisms reached the **roof top**, so their top triangles occupied the same plane as shingles. This caused wall-coloured triangular patches and coplanar overlap; closing a skin edge could not repair it.
+3. Exterior overhang ownership was chosen using a grid-cell centre's nearest section. Aperture-driven grid changes could change that assignment. Trim also evaluated the higher roof at discontinuous endpoints, allowing a diagonal bar to bridge the wrong profile.
+4. Chimney flashing used a flat-bottom prism that could invert on steep pitches. Corner-only shaft anchoring could miss a ridge inside its footprint and leave the cap below the roof.
+
+**Repair:** `roofSurface.ts` builds deterministic support domains and an exact upper envelope of the existing pitch planes. A rectangular roof may project across a **directly attached rectangular neighbour**, bounded by its attachment span and the neighbour's midline. A projection is accepted only when every artificial interior cutoff is below the neighbour's native roof. Genuine exterior edges may rise with the resolved roof and receive matching infill. Convex affine clipping resolves the visible surfaces and valley lines; coincident planes have one owner, with native section material preferred. There is one exposed roof surface per domain, not stacked decorative roofs.
+
+Native footprints, exposed-edge eave strips and corner domains replace nearest-cell roof ownership. Domain boundaries enter the coordinate-compression grid, so window tessellation cannot move roof seams. Wall/gable tops stop at the **resolved roof underside**, without duplicate top caps. Stored eaves settings continue to locate the finished roof plane; the derived wall meets the 120 mm skin beneath it. Roof top/bottom skins, ridge caps, courses, fascia, facade trim and rafter anchors follow the resulting surface. Degenerate triangles are discarded. Trim uses each interval's own profile at a step. Chimneys follow the resolved roof's full flashing region, including interior ridge points, with a thin parallel flashing skin instead of an inverted wedge; saved feature records remain unchanged.
+
+**Closed fallbacks:** raised roofs, concave source sections, incompatible cutoff profiles and excessive intersection complexity retain deliberately bounded stepped transitions. Roof-skin caps and the intervening wall band are separate non-overlapping ranges, with consistent facing and source materials. Steps remain on real attachment lines. If an outside eave transition would need unsupported infill or intersect the foundation, overhang is omitted with an Inspector warning; stored overhang is retained. Concave sections keep their documented clipped-pitch simplification. This is **not a universal valley, dormer or structural roof-engineering solver**.
+
+The gold **BoxHelper is a selection annotation**, not roof/wall geometry. **Section outline** toggles that annotation independently; selected/unselected captures assert unchanged triangles and GPU rebuild counts. Existing camera actions, window dragging, safe-area layout and portrait document scrolling are retained.
+
+### Before/after evidence
+
+Baseline captures use BG-04D.1 roof construction with only the annotation toggle added for comparison. The referenced user image was not attached to this turn; these are reproducible 18 × 8 m / three-extension and perpendicular-wing fixtures, using the same Reset view/camera procedure.
+
+| Fixture                           | Before                                                        | After                                                       |
+| --------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
+| Perpendicular wing                | ![Before wing](docs/roof-repair/before-wing.png)              | ![After wing](docs/roof-repair/after-wing.png)              |
+| Main longhouse + three extensions | ![Before longhouse](docs/roof-repair/before-longhouse.png)    | ![After longhouse](docs/roof-repair/after-longhouse.png)    |
+| Above the longhouse               | ![Before above](docs/roof-repair/before-longhouse-above.png)  | ![After above](docs/roof-repair/after-longhouse-above.png)  |
+| Wing with selection annotation    | ![Before selected](docs/roof-repair/before-wing-selected.png) | ![After selected](docs/roof-repair/after-wing-selected.png) |
+
+`tests/roof-evidence.spec.ts` generates **96 current comparison screenshots**: six fixtures × above/front/rear/opposite views × selected/unselected × desktop/mobile. They are attached to Playwright results under `test-results/roof-evidence-*/after-*.png`. Fixtures include longhouse/three extensions, perpendicular wing, L/T compositions, equal/unequal eaves, Gable/Hip and both ridge directions in High detail. Regenerate with:
+
+```sh
+npm run build
+BG_E2E_PREVIEW=1 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e -- tests/roof-evidence.spec.ts --project=desktop-chromium --project=iphone-chromium
+```
+
+`roofSurface.test.ts` adds a 36-configuration matrix covering pitch/overhang, Gable/Hip/Shed, both axes, eave heights and Standard/High detail. Checks include actual top **and underside** mesh coverage, overlapping facets, coincident-plane ownership, nondegenerate triangles, no wall above the roof underside, steps supported by real contacts, aperture-independent seams, chimney anchoring and unchanged JSON. Earlier area/direction/migration tests remain; the old requirement to emit a wall at every source join was replaced with testing actual resolved seams, since that wall was part of the defect.
+
+**BG-04D.2 validation:** 249 unit/storage tests passed; 80 production desktop/mobile Chromium browser checks passed with 10 desktop-inapplicable native-touch skips (mobile counterparts passed). Build and formatting passed. The 96 selected/unselected captures completed. Physical iPhone Safari remains unverified; the lazy Three.js chunk retains Vite’s standard >500 kB advisory (about 143 kB gzip).
+
+Changed files: `src/roofSurface.ts`, `src/exteriorGeometry.ts`, `src/ExteriorViewer.tsx`; roof geometry tests/fixtures and screenshot suite; release labels/package files; this README and committed evidence images. `exteriorScene.ts` was inspected: its BoxHelper, material normals, on-demand rendering, caching and disposal are retained. Triangle/cell/detail budgets remain bounded, with a 40,000-facet intersection guard and a native-domain fallback. Physical iPhone Safari performance still requires the device check below.
+
+### BG-04D.2 iPhone Safari retest
+
+1. Open the 18 × 8 m hall with three extensions, then L/T and perpendicular-wing fixtures. Inspect above, front, rear and opposite views with Section outline on/off; verify solid junctions and no wall-coloured roof patches.
+2. Change ridge axes, Gable/Hip/Shed, eaves, pitch and overhang at Standard/High detail. Check valleys or the explicit closed-step/overhang fallback, aligned trim, and chimneys above the roof.
+3. Orbit/pinch/pan/Fit, place and drag windows, scroll the portrait Inspector, focus numeric fields and rotate landscape/back. Verify no geometry changes from camera/page gestures or horizontal overflow.
+4. Undo/Redo, save/reopen, export/import and duplicate. Confirm footprints, rooms, doors, windows, styles and feature IDs/anchors survive unchanged. Test on physical Safari; Chromium emulation is not device certification.
 
 ## Roof repair, direction and visual windows · BG-04D.1
 

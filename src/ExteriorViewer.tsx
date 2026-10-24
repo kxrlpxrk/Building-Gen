@@ -34,7 +34,8 @@ export default function ExteriorViewer({
     [retry, setRetry] = useState(0),
     [ready, setReady] = useState(false),
     [ortho, setOrtho] = useState(false),
-    [pan, setPan] = useState(false);
+    [pan, setPan] = useState(false),
+    [outline, setOutline] = useState(true);
   const geometry = useMemo(() => {
     try {
       return { model: buildExterior(building), error: "" };
@@ -78,8 +79,8 @@ export default function ExteriorViewer({
       }
   }, [geometry, building, retry, ready]);
   useEffect(
-    () => scene.current?.select(selectedId, selectedWindowId),
-    [selectedId, selectedWindowId, geometry, ready, retry],
+    () => scene.current?.select(outline ? selectedId : "", selectedWindowId),
+    [selectedId, selectedWindowId, outline, geometry, ready, retry],
   );
   useEffect(() => scene.current?.projection(ortho), [ortho, ready, retry]);
   useEffect(() => scene.current?.pan(pan), [pan, ready, retry]);
@@ -118,6 +119,13 @@ export default function ExteriorViewer({
               aria-pressed={windowPlacement.state?.mode === "place"}
             >
               Place Window
+            </button>
+            <button
+              aria-pressed={outline}
+              title="Selection annotation only; does not change architecture"
+              onClick={() => setOutline(!outline)}
+            >
+              Section outline
             </button>
             {selectedWindowId && !windowPlacement.state && (
               <button

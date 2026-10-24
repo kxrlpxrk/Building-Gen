@@ -510,7 +510,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-04D.1</span>
+        <span className="version">BG-04D.2</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
