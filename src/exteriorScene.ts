@@ -1,3 +1,13 @@
+import { resolveOrnament, isRoofOrnament } from "./ornamentation";
+import { installOrnamentGestures } from "./exteriorOrnamentGestures";
+import { ornamentTriangles, ornamentPickParts } from "./ornamentPickGeometry";
+import {
+  ornamentPlacementContext,
+  type OrnamentPlacement,
+  type OrnamentSession,
+  type OrnamentHit,
+  type OrnamentAnchor,
+} from "./ornamentPlacement";
 import { crossRoofFields } from "./roofFeatures";
 import { fieldHeight, onRing } from "./roofSurface";
 import { containsPoint } from "./interior";
@@ -83,6 +93,8 @@ export function createExteriorScene(
   windowPlacement: () => WindowPlacement,
   snapStep: () => number | null,
   onRoof: (sectionId: string, id: string) => void = () => {},
+  ornamentPlacement: (() => OrnamentPlacement) | null = null,
+  onOrnament: (sectionId: string, id: string) => void = () => {},
 ) {
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -130,7 +142,13 @@ export function createExteriorScene(
   let activeBuilding: Building | null = null;
   let wallContext: ReturnType<typeof openingContext> | null = null;
   let previewGroup: THREE.Group | null = null;
-  let selectedWindow = "";
+  let selectedWindow = "",
+    selectedOrnament = "";
+  let ornamentHelper: THREE.Box3Helper | null = null;
+  let ornamentContext: ReturnType<typeof ornamentPlacementContext> | null =
+    null;
+  const ornamentPicks: { anchor: OrnamentAnchor; mesh: THREE.Mesh }[] = [];
+  const pickMaterial = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
   let windowHelper: THREE.Box3Helper | null = null;
   let initialized = false;
   let previousCenter: THREE.Vector3 | null = null;
@@ -281,6 +299,7 @@ export function createExteriorScene(
         host.dataset.renderCount = String(
           Number(host.dataset.renderCount || 0) + 1,
         );
+        host.dataset.projection = camera.projectionMatrix.toArray().join(",");
         host.dataset.camera = [
           ...camera.position.toArray(),
           ...controls.target.toArray(),
@@ -311,6 +330,24 @@ export function createExteriorScene(
     invalidate();
   }
   function highlight() {
+    if (ornamentHelper) {
+      root.remove(ornamentHelper);
+      ornamentHelper.geometry.dispose();
+      (ornamentHelper.material as THREE.Material).dispose();
+      ornamentHelper = null;
+    }
+    const ornamentPick = ornamentPicks.find(
+      (p) => p.anchor.ornament.id === selectedOrnament,
+    );
+    if (ornamentPick) {
+      const box = ornamentPick.mesh.geometry.boundingBox!.clone();
+      for (const p of ornamentPicks)
+        if (p.anchor.ornament.id === selectedOrnament)
+          box.union(p.mesh.geometry.boundingBox!);
+      box.expandByScalar(0.035);
+      ornamentHelper = new THREE.Box3Helper(box, "#e6b85e");
+      root.add(ornamentHelper);
+    }
     if (windowHelper) {
       root.remove(windowHelper);
       windowHelper.geometry.dispose();
@@ -384,8 +421,44 @@ export function createExteriorScene(
     invalidate();
   }
   function update(model: ExteriorModel, b: Building) {
+    clearOrnamentPreview();
+    if (ornamentHelper) {
+      root.remove(ornamentHelper);
+      ornamentHelper.geometry.dispose();
+      (ornamentHelper.material as THREE.Material).dispose();
+      ornamentHelper = null;
+    }
     activeBuilding = b;
     wallContext = openingContext(b);
+    ornamentContext = ornamentPlacementContext(b);
+    for (const p of ornamentPicks) p.mesh.geometry.dispose();
+    ornamentPicks.length = 0;
+    for (const section of b.sections)
+      if (section.exterior.ornamentation.level !== "None")
+        for (const ornament of section.exterior.ornamentation.items) {
+          const parts = ornamentPickParts(
+            b,
+            section,
+            ornament,
+            ornamentContext,
+          );
+          for (const [kind, points] of Object.entries(parts))
+            if (points.length) {
+              const mesh = new THREE.Mesh(
+                geometry(points, "ornamentWood"),
+                pickMaterial,
+              );
+              mesh.userData.fineDetail = kind === "relief";
+              // Off-scene meshes are raycast only: no per-ornament visible draw calls.
+              ornamentPicks.push({
+                anchor: { sectionId: section.id, ornament },
+                mesh,
+              });
+            }
+        }
+    host.dataset.ornamentPickCount = String(
+      new Set(ornamentPicks.map((p) => p.anchor.ornament.id)).size,
+    );
     const wanted = new Set(model.sections.map((s) => s.id));
     for (const [id, item] of groups)
       if (!wanted.has(id)) {
@@ -485,6 +558,7 @@ export function createExteriorScene(
     pointers = new Set<number>();
   function wallHit(
     e: Pick<PointerEvent, "clientX" | "clientY">,
+    ornamentTool = false,
   ): WallHit | null {
     if (!activeBuilding || !wallContext) return null;
     const r = canvas.getBoundingClientRect();
@@ -504,7 +578,19 @@ export function createExteriorScene(
     );
     const occluder = raycaster
         .intersectObject(root, true)
-        .find((h) => h.object.userData.sectionId),
+        .find(
+          (h) =>
+            h.object.userData.sectionId &&
+            (!ornamentTool ||
+              ![
+                "detail",
+                "roofDetail",
+                "ornamentWood",
+                "ornamentDark",
+                "ornamentOchre",
+                "ornamentPale",
+              ].includes(h.object.userData.surface)),
+        ),
       localRay = raycaster.ray
         .clone()
         .applyMatrix4(root.matrixWorld.clone().invert());
@@ -560,6 +646,283 @@ export function createExteriorScene(
         };
     }
     return nearest?.hit ?? null;
+  }
+  function pointerRay(e: Pick<PointerEvent, "clientX" | "clientY">) {
+    const r = canvas.getBoundingClientRect();
+    if (
+      r.width < 1 ||
+      r.height < 1 ||
+      e.clientX < r.left ||
+      e.clientX > r.right ||
+      e.clientY < r.top ||
+      e.clientY > r.bottom
+    )
+      return false;
+    camera.updateMatrixWorld();
+    root.updateMatrixWorld(true);
+    raycaster.setFromCamera(
+      new THREE.Vector2(
+        ((e.clientX - r.left) / r.width) * 2 - 1,
+        (-(e.clientY - r.top) / r.height) * 2 + 1,
+      ),
+      camera,
+    );
+    return true;
+  }
+  function pickOrnament() {
+    const visible = raycaster
+      .intersectObject(root, true)
+      .find((h) => h.object.visible && h.object.userData.sectionId);
+    for (const p of ornamentPicks) p.mesh.matrixWorld.copy(root.matrixWorld);
+    const near =
+      camera.position.distanceTo(controls.target) / camera.zoom < extent * 3;
+    const hit = raycaster
+      .intersectObjects(
+        ornamentPicks
+          .filter((p) => near || !p.mesh.userData.fineDetail)
+          .map((p) => p.mesh),
+        false,
+      )
+      .find((h) => h.distance <= (visible?.distance ?? Infinity) + 0.002);
+    return hit
+      ? (ornamentPicks.find((p) => p.mesh === hit.object)?.anchor ?? null)
+      : null;
+  }
+  function ornamentHit(
+    e: Pick<PointerEvent, "clientX" | "clientY">,
+  ): OrnamentHit | null {
+    if (!activeBuilding || !pointerRay(e)) return null;
+    const hit = raycaster
+      .intersectObject(root, true)
+      .find((h) => h.object.visible && h.object.userData.sectionId);
+    if (!hit) return null;
+    const point = root.worldToLocal(hit.point.clone());
+    return {
+      sectionId: hit.object.userData.sectionId,
+      point: { x: point.x * 1000, y: -point.z * 1000, z: point.y * 1000 },
+      wall: wallHit(e, true),
+    };
+  }
+  function ornamentAnchorVisible(anchor: OrnamentAnchor) {
+    if (!activeBuilding || !ornamentContext) return false;
+    try {
+      const section = activeBuilding.sections.find(
+        (s) => s.id === anchor.sectionId,
+      )!;
+      const localCamera = root.worldToLocal(camera.position.clone());
+      const frame = resolveOrnament(
+        activeBuilding,
+        section,
+        anchor.ornament,
+        ornamentContext.roofAt,
+        ornamentContext.opening,
+      );
+      const facade =
+        !isRoofOrnament(anchor.ornament.type) ||
+        ["Gable panel", "Bargeboard"].includes(anchor.ornament.type);
+      const outward =
+        anchor.ornament.anchor.kind === "roof" ? frame.u : frame.v;
+      const source = ornamentPlacement?.().getState()?.source;
+      const clearSight = (target: THREE.Vector3) => {
+        const distance = target.distanceTo(camera.position),
+          probe = new THREE.Raycaster();
+        probe.set(
+          camera.position,
+          target.clone().sub(camera.position).normalize(),
+        );
+        const own = source
+          ? ornamentPicks.filter(
+              (p) => p.anchor.ornament.id === source.ornament.id,
+            )
+          : [];
+        for (const p of own) p.mesh.matrixWorld.copy(root.matrixWorld);
+        const ownDistances = probe
+          .intersectObjects(
+            own.map((p) => p.mesh),
+            false,
+          )
+          .map((h) => h.distance);
+        const hit = probe
+          .intersectObject(root, true)
+          .find(
+            (h) =>
+              h.object.visible &&
+              h.object.userData.sectionId &&
+              !ownDistances.some((d) => Math.abs(d - h.distance) < 0.002),
+          );
+        if (!hit || hit.distance >= distance - 0.002) return true;
+        // Existing cladding/framing on the same exposed host is support, not a
+        // concealed wall. Roofs and other facades still occlude the target.
+        if (
+          facade &&
+          hit.object.userData.sectionId === section.id &&
+          !String(hit.object.userData.surface).startsWith("roof")
+        ) {
+          const p = root.worldToLocal(hit.point.clone());
+          const normalDistance =
+            (p.x * 1000 - frame.origin.x) * outward.x +
+            (-p.z * 1000 - frame.origin.y) * outward.y;
+          return Math.abs(normalDistance) <= 185;
+        }
+        return false;
+      };
+      if (facade) {
+        if (
+          (localCamera.x * 1000 - frame.origin.x) * outward.x +
+            (-localCamera.z * 1000 - frame.origin.y) * outward.y <=
+          0
+        )
+          return false;
+        // Test the actual exposed supporting face. A trim itself may sit below
+        // an overhang; it does not require floating outward to be placeable.
+        const z =
+          anchor.ornament.anchor.kind === "roof"
+            ? (frame.origin.z + frame.height) / 2
+            : frame.origin.z + frame.height / 2;
+        return clearSight(
+          enginePoint(frame.origin.x, frame.origin.y, z).applyMatrix4(
+            root.matrixWorld,
+          ),
+        );
+      }
+      const points = ornamentTriangles(
+        activeBuilding,
+        section,
+        anchor.ornament,
+        ornamentContext,
+        camera.position.distanceTo(controls.target) / camera.zoom < extent * 3,
+      );
+      let closest = -1,
+        top = -1,
+        best = Infinity,
+        highest = -Infinity;
+      for (let i = 0; i < points.length; i += 9) {
+        const x = (points[i] + points[i + 3] + points[i + 6]) / 3000,
+          y = (points[i + 2] + points[i + 5] + points[i + 8]) / 3000,
+          z = -(points[i + 1] + points[i + 4] + points[i + 7]) / 3000;
+        const d =
+          (x - localCamera.x) ** 2 +
+          (y - localCamera.y) ** 2 +
+          (z - localCamera.z) ** 2;
+        if (d < best) {
+          best = d;
+          closest = i;
+        }
+        if (y > highest) {
+          highest = y;
+          top = i;
+        }
+      }
+      for (const i of new Set([closest, top])) {
+        if (i < 0) continue;
+        const target = enginePoint(
+          (points[i] + points[i + 3] + points[i + 6]) / 3,
+          (points[i + 1] + points[i + 4] + points[i + 7]) / 3,
+          (points[i + 2] + points[i + 5] + points[i + 8]) / 3,
+        ).applyMatrix4(root.matrixWorld);
+        if (clearSight(target)) return true;
+      }
+    } catch {
+      /* Invalid support is explained by the canonical placement validator. */
+    }
+    return false;
+  }
+  const ornamentGestures = ornamentPlacement
+    ? installOrnamentGestures(
+        canvas,
+        controls,
+        ornamentPlacement,
+        ornamentHit,
+        ornamentAnchorVisible,
+      )
+    : null;
+  const ornamentPreviewGroup = new THREE.Group();
+  const ornamentPreviewMaterial = new THREE.MeshBasicMaterial({
+    color: "#24a367",
+    transparent: true,
+    opacity: 0.65,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  const ornamentPreviewMesh = new THREE.Mesh(
+    new THREE.BufferGeometry(),
+    ornamentPreviewMaterial,
+  );
+  const markerMaterial = new THREE.LineBasicMaterial({ color: "#ce493b" });
+  const marker = new THREE.LineSegments(
+    new THREE.BufferGeometry(),
+    markerMaterial,
+  );
+  ornamentPreviewGroup.add(ornamentPreviewMesh, marker);
+  function clearOrnamentPreview() {
+    root.remove(ornamentPreviewGroup);
+  }
+  function ornamentPreview(state: OrnamentSession | null) {
+    clearOrnamentPreview();
+    if (!state) ornamentGestures?.reset();
+    ornamentPreviewMesh.visible = false;
+    marker.visible = false;
+    if (state && activeBuilding && ornamentContext) {
+      const d = state.draft;
+      if (d)
+        try {
+          const section = activeBuilding.sections.find(
+            (s) => s.id === d.sectionId,
+          )!;
+          const points = ornamentTriangles(
+            activeBuilding,
+            section,
+            d.ornament,
+            ornamentContext,
+            true,
+          );
+          const old = ornamentPreviewMesh.geometry.getAttribute("position");
+          if (old && old.count === points.length / 3) {
+            const a = old.array as Float32Array;
+            for (let i = 0; i < points.length; i += 3) {
+              a[i] = points[i] / 1000;
+              a[i + 1] = points[i + 2] / 1000;
+              a[i + 2] = -points[i + 1] / 1000;
+            }
+            old.needsUpdate = true;
+            ornamentPreviewMesh.geometry.computeBoundingBox();
+            ornamentPreviewMesh.geometry.computeBoundingSphere();
+          } else {
+            ornamentPreviewMesh.geometry.dispose();
+            ornamentPreviewMesh.geometry = geometry(points, "ornamentWood");
+          }
+          ornamentPreviewMaterial.color.set(
+            state.issue ? "#ce493b" : "#24a367",
+          );
+          ornamentPreviewMesh.visible = true;
+        } catch {
+          /* Unsupported anchors use a red surface marker, never substitute saved geometry. */
+        }
+      if (!ornamentPreviewMesh.visible && state.hit) {
+        const p = state.hit.point,
+          points = [
+            enginePoint(p.x - 180, p.y, p.z),
+            enginePoint(p.x + 180, p.y, p.z),
+            enginePoint(p.x, p.y, p.z - 180),
+            enginePoint(p.x, p.y, p.z + 180),
+          ];
+        marker.geometry.dispose();
+        marker.geometry = new THREE.BufferGeometry().setFromPoints(points);
+        marker.visible = true;
+      }
+      root.add(ornamentPreviewGroup);
+    }
+    host.dataset.ornamentPreview = !state
+      ? "none"
+      : state.issue
+        ? "invalid"
+        : state.draft
+          ? "valid"
+          : "waiting";
+    invalidate();
   }
   const windowGestures = installWindowGestures(
     canvas,
@@ -647,20 +1010,24 @@ export function createExteriorScene(
   const up = (e: PointerEvent) => {
     if (
       !multi &&
+      !windowPlacement().getState() &&
+      !ornamentPlacement?.().getState() &&
       pointers.size === 1 &&
       Math.hypot(e.clientX - start.x, e.clientY - start.y) < 8
     ) {
-      const r = canvas.getBoundingClientRect();
-      raycaster.setFromCamera(
-        new THREE.Vector2(
-          ((e.clientX - r.left) / r.width) * 2 - 1,
-          (-(e.clientY - r.top) / r.height) * 2 + 1,
-        ),
-        camera,
-      );
+      if (!pointerRay(e)) {
+        pointers.delete(e.pointerId);
+        return;
+      }
       const hit = raycaster
         .intersectObject(root, true)
         .find((o) => o.object.userData.sectionId);
+      const ornament = pickOrnament();
+      if (ornament) {
+        onOrnament(ornament.sectionId, ornament.ornament.id);
+        pointers.delete(e.pointerId);
+        return;
+      }
       let windowHit: {
         sectionId: string;
         id: string;
@@ -730,6 +1097,8 @@ export function createExteriorScene(
   const contextLost = (e: Event) => {
     e.preventDefault();
     lost = true;
+    ornamentGestures?.reset();
+    ornamentPlacement?.().cancel();
     if (frame) cancelAnimationFrame(frame);
     frame = 0;
     onFailure(
@@ -741,11 +1110,13 @@ export function createExteriorScene(
   return {
     update,
     windowPreview,
+    ornamentPreview,
     fit: () => fit(false),
     reset: () => fit(true),
-    select: (id: string, windowId = "") => {
+    select: (id: string, windowId = "", ornamentId = "") => {
       selected = id;
       selectedWindow = windowId;
+      selectedOrnament = ornamentId;
       highlight();
     },
     projection: (ortho: boolean) => {
@@ -776,6 +1147,18 @@ export function createExteriorScene(
       canvas.removeEventListener("pointerup", up);
       canvas.removeEventListener("pointercancel", cancel);
       windowGestures.dispose();
+      ornamentGestures?.dispose();
+      clearOrnamentPreview();
+      ornamentPreviewMesh.geometry.dispose();
+      ornamentPreviewMaterial.dispose();
+      marker.geometry.dispose();
+      markerMaterial.dispose();
+      for (const p of ornamentPicks) p.mesh.geometry.dispose();
+      pickMaterial.dispose();
+      if (ornamentHelper) {
+        ornamentHelper.geometry.dispose();
+        (ornamentHelper.material as THREE.Material).dispose();
+      }
       clearPreview();
       controls.dispose();
       if (helper) {

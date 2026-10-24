@@ -1,6 +1,6 @@
-# Building Generator · BG-06C
+# Building Generator · BG-06C.1
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06C extends the unified generator with validated crossing gables and coordinated carved ornamentation. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.3.0**; project schema remains **version 10**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06C.1 adds direct 3D placement, picking and movement of canonical architectural ornaments, preserving BG-06C advanced generation. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.3.1**; project schema remains **version 10**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,29 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Direct 3D ornament placement · BG-06C.1
+
+BG-06C passed the user's **32/32 physical iPhone Safari checks**. This focused release adds direct editing using the same schema v10 ornament records, artwork, roof anchors and validators. Existing projects gain no ornaments automatically. Generation and roof geometry are unchanged.
+
+In **Exterior 3D**, choose **Place Ornament**, select any of the eleven existing types and tap an exposed compatible surface. Drag to adjust the preview, then **Confirm** or **Cancel**. Tap a saved visible ornament to select its record in **Architectural Ornamentation**, then choose **Move Ornament**. The saved original remains in place until confirmation. Moving preserves its ID, variant, scale, mirror and finish, including between compatible unlocked sections. Precision fields remain available during preview; accepted changes remain ordinary editable project data.
+
+- Wall pieces follow real exposed source edges with millimetre/grid snapping; **Free** avoids grid quantisation. Wall offset and elevation are adjustable. Carved posts retain their validated foundation elevation. Entrance pillars snap to real exterior entrance records.
+- Roof pieces choose exposed main/cross-gable ends. Dragon heads, finials and ridge trims support bounded ridge insets; gable panels and bargeboards snap to their fixed structural ends. Arbitrary XYZ placement, hidden faces and incompatible roof hosts are deliberately unavailable.
+- Green previews are valid; red previews or markers show the rejection reason. Confirm revalidates the canonical candidate, whole building/project and rendering budget. Existing collisions, openings, locks and **12 per-section / 48 per-building** limits apply. A move requires both source and destination to be unlocked.
+- A completed operation is one Undo transaction. Cancel, Escape, mode changes, building edits and interrupted gestures never save the preview. Window and ornament tools are mutually exclusive. One finger edits only in an explicit placement/move mode; a second finger restores the pending single-finger preview and hands off to camera pinch/pan. Orbit never moves ornaments.
+
+Visible ornaments remain merged by finish. Individual picking uses off-scene proxies derived from the same artwork triangles, including the visible relief level, and compares the nearest hit against actual scene occlusion. No visible per-ornament draw calls are introduced. Live previews reuse one temporary mesh and cached artwork, with animation-frame-throttled pointer updates; the full High-detail building is not rebuilt for each movement. Pointer mapping reads current canvas bounds after document scrolling or orientation changes. Portrait controls flow below the viewer; desktop/landscape controls appear in the Inspector.
+
+Validation: **344 unit/storage tests** and **139 distinct desktop/iPhone-sized Chromium browser cases** verified; 11 desktop-inapplicable native-touch cases are skipped, with their mobile counterparts passing. Production build and formatting pass; the existing lazy Three.js chunk-size advisory remains.
+
+[Screenshot evidence and reproduction guide](docs/ornament-placement/README.md). Automated desktop and iPhone-sized Chromium checks do not substitute for a physical Safari retest:
+
+1. Place a dragon, shield, panel and entrance pillars; check valid/invalid feedback, Confirm, Cancel and Undo/Redo.
+2. Move a generated dragon to a cross-gable and a wall ornament between unlocked sections. Verify ID/settings, source/destination locks and precision fields.
+3. Orbit normally, then interrupt a drag with pinch/pan and pointer cancellation. Check that hidden ornaments cannot be selected through the building.
+4. Scroll portrait controls, focus fields, rotate to landscape, switch projection and Fit. Check hit accuracy and no nested scrolling or overflow.
+5. Save/reopen, duplicate and JSON-roundtrip a decorated High-detail multi-wing building; verify roof geometry and existing window dragging remain unchanged.
 
 ## Automated advanced roof and fantasy ornament generation · BG-06C
 

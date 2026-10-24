@@ -1,3 +1,6 @@
+import OrnamentPlacementControls from "./OrnamentPlacementControls";
+import type { OrnamentPlacement } from "./ornamentPlacement";
+import { type Ornament } from "./ornamentation";
 import type { WindowPlacement } from "./windowPlacement";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Building } from "./model";
@@ -12,6 +15,10 @@ export default function ExteriorViewer({
   selectedWindowId,
   onWindow,
   windowPlacement,
+  ornamentPlacement,
+  inlineOrnamentControls,
+  selectedOrnamentId,
+  onOrnament,
   snapStep,
 }: {
   building: Building;
@@ -22,12 +29,22 @@ export default function ExteriorViewer({
   selectedWindowId: string;
   onWindow: (sectionId: string, id: string) => void;
   windowPlacement: WindowPlacement;
+  ornamentPlacement: OrnamentPlacement;
+  inlineOrnamentControls: boolean;
+  selectedOrnamentId: string;
+  onOrnament: (sectionId: string, id: string) => void;
   snapStep: number | null;
 }) {
   const host = useRef<HTMLDivElement>(null),
     scene = useRef<ExteriorScene | null>(null),
     pick = useRef(onSelect),
     windowPick = useRef(onWindow);
+  const ornamentControl = useRef(ornamentPlacement),
+    ornamentPick = useRef(onOrnament);
+  ornamentControl.current = ornamentPlacement;
+  ornamentPick.current = onOrnament;
+  const [ornamentType, setOrnamentType] =
+    useState<Ornament["type"]>("Dragon head");
   const roofPick = useRef(onRoof);
   roofPick.current = onRoof;
   const windowControl = useRef(windowPlacement),
@@ -63,6 +80,8 @@ export default function ExteriorViewer({
         () => windowControl.current,
         () => step.current,
         (sectionId, id) => roofPick.current(sectionId, id),
+        () => ornamentControl.current,
+        (sectionId, id) => ornamentPick.current(sectionId, id),
       );
       scene.current = view;
       setReady(true);
@@ -73,6 +92,7 @@ export default function ExteriorViewer({
     }
     return () => {
       scene.current = null;
+      ornamentControl.current.cancel();
       view?.dispose();
     };
   }, [retry]);
@@ -90,8 +110,21 @@ export default function ExteriorViewer({
       }
   }, [geometry, building, retry, ready, readOnly]);
   useEffect(
-    () => scene.current?.select(outline ? selectedId : "", selectedWindowId),
-    [selectedId, selectedWindowId, outline, geometry, ready, retry],
+    () =>
+      scene.current?.select(
+        outline ? selectedId : "",
+        selectedWindowId,
+        selectedOrnamentId,
+      ),
+    [
+      selectedId,
+      selectedWindowId,
+      selectedOrnamentId,
+      outline,
+      geometry,
+      ready,
+      retry,
+    ],
   );
   useEffect(() => scene.current?.projection(ortho), [ortho, ready, retry]);
   useEffect(() => scene.current?.pan(pan), [pan, ready, retry]);
@@ -99,115 +132,180 @@ export default function ExteriorViewer({
     () => scene.current?.windowPreview(windowPlacement.state),
     [windowPlacement.state, ready, retry],
   );
+  useEffect(
+    () => scene.current?.ornamentPreview(ornamentPlacement.state),
+    [ornamentPlacement.state, geometry, ready, retry],
+  );
+  useEffect(() => {
+    if (readOnly) {
+      ornamentControl.current.cancel();
+      windowControl.current.cancel();
+    }
+  }, [readOnly]);
+  useEffect(() => {
+    if (ornamentPlacement.state)
+      setOrnamentType(ornamentPlacement.state.template.type);
+  }, [ornamentPlacement.state?.template.type]);
   const issue = error || geometry.error;
   return (
-    <div
-      className="canvas-wrap exterior-wrap"
-      data-testid="exterior-viewer"
-      data-roof-height={geometry.model?.maxHeight}
-    >
+    <>
       <div
-        ref={host}
-        className="exterior-viewport"
-        role="application"
-        aria-label="Exterior 3D viewer. Drag to orbit, two fingers to zoom and pan. Select a section by tapping its surface."
-        data-render-status={issue ? "error" : ready ? "ready" : "loading"}
-        tabIndex={0}
-      />
-      {issue ? (
-        <div className="viewer-fallback" role="alert">
-          <strong>3D viewer unavailable</strong>
-          <p>{issue}</p>
-          <button onClick={() => setRetry((n) => n + 1)}>Retry 3D</button>
-          <p>Footprint and Interior Planning remain available above.</p>
-        </div>
-      ) : (
-        <>
-          <span className="exterior-caption">EXTERIOR / GROUND FLOOR</span>
-          <div className="window-toolbar">
-            <button
-              disabled={readOnly}
-              onClick={windowPlacement.start}
-              aria-pressed={windowPlacement.state?.mode === "place"}
-            >
-              Place Window
-            </button>
-            <button
-              aria-pressed={outline}
-              title="Selection annotation only; does not change architecture"
-              onClick={() => setOutline(!outline)}
-            >
-              Section outline
-            </button>
-            {!readOnly && selectedWindowId && !windowPlacement.state && (
+        className="canvas-wrap exterior-wrap"
+        data-testid="exterior-viewer"
+        data-roof-height={geometry.model?.maxHeight}
+      >
+        <div
+          ref={host}
+          className="exterior-viewport"
+          role="application"
+          aria-label="Exterior 3D viewer. Drag to orbit, two fingers to zoom and pan. Select a section by tapping its surface."
+          data-render-status={issue ? "error" : ready ? "ready" : "loading"}
+          tabIndex={0}
+        />
+        {issue ? (
+          <div className="viewer-fallback" role="alert">
+            <strong>3D viewer unavailable</strong>
+            <p>{issue}</p>
+            <button onClick={() => setRetry((n) => n + 1)}>Retry 3D</button>
+            <p>Footprint and Interior Planning remain available above.</p>
+          </div>
+        ) : (
+          <>
+            <span className="exterior-caption">EXTERIOR / GROUND FLOOR</span>
+            <div className="window-toolbar">
               <button
-                onClick={() => {
+                disabled={readOnly}
+                onClick={windowPlacement.start}
+                aria-pressed={windowPlacement.state?.mode === "place"}
+              >
+                Place Window
+              </button>
+              <button
+                disabled={readOnly}
+                onClick={() => ornamentPlacement.start(ornamentType)}
+                aria-pressed={!!ornamentPlacement.state}
+              >
+                Place Ornament
+              </button>
+              <button
+                aria-pressed={outline}
+                title="Selection annotation only; does not change architecture"
+                onClick={() => setOutline(!outline)}
+              >
+                Section outline
+              </button>
+              {!readOnly && selectedWindowId && !windowPlacement.state && (
+                <button
+                  onClick={() => {
+                    const section = building.sections.find((s) =>
+                      s.exterior.windows.some((w) => w.id === selectedWindowId),
+                    );
+                    const window = section?.exterior.windows.find(
+                      (w) => w.id === selectedWindowId,
+                    );
+                    if (section && window)
+                      windowPlacement.move({ sectionId: section.id, window });
+                  }}
+                >
+                  Move Window
+                </button>
+              )}
+              {!readOnly &&
+                selectedOrnamentId &&
+                !ornamentPlacement.state &&
+                !windowPlacement.state &&
+                (() => {
                   const section = building.sections.find((s) =>
-                    s.exterior.windows.some((w) => w.id === selectedWindowId),
+                    s.exterior.ornamentation.items.some(
+                      (o) => o.id === selectedOrnamentId,
+                    ),
                   );
-                  const window = section?.exterior.windows.find(
-                    (w) => w.id === selectedWindowId,
+                  const ornament = section?.exterior.ornamentation.items.find(
+                    (o) => o.id === selectedOrnamentId,
                   );
-                  if (section && window)
-                    windowPlacement.move({ sectionId: section.id, window });
+                  return section && ornament ? (
+                    <button
+                      disabled={section.locked}
+                      onClick={() =>
+                        ornamentPlacement.move({
+                          sectionId: section.id,
+                          ornament,
+                        })
+                      }
+                    >
+                      Move Ornament
+                    </button>
+                  ) : null;
+                })()}
+              {windowPlacement.state && (
+                <>
+                  <p
+                    role="status"
+                    className={
+                      windowPlacement.state.issue
+                        ? "placement-invalid"
+                        : "placement-valid"
+                    }
+                  >
+                    {windowPlacement.state.issue ||
+                      (windowPlacement.state.draft
+                        ? "Valid window preview"
+                        : "Tap an exposed wall; drag to position")}{" "}
+                    · {snapStep ? `Snap ${snapStep / 1000} m` : "Free"}. Two
+                    fingers pan/zoom.
+                  </p>
+                  <button
+                    disabled={
+                      !windowPlacement.state.draft ||
+                      !!windowPlacement.state.issue
+                    }
+                    onClick={windowPlacement.commit}
+                  >
+                    Confirm placement
+                  </button>
+                  <button onClick={windowPlacement.cancel}>
+                    Cancel placement
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="viewer-controls" aria-label="3D camera controls">
+              <button
+                aria-pressed={
+                  !pan && !windowPlacement.state && !ornamentPlacement.state
+                }
+                onClick={() => {
+                  windowPlacement.cancel();
+                  ornamentPlacement.cancel();
+                  setPan(false);
                 }}
               >
-                Move Window
+                Orbit
               </button>
-            )}
-            {windowPlacement.state && (
-              <>
-                <p
-                  role="status"
-                  className={
-                    windowPlacement.state.issue
-                      ? "placement-invalid"
-                      : "placement-valid"
-                  }
-                >
-                  {windowPlacement.state.issue ||
-                    (windowPlacement.state.draft
-                      ? "Valid window preview"
-                      : "Tap an exposed wall; drag to position")}{" "}
-                  · {snapStep ? `Snap ${snapStep / 1000} m` : "Free"}. Two
-                  fingers pan/zoom.
-                </p>
-                <button
-                  disabled={
-                    !windowPlacement.state.draft ||
-                    !!windowPlacement.state.issue
-                  }
-                  onClick={windowPlacement.commit}
-                >
-                  Confirm placement
-                </button>
-                <button onClick={windowPlacement.cancel}>
-                  Cancel placement
-                </button>
-              </>
-            )}
-          </div>
-          <div className="viewer-controls" aria-label="3D camera controls">
-            <button
-              aria-pressed={!pan && !windowPlacement.state}
-              onClick={() => {
-                windowPlacement.cancel();
-                setPan(false);
-              }}
-            >
-              Orbit
-            </button>
-            <button aria-pressed={pan} onClick={() => setPan(true)}>
-              Pan 3D
-            </button>
-            <button aria-pressed={ortho} onClick={() => setOrtho(!ortho)}>
-              {ortho ? "Orthographic" : "Perspective"}
-            </button>
-            <button onClick={() => scene.current?.fit()}>Fit 3D</button>
-            <button onClick={() => scene.current?.reset()}>Reset view</button>
-          </div>
-        </>
+              <button
+                aria-pressed={pan}
+                onClick={() => {
+                  ornamentPlacement.cancel();
+                  setPan(true);
+                }}
+              >
+                Pan 3D
+              </button>
+              <button aria-pressed={ortho} onClick={() => setOrtho(!ortho)}>
+                {ortho ? "Orthographic" : "Perspective"}
+              </button>
+              <button onClick={() => scene.current?.fit()}>Fit 3D</button>
+              <button onClick={() => scene.current?.reset()}>Reset view</button>
+            </div>
+          </>
+        )}
+      </div>
+      {!issue && inlineOrnamentControls && ornamentPlacement.state && (
+        <OrnamentPlacementControls
+          ornamentPlacement={ornamentPlacement}
+          snapStep={snapStep}
+        />
       )}
-    </div>
+    </>
   );
 }

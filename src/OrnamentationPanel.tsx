@@ -1,3 +1,4 @@
+import type { OrnamentPlacement } from "./ornamentPlacement";
 import { useEffect, useState } from "react";
 import type { Building, Section } from "./model";
 import { replaceSection, openingContext } from "./assembly";
@@ -15,17 +16,22 @@ import {
 } from "./ornamentation";
 export default function OrnamentationPanel({
   building,
+  selectedId,
+  onSelect,
+  placement,
   section,
   onChange,
   onPreview,
 }: {
   building: Building;
+  selectedId: string;
+  onSelect: (id: string) => void;
+  placement: OrnamentPlacement;
   section: Section;
   onChange: (s: Section) => string | null;
   onPreview: (b: Building | null) => void;
 }) {
   const [draft, setDraft] = useState<Ornamentation | null>(null),
-    [selected, setSelected] = useState(""),
     [type, setType] = useState<Ornament["type"]>(
       section.exterior.material === "Medieval" ||
         section.exterior.stylePreset.startsWith("Medieval")
@@ -34,8 +40,22 @@ export default function OrnamentationPanel({
     ),
     [error, setError] = useState(""),
     [messages, setMessages] = useState<string[]>([]);
-  const current = draft ?? section.exterior.ornamentation,
-    item = current.items.find((o) => o.id === selected),
+  const visual = placement.state,
+    active = !!visual;
+  const visualAnchor = visual?.draft ?? visual?.source;
+  const current =
+      visualAnchor?.sectionId === section.id
+        ? {
+            ...section.exterior.ornamentation,
+            items: [
+              ...section.exterior.ornamentation.items.filter(
+                (o) => o.id !== visualAnchor.ornament.id,
+              ),
+              visualAnchor.ornament,
+            ],
+          }
+        : (draft ?? section.exterior.ornamentation),
+    item = current.items.find((o) => o.id === selectedId),
     hosts = openingContext(building).hosts.filter(
       (h) => h.ref.kind === "exterior" && h.ref.sectionId === section.id,
     );
@@ -45,7 +65,10 @@ export default function OrnamentationPanel({
     setMessages([]);
   }, [section]);
   useEffect(() => {
-    if (!draft) {
+    if (active) setDraft(null);
+  }, [active]);
+  useEffect(() => {
+    if (active || !draft) {
       onPreview(null);
       return;
     }
@@ -62,9 +85,16 @@ export default function OrnamentationPanel({
       onPreview(null);
     }
     return () => onPreview(null);
-  }, [draft, section, building, onPreview]);
+  }, [draft, section, building, onPreview, active]);
   const patch = (change: Partial<Ornament>) => {
     if (!item) return null;
+    if (active) {
+      placement.preview({
+        sectionId: section.id,
+        ornament: { ...item, ...change },
+      });
+      return null;
+    }
     setDraft({
       ...current,
       items: current.items.map((o) =>
@@ -81,7 +111,7 @@ export default function OrnamentationPanel({
     const result = ornamentPreset(building, section, value);
     setDraft(result.ornamentation);
     setMessages(result.messages);
-    setSelected(result.ornamentation.items[0]?.id ?? "");
+    onSelect(result.ornamentation.items[0]?.id ?? "");
   }
   function add() {
     const base = suggestedOrnament(building, section, type),
@@ -129,7 +159,7 @@ export default function OrnamentationPanel({
       level: current.level === "None" ? "Subtle" : current.level,
       items: [...current.items, candidate],
     });
-    setSelected(candidate.id);
+    onSelect(candidate.id);
     setMessages([]);
   }
   return (
@@ -145,6 +175,7 @@ export default function OrnamentationPanel({
           <span>Ornamentation level</span>
           <select
             aria-label="Ornamentation level"
+            disabled={active}
             value={current.level}
             onChange={(e) => level(e.target.value as Ornamentation["level"])}
           >
@@ -165,15 +196,16 @@ export default function OrnamentationPanel({
             ))}
           </select>
         </label>
-        <button disabled={current.items.length >= 12} onClick={add}>
+        <button disabled={active || current.items.length >= 12} onClick={add}>
           Add ornament preview
         </button>
         <label className="field">
           <span>Selected ornament</span>
           <select
             aria-label="Selected ornament"
+            disabled={active}
             value={item?.id ?? ""}
-            onChange={(e) => setSelected(e.target.value)}
+            onChange={(e) => onSelect(e.target.value)}
           >
             <option value="">Choose an ornament</option>
             {current.items.map((o, i) => (
@@ -343,19 +375,20 @@ export default function OrnamentationPanel({
               </label>
             )}
             <button
+              disabled={active}
               onClick={() => {
                 setDraft({
                   ...current,
                   items: current.items.filter((o) => o.id !== item.id),
                 });
-                setSelected("");
+                onSelect("");
               }}
             >
               Remove ornament preview
             </button>
           </>
         )}
-        <button onClick={() => level("None")}>
+        <button disabled={active} onClick={() => level("None")}>
           Reset ornamentation preview
         </button>
         {messages.map((m, i) => (
@@ -363,7 +396,7 @@ export default function OrnamentationPanel({
             {m}
           </p>
         ))}
-        {draft && (
+        {draft && !active && (
           <>
             <p role="status">
               Unsaved ornament preview: {current.items.length} items. Accept

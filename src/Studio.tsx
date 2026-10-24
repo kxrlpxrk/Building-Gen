@@ -1,3 +1,5 @@
+import { validateProject } from "./model";
+import { useOrnamentPlacement } from "./useOrnamentPlacement";
 import type { Building } from "./model";
 import ArchitecturalGeneratorPanel from "./ArchitecturalGeneratorPanel";
 import { useWindowPlacement } from "./useWindowPlacement";
@@ -159,6 +161,77 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
     [gridVisible, setGridVisible] = useState(true);
   const [leftOpen, setLeftOpen] = useState(true),
     [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inlineOrnamentControls, setInlineOrnamentControls] = useState(
+    () =>
+      window.matchMedia("(max-width:650px) and (orientation:portrait)").matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia(
+      "(max-width:650px) and (orientation:portrait)",
+    );
+    const change = () => setInlineOrnamentControls(media.matches);
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, []);
+  const [selectedOrnament, setSelectedOrnament] = useState(""),
+    [ornamentFocus, setOrnamentFocus] = useState(0);
+  function chooseOrnament(sectionId: string, id: string) {
+    setInspectorOpen(true);
+    selectSection(sectionId);
+    setSelectedExteriorWindow("");
+    setSelectedRoof("");
+    setSelectedOrnament(id);
+    setOrnamentFocus((n) => n + 1);
+  }
+  const ornamentPlacement = useOrnamentPlacement(
+    current.building,
+    snapEnabled ? grid : null,
+    (b) => edit(validateProject({ ...currentRef.current, building: b })),
+    chooseOrnament,
+  );
+  useEffect(
+    () => ornamentPlacement.cancel(),
+    [mode, current.building, buildingGeneratorOpen],
+  );
+  useEffect(() => {
+    if (roofPreview) ornamentPlacement.restore(null);
+  }, [roofPreview]);
+  const windowTool = {
+    ...windowPlacement,
+    start: () => {
+      ornamentPlacement.cancel();
+      setSelectedOrnament("");
+      setRoofPreview(null);
+      windowPlacement.start();
+    },
+    move: (...args: Parameters<typeof windowPlacement.move>) => {
+      ornamentPlacement.cancel();
+      setSelectedOrnament("");
+      setRoofPreview(null);
+      windowPlacement.move(...args);
+    },
+    precision: (...args: Parameters<typeof windowPlacement.precision>) => {
+      ornamentPlacement.cancel();
+      setSelectedOrnament("");
+      setRoofPreview(null);
+      windowPlacement.precision(...args);
+    },
+  };
+  const ornamentTool = {
+    ...ornamentPlacement,
+    start: (...args: Parameters<typeof ornamentPlacement.start>) => {
+      windowPlacement.cancel();
+      setSelectedExteriorWindow("");
+      setRoofPreview(null);
+      ornamentPlacement.start(...args);
+    },
+    move: (...args: Parameters<typeof ornamentPlacement.move>) => {
+      windowPlacement.cancel();
+      setSelectedExteriorWindow("");
+      setRoofPreview(null);
+      ornamentPlacement.move(...args);
+    },
+  };
   const section =
     current.building.sections.find((s) => s.id === selectedId) ??
     current.building.sections.find(
@@ -469,6 +542,9 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
           e.preventDefault();
           void persist(currentRef.current);
         }
+      } else if (e.key === "Escape") {
+        ornamentPlacement.cancel();
+        windowPlacement.cancel();
       } else if (
         e.key.toLowerCase() === "v" &&
         !anyGenerator &&
@@ -517,7 +593,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-06C</span>
+        <span className="version">BG-06C.1</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -845,7 +921,10 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             </div>
           )}
         </aside>
-        <main className="editor-main">
+        <main
+          className="editor-main"
+          data-ornament-placement={!!ornamentPlacement.state}
+        >
           {mode === "exterior" && (
             <ExteriorBoundary>
               <Suspense
@@ -862,16 +941,33 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                   readOnly={buildingGeneratorOpen}
                   selectedId={buildingGeneratorOpen ? "" : section.id}
                   selectedWindowId={selectedExteriorWindow}
-                  windowPlacement={windowPlacement}
+                  selectedOrnamentId={
+                    buildingGeneratorOpen ? "" : selectedOrnament
+                  }
+                  onOrnament={(sectionId, id) => {
+                    if (!buildingGeneratorOpen) chooseOrnament(sectionId, id);
+                  }}
+                  ornamentPlacement={ornamentTool}
+                  inlineOrnamentControls={inlineOrnamentControls}
+                  windowPlacement={windowTool}
                   snapStep={snapEnabled ? grid : null}
                   onRoof={(sectionId, id) => {
                     if (buildingGeneratorOpen) return;
+                    setSelectedOrnament("");
                     selectSection(sectionId);
                     setSelectedRoof(id);
                   }}
-                  onSelect={buildingGeneratorOpen ? () => {} : selectSection}
+                  onSelect={
+                    buildingGeneratorOpen
+                      ? () => {}
+                      : (id) => {
+                          setSelectedOrnament("");
+                          selectSection(id);
+                        }
+                  }
                   onWindow={(sectionId, id) => {
                     if (buildingGeneratorOpen) return;
+                    setSelectedOrnament("");
                     selectSection(sectionId);
                     setSelectedExteriorWindow(id);
                   }}
@@ -1008,13 +1104,19 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
               ) : mode === "exterior" ? (
                 <ExteriorInspector
                   building={current.building}
+                  selectedOrnament={selectedOrnament}
+                  inlineOrnamentControls={inlineOrnamentControls}
+                  snapStep={snapEnabled ? grid : null}
+                  ornamentFocus={ornamentFocus}
+                  onOrnament={(id) => chooseOrnament(section.id, id)}
+                  ornamentPlacement={ornamentTool}
                   onPreviewRoof={setRoofPreview}
                   selectedRoof={selectedRoof}
                   onRoof={setSelectedRoof}
                   section={section}
                   onSelect={selectSection}
                   onChange={changeSection}
-                  windowPlacement={windowPlacement}
+                  windowPlacement={windowTool}
                   selectedWindowId={selectedExteriorWindow}
                   onWindow={setSelectedExteriorWindow}
                 />

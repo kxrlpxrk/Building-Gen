@@ -2265,3 +2265,52 @@ h3 {
 .placement-invalid {
   color: #9a302b;
 }
+
+.direct-ornament-type {
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 8px;
+  background: #fafbf2ee;
+  font-size: 12px;
+}
+.direct-ornament-type select {
+  min-height: 44px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ornament-placement-controls {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  background: #f5f7ef;
+  min-width: 0;
+}
+.ornament-placement-controls p {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.ornament-placement-controls button {
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+@media (max-width: 650px) and (orientation: portrait) {
+  .editor-main[data-ornament-placement="true"] {
+    height: auto;
+  }
+  .editor-main[data-ornament-placement="true"] .exterior-wrap {
+    flex: none;
+    height: calc(clamp(320px, 55svh, 520px) - 26px);
+  }
+}

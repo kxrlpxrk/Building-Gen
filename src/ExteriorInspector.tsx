@@ -1,3 +1,5 @@
+import OrnamentPlacementControls from "./OrnamentPlacementControls";
+import type { OrnamentPlacement } from "./ornamentPlacement";
 import OrnamentationPanel from "./OrnamentationPanel";
 import RoofArchitecture from "./RoofArchitecture";
 import type { WindowPlacement } from "./windowPlacement";
@@ -16,9 +18,15 @@ import {
   type ExteriorSettings,
 } from "./exteriorSettings";
 import { buildExterior } from "./exteriorGeometry";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 export default function ExteriorInspector({
   building,
+  inlineOrnamentControls,
+  snapStep,
+  selectedOrnament,
+  ornamentFocus,
+  onOrnament,
+  ornamentPlacement,
   onPreviewRoof,
   selectedRoof,
   onRoof,
@@ -30,6 +38,12 @@ export default function ExteriorInspector({
   onWindow,
 }: {
   building: Building;
+  inlineOrnamentControls: boolean;
+  snapStep: number | null;
+  selectedOrnament: string;
+  ornamentFocus: number;
+  onOrnament: (id: string) => void;
+  ornamentPlacement: OrnamentPlacement;
   onPreviewRoof: (b: Building | null) => void;
   selectedRoof: string;
   onRoof: (id: string) => void;
@@ -43,6 +57,9 @@ export default function ExteriorInspector({
   const [architecturePanel, setArchitecturePanel] = useState<
     "roof" | "ornaments"
   >("roof");
+  useEffect(() => {
+    if (selectedOrnament) setArchitecturePanel("ornaments");
+  }, [selectedOrnament, ornamentFocus]);
   const analysis = useMemo(() => {
     try {
       return { model: buildExterior(building), error: "" };
@@ -71,12 +88,20 @@ export default function ExteriorInspector({
   }
   return (
     <div className="exterior-inspector">
+      {!inlineOrnamentControls && ornamentPlacement.state && (
+        <OrnamentPlacementControls
+          inInspector
+          ornamentPlacement={ornamentPlacement}
+          snapStep={snapStep}
+        />
+      )}
       <section className="inspector-section">
         <h2>Architectural exterior</h2>
         <label className="field">
           <span>Selected section</span>
           <select
             aria-label="Exterior section"
+            disabled={!!ornamentPlacement.state}
             value={section.id}
             onChange={(e) => onSelect(e.target.value)}
           >
@@ -305,7 +330,7 @@ export default function ExteriorInspector({
       </section>
       {architecturePanel === "roof" ? (
         <RoofArchitecture
-          key={section.id}
+          key={`roof-${section.id}`}
           building={building}
           section={section}
           onChange={onChange}
@@ -315,7 +340,10 @@ export default function ExteriorInspector({
         />
       ) : (
         <OrnamentationPanel
-          key={section.id}
+          selectedId={selectedOrnament}
+          onSelect={onOrnament}
+          placement={ornamentPlacement}
+          key={`ornaments-${section.id}`}
           building={building}
           section={section}
           onChange={onChange}
@@ -323,7 +351,7 @@ export default function ExteriorInspector({
         />
       )}
       <ExteriorDetails
-        key={section.id}
+        key={`details-${section.id}`}
         building={building}
         section={section}
         onChange={onChange}
