@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Building, Section } from "./model";
 import type { RoofFeature } from "./exteriorSettings";
 import { ridgeAlongX } from "./exteriorSettings";
+import { rotateCrossingFrame } from "./roofDirection";
 import { defaultRoofFeature } from "./roofFeatures";
 import { replaceSection } from "./assembly";
 import { buildExterior } from "./exteriorGeometry";
@@ -179,19 +180,13 @@ export default function RoofArchitecture({
                   next = alongX ? "Y" : "X";
                 setDraftAxis(next);
                 setDraft(
-                  features.map((f) => {
-                    const oldTrans =
-                      f.ridgeAxis === "Y" ? section.length : section.width;
-                    const transverse =
-                        next === "X" ? section.length : section.width,
-                      span = next === "X" ? section.width : section.length;
-                    return {
-                      ...f,
-                      ridgeAxis: next === "X" ? "Y" : "X",
-                      offset: Math.round((f.offset / oldTrans) * transverse),
-                      depth: f.side === "Both" ? span : Math.min(f.depth, span),
-                    };
-                  }),
+                  rotateCrossingFrame(
+                    {
+                      ...section,
+                      exterior: { ...section.exterior, roofFeatures: features },
+                    },
+                    next,
+                  ).exterior.roofFeatures,
                 );
               }}
             >
@@ -199,8 +194,9 @@ export default function RoofArchitecture({
             </button>
             <p>
               Rotate changes the host and crossing ridges together, preserves
-              widths, and rescales placement. Unsafe widths or features must be
-              corrected before acceptance.
+              widths and one-sided depths, and rescales placement. Full
+              crossings follow the new host span. Unsafe widths or features must
+              be corrected before acceptance.
             </p>
             <div className="section-actions">
               <button

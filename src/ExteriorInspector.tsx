@@ -1,3 +1,8 @@
+import {
+  prepareRoofDirection,
+  roofDirectionError,
+  type RoofDirection,
+} from "./roofDirection";
 import OrnamentPlacementControls from "./OrnamentPlacementControls";
 import type { OrnamentPlacement } from "./ornamentPlacement";
 import OrnamentationPanel from "./OrnamentationPanel";
@@ -18,7 +23,7 @@ import {
   type ExteriorSettings,
 } from "./exteriorSettings";
 import { buildExterior } from "./exteriorGeometry";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 export default function ExteriorInspector({
   building,
   inlineOrnamentControls,
@@ -54,6 +59,17 @@ export default function ExteriorInspector({
   selectedWindowId: string;
   onWindow: (id: string) => void;
 }) {
+  const directionId = useId();
+  const [editError, setEditError] = useState("");
+  const [directionError, setDirectionError] = useState("");
+  const [directionStatus, setDirectionStatus] = useState("");
+  const [pendingAxis, setPendingAxis] = useState<"X" | "Y" | null>(null);
+  useEffect(() => {
+    setEditError("");
+    setDirectionError("");
+    setPendingAxis(null);
+  }, [section]);
+  useEffect(() => setDirectionStatus(""), [section.id]);
   const [architecturePanel, setArchitecturePanel] = useState<
     "roof" | "ornaments"
   >("roof");
@@ -77,13 +93,48 @@ export default function ExteriorInspector({
       )
     : null;
   function edit(change: Partial<ExteriorSettings>) {
+    let issue: string | null;
     try {
-      return onChange({
+      issue = onChange({
         ...section,
         exterior: readExterior({ ...ex, ...change }),
       });
     } catch (e) {
-      return (e as Error).message;
+      issue = (e as Error).message;
+    }
+    setEditError(issue ?? "");
+    if (!issue) {
+      setDirectionError("");
+      setDirectionStatus("");
+      setPendingAxis(null);
+    }
+    return issue;
+  }
+  function direction(change: RoofDirection, together = false) {
+    setEditError("");
+    setDirectionStatus("");
+    try {
+      const result = prepareRoofDirection(building, section, change, together);
+      const issue = onChange(result.section);
+      if (issue) throw new Error(issue);
+      setDirectionError("");
+      setPendingAxis(null);
+      const nextRoof = result.model.sections.find((s) => s.id === section.id)
+        ?.parts.roof;
+      const unchanged =
+        !nextRoof?.length || JSON.stringify(nextRoof) === JSON.stringify(roof);
+      setDirectionStatus(
+        `Saved roof direction for ${section.name}${together ? " and its crossing frames" : ""}.${unchanged ? " The visible roof surface is unchanged: adjacent roofs may conceal it, or the roof may be symmetric. The explicit direction is saved; orbit to inspect other sides." : " Orbit to inspect the updated roof and joins."}`,
+      );
+    } catch (e) {
+      setDirectionError(roofDirectionError((e as Error).message));
+      setPendingAxis(
+        "ridgeAxis" in change &&
+          change.ridgeAxis !== "Auto" &&
+          ex.roofFeatures.length
+          ? change.ridgeAxis
+          : null,
+      );
     }
   }
   return (
@@ -213,6 +264,8 @@ export default function ExteriorInspector({
             {ex.roofStyle === "Shed" ? (
               <select
                 aria-label="Shed high edge"
+                aria-invalid={!!directionError}
+                aria-describedby={`${directionId}-help ${directionId}-feedback`}
                 value={
                   ex.shedHighEdge === "Auto"
                     ? section.length >= section.width
@@ -221,7 +274,7 @@ export default function ExteriorInspector({
                     : ex.shedHighEdge
                 }
                 onChange={(e) =>
-                  edit({
+                  direction({
                     shedHighEdge: e.target
                       .value as ExteriorSettings["shedHighEdge"],
                   })
@@ -236,9 +289,11 @@ export default function ExteriorInspector({
             ) : (
               <select
                 aria-label="Ridge direction"
+                aria-invalid={!!directionError}
+                aria-describedby={`${directionId}-help ${directionId}-feedback`}
                 value={ridgeAlongX(section) ? "X" : "Y"}
                 onChange={(e) =>
-                  edit({
+                  direction({
                     ridgeAxis: e.target.value as ExteriorSettings["ridgeAxis"],
                   })
                 }
@@ -248,7 +303,28 @@ export default function ExteriorInspector({
               </select>
             )}
           </label>
-          <p>
+          <div id={`${directionId}-feedback`}>
+            {section.locked && (
+              <p role="status">
+                Roof direction is locked. Unlock this section in Footprint mode
+                before editing.
+              </p>
+            )}
+            {directionError && (
+              <p className="field-error" role="alert">
+                {directionError}
+              </p>
+            )}
+            {pendingAxis && (
+              <button
+                onClick={() => direction({ ridgeAxis: pendingAxis }, true)}
+              >
+                Rotate host and crossing roofs to local {pendingAxis}
+              </button>
+            )}
+            {directionStatus && <p role="status">{directionStatus}</p>}
+          </div>
+          <p id={`${directionId}-help`}>
             Direction is relative to this section. Hip end slopes adjust to
             retain a ridge on the chosen axis; the transverse pitch stays
             unchanged.
@@ -301,6 +377,11 @@ export default function ExteriorInspector({
           >
             Reset section to style defaults
           </button>
+          {editError && (
+            <p role="alert" className="field-error">
+              {editError}
+            </p>
+          )}
           <p>
             Derived ridge/high edge:{" "}
             {ridge === null ? "unavailable" : (ridge / 1000).toFixed(2)} m above

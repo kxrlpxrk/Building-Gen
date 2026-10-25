@@ -1,6 +1,6 @@
-# Building Generator · BG-06C.1
+# Building Generator · BG-06C.1.1
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06C.1 adds direct 3D placement, picking and movement of canonical architectural ornaments, preserving BG-06C advanced generation. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.3.1**; project schema remains **version 10**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06C.1.1 fixes extension roof-direction editing and exposes validation feedback, preserving direct ornament placement and BG-06C advanced generation. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.3.2**; project schema remains **version 10**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,29 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Extension roof direction and rejection feedback · BG-06C.1.1
+
+Select the extension in **Exterior 3D → Architectural exterior**. **Ridge direction** writes explicit local X/Y for Gable/Hip roofs; **Shed high edge** writes one of the four local signed directions. Edits validate both the canonical building and the complete derived exterior before committing. Only the selected section's settings change; existing rendering recomputes dependent roof planes, envelope intersections and trim. Saved user axes remain explicit through ordinary architecture edits, autosave and JSON. One accepted edit is one Undo transaction.
+
+Previously, the dropdown ignored the error returned by `edit()`/`changeSection()`. Studio retained that error in `geometryError`, which the Exterior mode did not display. Validated rejections therefore appeared as a silent dropdown reset. Tests reproduce crossing-ridge conflicts, a dragon terminal rotating onto an open-plan join, and Hip-axis changes violating window eaves clearance. Valid plain extension changes update both calculated planes and visible roof buffers; no selection, ownership or solver change was needed.
+
+Rejected directions now retain the original model and show an inline **role=alert**, `aria-invalid` and associated help/error text next to the control. Messages explain what must be adjusted or explicitly relocated. Locked controls have adjacent unlock guidance. A successful direction edit clears the rejection and announces that it was saved. If that section's visible roof buffer is unchanged, the status explains possible concealment by neighbouring roofs or a symmetric surface; it does not call the saved edit a failure.
+
+For a crossing-ridge conflict, **Rotate host and crossing roofs to local X/Y** offers an explicit atomic retry. This shares the existing **Rotate crossing roof frame preview** parameter logic: perpendicular ridges, proportional placement and stable feature IDs. Widths, editable one-sided projection depths, pitch, heights and ornament records are preserved. A full crossing derives its run from the new host span, as in the existing rotation logic. Unlike the old preview operation, it does not silently clamp an oversized projection depth. Unsafe widths/depths, shared-wall ends, unsupported ornaments, windows, chimneys or intersections remain rejected with feedback; correct or explicitly relocate those features first. No cross-gables or decorations are silently removed.
+
+Schema remains **v10**, with no migration, renderer/generator replacement or new dependencies. The approved roof-surface/intersection solvers, direct window/ornament workflows, mobile document scrolling and GPU budgets are unchanged. This patch is release **1.3.2**; physical iPhone Safari retesting remains necessary.
+
+Changed implementation files: `ExteriorInspector.tsx`, shared `roofDirection.ts`, `RoofArchitecture.tsx`; regression coverage in `roofDirection.test.ts` and `tests/roof-direction.spec.ts`. App/Studio labels, package metadata, README and the existing version assertion are updated.
+
+Validation: **353 unit/storage tests / 19 files pass**. The full production desktop/iPhone-sized Chromium sweep passed **153 cases**, with 11 desktop-inapplicable native-touch skips whose mobile counterparts passed. A final **22-case** run on the final bundle also passed extension directions, coupled rotations, rejection feedback and direct window/ornament editing. Production build, formatting and whitespace checks pass. Vite retains the existing lazy Three.js chunk-size advisory. Physical Safari/VoiceOver verification remains pending.
+
+Focused iPhone Safari retest:
+
+1. Select a plain attached wing, switch Gable/Hip X/Y and every Shed direction. Inspect all sides, change eaves height, and confirm the main roof is unchanged.
+2. Rotate a cross-gable host. Check the visible rejection, then the explicit combined-frame action. Verify one-step Undo/Redo and preserved feature dimensions/IDs.
+3. Try a dragon on a join, tight window/chimney clearance and a locked extension. Read the nearby reason with VoiceOver; invalid attempts must leave all data intact.
+4. Edit generated three-extension halls, save/reopen and JSON-roundtrip. Retest direct windows/ornaments, High-detail orbit/pinch, portrait scrolling and landscape focus.
 
 ## Direct 3D ornament placement · BG-06C.1
 
