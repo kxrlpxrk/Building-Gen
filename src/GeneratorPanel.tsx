@@ -1,3 +1,4 @@
+import { LAYOUT_PURPOSES, purposeLayout } from "./layoutPurposes";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Project, Building } from "./model";
 import { combinedGeometry, openingContext } from "./assembly";
@@ -211,8 +212,8 @@ export default function GeneratorPanel({
       <section className="inspector-section">
         <h2>Generate Layout</h2>
         <p className="interior-help">
-          Ground floor · 2–5 rooms · 0.1 m partitions · clear spans ≥ 1.8 m.
-          Previews change no saved data. Rectangle, supported L shapes and
+          Ground floor · 2–8 rooms · 0.1 m partitions · clear spans ≥ 1.8 m.
+          Previews change no saved data. Rectangles, supported L/T shapes and
           connected wings use exact clear geometry.
         </p>
         <p data-testid="layout-minimum">
@@ -225,7 +226,31 @@ export default function GeneratorPanel({
           room.
         </p>
         <fieldset disabled={busy} className="generator-fields">
-          <legend>Room requests · {count}/5</legend>
+          <legend>Room requests · {count}/8</legend>
+          <label className="field">
+            <span>Interior purpose preset</span>
+            <select
+              aria-label="Interior purpose preset"
+              value={config.purpose || "Custom"}
+              onChange={(e) => {
+                const purpose = e.target
+                  .value as (typeof LAYOUT_PURPOSES)[number];
+                update(
+                  purpose === "Custom"
+                    ? { ...config, purpose }
+                    : purposeLayout(purpose, usable, config.seed),
+                );
+              }}
+            >
+              {LAYOUT_PURPOSES.map((p) => (
+                <option key={p}>{p}</option>
+              ))}
+            </select>
+          </label>
+          <p className="interior-help">
+            Presets recommend editable requirements. Custom retains your current
+            requests. No bathrooms are added by a historical preset.
+          </p>
           {config.rooms.map((r, index) => (
             <div className="layout-request" key={r.key}>
               <label className="field">
@@ -238,7 +263,12 @@ export default function GeneratorPanel({
                       ...config,
                       rooms: config.rooms.map((v, i) =>
                         i === index
-                          ? { ...v, type: e.target.value as typeof r.type }
+                          ? {
+                              ...v,
+                              type: e.target.value as typeof r.type,
+                              name: e.target.value,
+                              notes: "",
+                            }
                           : v,
                       ),
                     })
@@ -250,13 +280,29 @@ export default function GeneratorPanel({
                 </select>
               </label>
               <label className="field">
+                <span>Room label</span>
+                <input
+                  aria-label={`Request ${index + 1} name`}
+                  value={r.name ?? r.type}
+                  maxLength={100}
+                  onChange={(e) =>
+                    update({
+                      ...config,
+                      rooms: config.rooms.map((v, i) =>
+                        i === index ? { ...v, name: e.target.value } : v,
+                      ),
+                    })
+                  }
+                />
+              </label>
+              <label className="field">
                 <span>Quantity</span>
                 <input
                   aria-label={`Request ${index + 1} quantity`}
                   type="number"
                   inputMode="numeric"
                   min={1}
-                  max={5}
+                  max={8}
                   value={r.quantity}
                   onChange={(e) =>
                     update({
@@ -349,7 +395,7 @@ export default function GeneratorPanel({
             </div>
           ))}
           <button
-            disabled={count >= 5 || config.rooms.length >= 5}
+            disabled={count >= 8 || config.rooms.length >= 8}
             onClick={() =>
               update({
                 ...config,
@@ -481,6 +527,14 @@ export default function GeneratorPanel({
                 <h3>
                   Proposal {p.label} · score {p.score}
                 </h3>
+                <p>{p.summary}</p>
+                <p>
+                  Required rooms satisfied: {p.requiredSatisfied} /{" "}
+                  {config.rooms
+                    .filter((r) => r.priority === "Required")
+                    .reduce((n, r) => n + r.quantity, 0)}
+                  .
+                </p>
                 <Thumbnail proposal={p} id={`${id}-layout-${p.label}`} />
                 <dl className="interior-totals">
                   <div>
@@ -504,6 +558,11 @@ export default function GeneratorPanel({
                   Access: all {p.building.interior.rooms.length} rooms
                   reachable.
                 </p>
+                {!summary.entrances && (
+                  <p>
+                    This proposal includes a new validated exterior entrance.
+                  </p>
+                )}
                 <ul>
                   {openingContext(p.building).regions.map((r) => (
                     <li key={r.key}>
@@ -516,6 +575,11 @@ export default function GeneratorPanel({
                     </li>
                   ))}
                 </ul>
+                {p.preferences.map((m, i) => (
+                  <p className="interior-help" key={i}>
+                    {m}
+                  </p>
+                ))}
                 {p.omitted.length > 0 && (
                   <p>Preferred rooms omitted: {p.omitted.join(", ")}</p>
                 )}

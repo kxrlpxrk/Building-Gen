@@ -1,7 +1,14 @@
+import { windowOpening } from "./exteriorValidation";
+import { LAYOUT_PURPOSES, type LayoutPurpose } from "./layoutPurposes";
 import type { Building, Project } from "./model";
 import { validateProject } from "./model";
-import { combinedGeometry, openingContext } from "./assembly";
 import {
+  combinedGeometry,
+  openingContext,
+  canonicalVertices,
+} from "./assembly";
+import {
+  containsPoint,
   deriveInterior,
   wallLength,
   type Partition,
@@ -10,6 +17,7 @@ import {
 } from "./interior";
 import { bounds } from "./polygon";
 import {
+  openingGeometry,
   newOpening,
   openingSides,
   hostKey,
@@ -21,6 +29,8 @@ import {
 import { circulation } from "./circulation";
 export type RoomRequest = {
   key: string;
+  name?: string;
+  notes?: string;
   type: RoomType;
   quantity: number;
   minimumArea: number;
@@ -28,6 +38,7 @@ export type RoomRequest = {
   priority: "Required" | "Preferred";
 };
 export type LayoutConfig = {
+  purpose?: LayoutPurpose;
   rooms: RoomRequest[];
   style: "Compact" | "Balanced" | "Open";
   seed: string;
@@ -41,16 +52,22 @@ export type LayoutProposal = {
   unassignedArea: number;
   thresholdArea: number;
   omitted: string[];
+  summary: string;
+  requiredSatisfied: number;
+  preferences: string[];
 };
 export type LayoutResult = {
   proposals: LayoutProposal[];
   messages: string[];
   evaluations: number;
   doorEvaluations: number;
+  assignmentOperations: number;
 };
 export const MIN_ROOM_SPAN = 1800;
-export const SEARCH_LIMIT = 1800;
-export const DOOR_TRIAL_LIMIT = 2400;
+export const SEARCH_LIMIT = 3200;
+export const ASSIGNMENT_LIMIT = 6000000;
+export const MAX_REGIONS = 8;
+export const DOOR_TRIAL_LIMIT = 4800;
 export const starterConfig = (): LayoutConfig => ({
   seed: "1041",
   style: "Balanced",
@@ -109,14 +126,18 @@ function random(seed: string) {
 }
 export function configError(c: LayoutConfig): string | null {
   const quantity = c.rooms.reduce((n, r) => n + r.quantity, 0);
-  if (quantity < 2 || quantity > 5 || c.rooms.length > 5 || !c.rooms.length)
-    return "Request 2–5 rooms in total, including quantities.";
+  if (quantity < 2 || quantity > 8 || c.rooms.length > 8 || !c.rooms.length)
+    return "Request 2–8 rooms in total, including quantities.";
   if (
     !["Compact", "Balanced", "Open"].includes(c.style) ||
     !c.seed.trim() ||
     c.seed.length > 64
   )
     return "Choose a layout style and a seed of 1–64 characters.";
+  if (c.purpose && !LAYOUT_PURPOSES.includes(c.purpose))
+    return "Choose a supported layout purpose.";
+  if (new Set(c.rooms.map((r) => r.key)).size !== c.rooms.length)
+    return "Room request IDs must be unique.";
   const types = [
     "Main Hall",
     "Bedroom",
@@ -131,11 +152,15 @@ export function configError(c: LayoutConfig): string | null {
   ];
   for (const r of c.rooms)
     if (
+      (r.name !== undefined &&
+        (typeof r.name !== "string" || r.name.length > 100)) ||
+      (r.notes !== undefined &&
+        (typeof r.notes !== "string" || r.notes.length > 2000)) ||
       !types.includes(r.type) ||
       !["Required", "Preferred"].includes(r.priority) ||
       !Number.isInteger(r.quantity) ||
       r.quantity < 1 ||
-      r.quantity > 5 ||
+      r.quantity > 8 ||
       ![r.minimumArea, r.preferredArea].every(
         (n) => Number.isFinite(n) && n >= 1 && n <= 250000,
       ) ||
@@ -151,7 +176,8 @@ function expand(c: LayoutConfig): Want[] {
       Array.from({ length: r.quantity }, (_, i) => ({
         ...r,
         quantity: 1,
-        name: r.quantity > 1 ? `${r.type} ${i + 1}` : r.type,
+        name:
+          r.quantity > 1 ? `${r.name || r.type} ${i + 1}` : r.name || r.type,
       })),
     )
     .sort(
@@ -206,7 +232,7 @@ export function minimumSpans(region: Region) {
 function weights(w: Want, c: LayoutConfig) {
   return (
     w.preferredArea *
-    (w.type === "Main Hall"
+    (w.type === "Main Hall" || w.type === "Workshop"
       ? c.style === "Open"
         ? 1.5
         : c.style === "Balanced"
@@ -217,11 +243,85 @@ function weights(w: Want, c: LayoutConfig) {
 }
 /** Bounded subset assignment: reserve larger/required requests first, allowing
  * unfinished regions to hold groups of future rooms. Final groups are singletons. */
-function assignment(regions: Region[], wants: Want[], c: LayoutConfig) {
+type PlanningContext = {
+  main: ReturnType<typeof canonicalVertices>;
+  entries: { x: number; y: number }[];
+  boundaries: { x: number; y: number }[];
+  operations: number;
+};
+function mainShare(r: Region, main: PlanningContext["main"]) {
+  let area = 0;
+  // Exact integration over region cells subdivided at the orthogonal section edges.
+  for (const cell of r.cells) {
+    const xs = [
+        cell.x,
+        ...main
+          .map((p) => p.x)
+          .filter((x) => x > cell.x && x < cell.x + cell.width),
+        cell.x + cell.width,
+      ].sort((a, b) => a - b),
+      ys = [
+        cell.y,
+        ...main
+          .map((p) => p.y)
+          .filter((y) => y > cell.y && y < cell.y + cell.height),
+        cell.y + cell.height,
+      ].sort((a, b) => a - b);
+    for (let i = 0; i < xs.length - 1; i++)
+      for (let j = 0; j < ys.length - 1; j++)
+        if (
+          containsPoint(main, {
+            x: (xs[i] + xs[i + 1]) / 2,
+            y: (ys[j] + ys[j + 1]) / 2,
+          })
+        )
+          area += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j]);
+  }
+  return area / r.area;
+}
+function assignment(
+  regions: Region[],
+  wants: Want[],
+  c: LayoutConfig,
+  context: PlanningContext,
+) {
   const full = (1 << wants.length) - 1,
     total = regions.reduce((n, r) => n + r.area, 0),
     weight = wants.reduce((n, w) => n + weights(w, c), 0),
     memo = new Map<string, { cost: number; groups: number[] } | null>();
+  const min = new Float64Array(full + 1),
+    pref = new Float64Array(full + 1),
+    count = new Uint8Array(full + 1);
+  for (let mask = 1; mask <= full; mask++) {
+    const bit = mask & -mask,
+      i = Math.log2(bit),
+      rest = mask ^ bit;
+    min[mask] = min[rest] + wants[i].minimumArea * 1e6;
+    pref[mask] = pref[rest] + weights(wants[i], c);
+    count[mask] = count[rest] + 1;
+  }
+  const spatial = regions.map((r) => {
+    const share = mainShare(r, context.main),
+      entry = context.entries.some((p) =>
+        r.cells.some(
+          (t) =>
+            p.x > t.x &&
+            p.x < t.x + t.width &&
+            p.y > t.y &&
+            p.y < t.y + t.height,
+        ),
+      );
+    return wants.map((w) => {
+      const publicRoom =
+        w.type === "Main Hall" ||
+        w.type === "Workshop" ||
+        w.type === "Corridor";
+      return (
+        (publicRoom ? (1 - share) * 0.08 : share * 0.005) +
+        (entry ? (publicRoom ? -0.1 : w.type === "Bedroom" ? 0.12 : 0.04) : 0)
+      );
+    });
+  });
   function solve(
     index: number,
     mask: number,
@@ -232,22 +332,21 @@ function assignment(regions: Region[], wants: Want[], c: LayoutConfig) {
     if (memo.has(key)) return memo.get(key)!;
     let best: { cost: number; groups: number[] } | null = null;
     for (let subset = mask; subset; subset = (subset - 1) & mask) {
-      let min = 0,
-        pref = 0,
-        count = 0;
-      wants.forEach((w, i) => {
-        if (subset & (1 << i)) {
-          min += w.minimumArea * 1e6;
-          pref += weights(w, c);
-          count++;
-        }
-      });
-      if (regions.length === wants.length && count !== 1) continue;
-      if (min > regions[index].area) continue;
+      if (count[mask ^ subset] < regions.length - index - 1) continue;
+      if (regions.length === wants.length && count[subset] !== 1) continue;
+      if (count[subset] > wants.length - regions.length + 1) continue;
+      if (index === regions.length - 1 && subset !== mask) continue;
+      if (min[subset] > regions[index].area) continue;
+      if (context.operations >= ASSIGNMENT_LIMIT) return null;
+      context.operations++;
       const rest = solve(index + 1, mask ^ subset);
       if (!rest) continue;
-      const delta = (regions[index].area - (total * pref) / weight) / total,
-        cost = rest.cost + delta * delta;
+      const delta =
+          (regions[index].area - (total * pref[subset]) / weight) / total,
+        cost =
+          rest.cost +
+          delta * delta +
+          (count[subset] === 1 ? spatial[index][Math.log2(subset)] : 0);
       if (!best || cost < best.cost)
         best = { cost, groups: [subset, ...rest.groups] };
     }
@@ -283,6 +382,8 @@ function cuts(
   region: Region,
   rand: () => number,
   namespace: string,
+  context: PlanningContext,
+  wants: Want[],
 ): Partition[] {
   const box = bounds(region.loops.flat()),
     result: Partition[] = [];
@@ -294,7 +395,26 @@ function cuts(
     0.66 + rand() * 0.1,
   ];
   for (const vertical of [true, false])
-    for (const fraction of fractions) {
+    for (const fraction of [
+      ...fractions,
+      ...wants.map((w) =>
+        Math.min(
+          0.85,
+          Math.max(
+            0.15,
+            w.preferredArea / wants.reduce((n, t) => n + t.preferredArea, 0),
+          ),
+        ),
+      ),
+      ...context.boundaries.flatMap((p) => {
+        const v = vertical ? p.x : p.y,
+          lo = vertical ? box.minX : box.minY,
+          span = vertical ? box.length : box.width;
+        return [-50, 50]
+          .map((d) => (v + d - lo) / span)
+          .filter((f) => f > 0.05 && f < 0.95);
+      }),
+    ]) {
       const axis = vertical ? "x" : "y",
         other = vertical ? "y" : "x",
         at =
@@ -324,7 +444,15 @@ function cuts(
         });
       }
     }
-  return result;
+  const unique = [
+    ...new Map(result.map((w) => [partitionKey([w]), w])).values(),
+  ];
+  // Mix axes before truncation so eight-room searches stay both bounded and varied.
+  return unique
+    .map((w) => ({ w, rank: rand() }))
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, wants.length > 5 ? 10 : 16)
+    .map((t) => t.w);
 }
 function clearSwing(
   context: OpeningContext,
@@ -365,10 +493,13 @@ function connectRooms(
   };
   const c = openingContext(building),
     openings = [...building.openings],
+    windows = building.sections.flatMap((s) =>
+      s.exterior.windows.map((w) => windowOpening(s, w)),
+    ),
     roomTypes = new Map(
       building.interior.rooms.map((r) => [r.regionKey, r.type]),
     );
-  validateOpenings(c, openings);
+  validateOpenings(c, [...windows, ...openings]);
   if (swingWarnings(c, openings).size)
     throw new Error(
       "A preserved exterior entrance swing is obstructed by these partitions.",
@@ -386,7 +517,7 @@ function connectRooms(
           offset,
         );
         try {
-          validateOpenings(c, [d]);
+          validateOpenings(c, [...windows, d]);
           const safe = clearSwing(c, [], d);
           if (!safe) continue;
           d = safe;
@@ -395,7 +526,7 @@ function connectRooms(
           entrances.push({
             door: d,
             rank:
-              type === "Main Hall"
+              type === "Main Hall" || type === "Workshop"
                 ? 0
                 : type === "Corridor"
                   ? 1
@@ -449,7 +580,7 @@ function connectRooms(
           }
         : base;
       try {
-        validateOpenings(c, [...openings, d]);
+        validateOpenings(c, [...windows, ...openings, d]);
         const safe = clearSwing(c, openings, d);
         if (!safe) continue;
         d = safe;
@@ -457,13 +588,17 @@ function connectRooms(
           door: d,
           a,
           b,
-          rank: types.includes("Main Hall")
-            ? 0
-            : types.includes("Corridor")
-              ? 1
-              : types.includes("Bedroom") && types.includes("Kitchen")
-                ? 5
-                : 2,
+          rank:
+            types.includes("Storage") &&
+            (types.includes("Kitchen") || types.includes("Workshop"))
+              ? -3
+              : types.includes("Main Hall") || types.includes("Workshop")
+                ? 0
+                : types.includes("Corridor")
+                  ? 1
+                  : types.includes("Bedroom") && types.includes("Kitchen")
+                    ? 5
+                    : 2,
         });
       } catch {
         /* Try another exact slot. */
@@ -475,11 +610,18 @@ function connectRooms(
     if (access.reachable.size === c.regions.length)
       return { ...building, openings };
     let found = false;
-    for (const option of options) {
+    const ranked = [...options].sort((a, b) => {
+      const rank = (o: typeof a) => {
+        const from = access.reachable.has(o.a) ? o.a : o.b;
+        return o.rank + (roomTypes.get(from) === "Bedroom" ? 20 : 0);
+      };
+      return rank(a) - rank(b) || a.door.id.localeCompare(b.door.id);
+    });
+    for (const option of ranked) {
       if (access.reachable.has(option.a) === access.reachable.has(option.b))
         continue;
       try {
-        validateOpenings(c, [...openings, option.door]);
+        validateOpenings(c, [...windows, ...openings, option.door]);
         if (swingWarnings(c, [...openings, option.door]).size) continue;
         openings.push(option.door);
         found = true;
@@ -512,7 +654,7 @@ export function generateLayouts(
     );
   if (geometry.inner.length > 32)
     throw new Error(
-      "This footprint exceeds the BG-04A solver limit of 32 clear-boundary vertices. Manual planning remains available.",
+      "This footprint exceeds the interior solver limit of 32 clear-boundary vertices. Manual planning remains available.",
     );
   const all = expand(config),
     required = all.filter((w) => w.priority === "Required"),
@@ -544,14 +686,39 @@ export function generateLayouts(
         a.reduce((n, w) => n + w.minimumArea, 0) -
           b.reduce((n, w) => n + w.minimumArea, 0),
     );
+  const originalContext = openingContext(base);
+  const context: PlanningContext = {
+    main: canonicalVertices(
+      source.sections.find((s) => s.id === source.mainSectionId)!,
+      source,
+    ),
+    boundaries: source.sections.flatMap((s) => canonicalVertices(s, source)),
+    operations: 0,
+    entries: base.openings.flatMap((o) => {
+      const g = openingGeometry(originalContext, o),
+        n = g.host.inward!;
+      return [
+        {
+          x: g.center.x + n.x * (g.host.thickness / 2 + 10),
+          y: g.center.y + n.y * (g.host.thickness / 2 + 10),
+        },
+      ];
+    }),
+  };
+  const preservedWindows = base.sections.flatMap((s) =>
+    s.exterior.windows.map((w) => windowOpening(s, w)),
+  );
   const doorBudget = { used: 0 };
   let evaluations = 0,
     lastReason =
       "No arrangement met the room areas, 1.8 m clear spans and door clearances.";
   type State = { walls: Partition[]; regions: Region[]; cost: number };
   for (const wants of subsets) {
-    if (evaluations >= SEARCH_LIMIT) break;
+    if (evaluations >= SEARCH_LIMIT || context.operations >= ASSIGNMENT_LIMIT)
+      break;
     if (wants.reduce((n, w) => n + w.minimumArea * 1e6, 0) > usable) continue;
+    const subsetStart = evaluations;
+    const subsetLimit = Math.min(SEARCH_LIMIT, subsetStart + 2400);
     let beam: State[] = [
       {
         walls: [],
@@ -562,10 +729,14 @@ export function generateLayouts(
     for (let depth = 0; depth < wants.length - 1; depth++) {
       const next: State[] = [],
         seen = new Set<string>();
-      for (const state of beam)
+      explore: for (const state of beam)
         for (const region of [...state.regions].sort((a, b) => b.area - a.area))
-          for (const wall of cuts(region, rand, namespace)) {
-            if (evaluations >= SEARCH_LIMIT) break;
+          for (const wall of cuts(region, rand, namespace, context, wants)) {
+            if (
+              evaluations >= subsetLimit ||
+              context.operations >= ASSIGNMENT_LIMIT
+            )
+              break explore;
             const walls = [...state.walls, wall],
               key = partitionKey(walls);
             if (seen.has(key)) continue;
@@ -579,7 +750,15 @@ export function generateLayouts(
                 !result.regions.every(minimumSpans)
               )
                 continue;
-              const match = assignment(result.regions, wants, config);
+              if (base.openings.length || preservedWindows.length) {
+                const c = openingContext({
+                  ...base,
+                  interior: { partitions: walls, rooms: [] },
+                });
+                validateOpenings(c, [...base.openings, ...preservedWindows]);
+                if (swingWarnings(c, base.openings).size) continue;
+              }
+              const match = assignment(result.regions, wants, config, context);
               if (!match) continue;
               next.push({
                 walls,
@@ -595,13 +774,13 @@ export function generateLayouts(
           a.cost - b.cost ||
           partitionKey(a.walls).localeCompare(partitionKey(b.walls)),
       );
-      beam = next.slice(0, 16);
+      beam = next.slice(0, wants.length > 5 ? 6 : 16);
       if (!beam.length) break;
     }
     const valid: LayoutProposal[] = [];
     for (const state of beam) {
       if (state.regions.length !== wants.length) continue;
-      const match = assignment(state.regions, wants, config);
+      const match = assignment(state.regions, wants, config, context);
       if (!match) continue;
       try {
         const rooms = state.regions.map((r, i) => {
@@ -612,7 +791,7 @@ export function generateLayouts(
             regionKey: r.key,
             name: want.name,
             type: want.type,
-            notes: "",
+            notes: want.notes || "",
           };
         });
         let building: Building = {
@@ -637,6 +816,11 @@ export function generateLayouts(
               (k) => rooms.find((r) => r.regionKey === k)?.type === "Kitchen",
             )
               ? 5
+              : 0) +
+            (rooms.find((r) => r.regionKey === key)?.type === "Bedroom" &&
+            (neighbours.size > 1 ||
+              (access.entrances.has(key) && neighbours.size > 0))
+              ? 25
               : 0),
           0,
         );
@@ -644,7 +828,7 @@ export function generateLayouts(
           const type = rooms.find((r) => r.regionKey === key)?.type;
           return (
             n +
-            (type === "Main Hall" || type === "Corridor"
+            (type === "Main Hall" || type === "Corridor" || type === "Workshop"
               ? 0
               : type === "Kitchen"
                 ? 5
@@ -671,10 +855,45 @@ export function generateLayouts(
           unassignedArea: 0,
           thresholdArea: thresholds,
           omitted,
+          requiredSatisfied: required.length,
+          preferences: rooms.flatMap((room, i) => {
+            const want = wants[Math.log2(match.groups[i])];
+            return state.regions[i].area < want.preferredArea * 1e6
+              ? [
+                  `${room.name}: ${(state.regions[i].area / 1e6).toFixed(2)} m², below preferred ${want.preferredArea.toFixed(2)} m²`,
+                ]
+              : [];
+          }),
+          summary: `${config.purpose || "Custom"} · ${rooms.length} ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes.`,
         });
       } catch (e) {
         lastReason = (e as Error).message;
       }
+    }
+    for (const candidate of valid) {
+      const access = circulation(
+        openingContext(candidate.building),
+        candidate.building.openings,
+      );
+      for (const key of access.entrances) {
+        const room = candidate.building.interior.rooms.find(
+          (r) => r.regionKey === key,
+        )!;
+        if (!["Main Hall", "Workshop", "Corridor"].includes(room.type))
+          candidate.preferences.push(
+            `Entrance reaches ${room.name}; compare alternatives for a public arrival space. Existing exterior openings are preserved.`,
+          );
+      }
+      for (const room of candidate.building.interior.rooms)
+        if (
+          room.type === "Bedroom" &&
+          ((access.graph.get(room.regionKey!)?.size ?? 0) > 1 ||
+            (access.entrances.has(room.regionKey!) &&
+              (access.graph.get(room.regionKey!)?.size ?? 0) > 0))
+        )
+          candidate.preferences.push(
+            `${room.name}: this proposal uses the chamber as a through-route; compare alternatives for more privacy.`,
+          );
     }
     valid.sort(
       (a, b) =>
@@ -704,6 +923,7 @@ export function generateLayouts(
         proposals,
         evaluations,
         doorEvaluations: doorBudget.used,
+        assignmentOperations: context.operations,
         messages: [
           ...(proposals.length < 3
             ? [
@@ -722,8 +942,9 @@ export function generateLayouts(
     proposals: [],
     evaluations,
     doorEvaluations: doorBudget.used,
+    assignmentOperations: context.operations,
     messages: [
-      `No valid layout found within ${evaluations} exact cut evaluations (limit ${SEARCH_LIMIT}). ${lastReason} Required rooms were not omitted; the original project is unchanged. Try smaller minimum areas, fewer rooms or another seed. This bounded solver does not prove that all possible layouts are infeasible.`,
+      `No valid layout found within ${evaluations} exact cut evaluations (limit ${SEARCH_LIMIT}) and ${context.operations} feasible assignments (limit ${ASSIGNMENT_LIMIT}). ${lastReason} Required rooms were not omitted; the original project is unchanged. Try smaller minimum areas, fewer rooms or another seed. This bounded solver does not prove that all possible layouts are infeasible.`,
     ],
   };
 }

@@ -1,6 +1,6 @@
-# Building Generator · BG-06C.1.2
+# Building Generator · BG-07A
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06C.1.2 automatically reconciles ornaments during roof-direction edits, preserving direct ornament placement and BG-06C advanced generation. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.3.3**; project schema remains **version 10**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-07A adds purpose-aware ground-floor room generation while preserving the approved exterior architecture and editing systems. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.4.0**; project schema remains **version 10**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,40 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Purpose-aware ground-floor layouts · BG-07A
+
+In **Interior Planning → Generate Layout**, choose **Viking Longhouse, Medieval Cottage, Farmhouse, Workshop, Tavern/Inn, Manor, Trading Hall or Custom**. Presets recommend editable room types, labels, quantities, minimum/preferred areas and Required/Preferred priorities. They use the existing room types and descriptive notes, never mandatory modern bathrooms. Custom keeps your current requests; opening an old project does not generate or replace anything. The original four-room starter remains the default.
+
+Request **2–8 rooms**, then choose **Compact / Balanced / Open** and a seed. Longhouses favour a dominant shared hall and optional private chieftain chamber; workshops reserve a substantial work floor with storage/service space; taverns favour a public hall with guest chambers; manors recommend more private accommodation. Defaults scale recommendations to the actual usable interior, with a 4 m² recommendation floor. These are editable suggestions, not a guarantee that the requested plan fits.
+
+The existing cancellable `layoutWorker.ts` calls the extended `layoutGenerator.ts`, using canonical partitions, room metadata and real openings. No second interior model or separate generated editor is introduced. Exact region cells drive area/minimum-span checks and room assignment. Exact region/main-section intersection and real exterior entrance locations influence assignment; secondary spaces can use wings without imposing one room per section. Candidate cuts also sample actual section boundaries. Doors/passages use existing opening validation and circulation; window bays are reserved during slot search. Public routes and kitchen/workshop-to-storage access are preferred, and bedroom through-traffic is penalised and reported when present.
+
+Search is deterministic and bounded: **3,200 cut evaluations**, **6,000,000 feasible assignment branches**, **4,800 door-slot trials**, eight rooms and at most three geometrically distinct proposals. Assignment uses precomputed subset capacities and memoisation under the fixed eight-room cap; narrower beams bound larger searches. Every included room satisfies its minimum area and 1.8 m clear-span criterion, and every room must have a validated entrance path. Preferred room omissions and below-preferred areas are explicit. Required requests are never dropped. The final canonical project validation remains authoritative, including all preserved exterior features.
+
+A/B/C show names, exact net areas, Required count, Preferred omissions, area reconciliation, access, score and preferences. Room labels wrap and stay within actual region outlines at Fit zoom; the full names remain in the inspector. Threshold areas remain separate passage area, as in BG-03B: net rooms + remaining physical partition footprint + internal opening thresholds = usable interior. Current proposals assign all clear regions, so unassigned area is zero.
+
+Preview/Compare/Regenerate/Cancel never save project data. Accepting a populated interior explicitly lists the partitions, labels/notes and internal doors being replaced, requires confirmation, and commits one Undo transaction. Existing exterior entrances stay unchanged; if none exists, a validated proposed entrance is included. Footprints, extensions, roofs, cross-gables, ornaments, windows, chimneys, styles and materials are preserved. Accepted plans use the ordinary wall/room/door tools, history, IndexedDB, JSON and duplication paths.
+
+### Supported shapes and limits
+
+Tested: rectangles (including eight-room 18 × 10 m plans), small 8 × 6 m cottages, supported L/T footprints, connected wings and BG-06C Norse Chieftain halls with an 18 × 8 m main section and three extensions. Concave regions and rooms crossing open section joins use actual clear geometry, not bounding-box areas. This is a bounded guillotine solver, not an exhaustive floor-planning system. Some valid footprints cannot be solved by its cuts or door routing; tight wings, obstructed preserved entrance swings, narrow clear branches and footprints over **32 clear-boundary vertices** may fail safely. Fewer than three valid proposals are reported honestly. Minimum dimensions and existing geometry validators are not relaxed. Whole-building generation still refuses locked sections. There are no upper-floor plans, furnishings, hearth meshes or 3D cutaways.
+
+Schema stays **v10**, release **1.4.0**. Purpose settings and previews are transient; accepted results use existing canonical records. No migrations or dependencies were added. Exterior generation, roof intersections, ornament reconciliation, Three.js rendering and direct 3D gestures are unchanged.
+
+[Production screenshot gallery and reproduction instructions](docs/purpose-interiors/README.md).
+
+Changed files: solver and recommendations in `src/layoutGenerator.ts` / `src/layoutPurposes.ts`; generator controls in `src/GeneratorPanel.tsx`; readable clear-region annotations in `src/InteriorLayer.tsx` / `src/roomLabels.ts`; focused unit/browser coverage in `src/purposeLayouts.test.ts` / `tests/purpose-layouts.spec.ts`; existing count/version assertions in `src/layoutGenerator.test.ts` / `tests/footprints.spec.ts`; release labels in `src/App.tsx` / `src/Studio.tsx`, package metadata, this README and the screenshot gallery. No exterior engine, worker protocol, storage or migration files changed.
+
+Validation: **396 unit/storage tests across 21 files pass**, including the existing roof, exterior, ornament, project migration and generator suites. Production build, formatting and whitespace checks pass. The complete desktop/iPhone-sized Chromium sweep initially passed **158 cases**, with **11 expected desktop-only touch skips** and three existing 3D timing failures under concurrent software WebGL; all three passed unchanged when rerun serially. Thus **161 distinct browser cases were verified** across the sweep and reruns. After the final label adjustment, **18 focused interior/layout browser checks pass**, with two desktop-only touch skips whose mobile counterparts pass. The ten committed screenshots use that final production bundle. Vite retains the existing lazy Three.js chunk-size advisory. Physical iPhone Safari/VoiceOver testing remains pending.
+
+Physical iPhone Safari checklist:
+
+1. Select Longhouse, Workshop, Tavern and Manor presets; edit quantities up to eight, priorities and areas. Confirm actual areas and any omissions are clear.
+2. Generate A/B/C, compare, Regenerate with a seed, cancel mid-generation, then accept. No preview should change saved data.
+3. On an existing manual interior, inspect the replacement summary, Cancel, then confirm. Undo/Redo must restore room notes and manually edited doors exactly.
+4. On an ornate three-wing hall, confirm exterior doors/windows/roofs/carvings are preserved. Edit generated walls and labels; save/reopen, duplicate and JSON-roundtrip.
+5. Scroll portrait controls, focus fields, rotate to landscape, pan/pinch/Fit the plan, then return to Exterior 3D and check High-detail gestures and appearance.
 
 ## Automatic roof-decoration reconciliation · BG-06C.1.2
 

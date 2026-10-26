@@ -1,3 +1,5 @@
+import { useId } from "react";
+import { roomLabel } from "./roomLabels";
 import OpeningsLayer from "./OpeningsLayer";
 import type { Opening, OpeningContext } from "./openings";
 import type { InteriorPlan, Partition, Region } from "./interior";
@@ -37,6 +39,7 @@ export default function InteriorLayer({
   invalid: boolean;
   start: Point | null;
 }) {
+  const labelId = useId().replace(/:/g, "");
   return (
     <g data-interior-layer="true">
       <path
@@ -50,7 +53,10 @@ export default function InteriorLayer({
         const record = plan.rooms.find((m) => m.regionKey === r.key),
           assigned =
             !!record && (!!record.name.trim() || record.type !== "Custom"),
-          active = selection?.kind === "room" && selection.key === r.key;
+          active = selection?.kind === "room" && selection.key === r.key,
+          name =
+            record?.name || (assigned ? record!.type : `Unassigned ${i + 1}`),
+          label = roomLabel(r, name, scale);
         return (
           <g key={r.key} data-room-key={r.key}>
             <path
@@ -74,29 +80,64 @@ export default function InteriorLayer({
               }
               strokeWidth={(active ? 2 : 1) / scale}
             />
-            <text
-              x={r.label.x}
-              y={r.label.y - 5 / scale}
-              textAnchor="middle"
-              fontSize={12 / scale}
-              fill="#34534b"
-              pointerEvents="none"
-            >
-              {(
-                record?.name ||
-                (assigned ? record!.type : `Unassigned ${i + 1}`)
-              ).slice(0, 24)}
-            </text>
-            <text
-              x={r.label.x}
-              y={r.label.y + 12 / scale}
-              textAnchor="middle"
-              fontSize={11 / scale}
-              fill="#63776b"
-              pointerEvents="none"
-            >
-              {(r.area / 1e6).toFixed(2)} m²
-            </text>
+            <defs>
+              <clipPath id={`${labelId}-${i}`}>
+                <path
+                  d={r.loops.map(polygonPath).join(" ")}
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                />
+              </clipPath>
+            </defs>
+            <g clipPath={`url(#${labelId}-${i})`} pointerEvents="none">
+              <text
+                x={label.x}
+                y={
+                  label.y -
+                  ((label.lines.length > 1 ? 8 : 3) * label.fontScale) / scale
+                }
+                textAnchor="middle"
+                fontSize={(12 * label.fontScale) / scale}
+                fill="#34534b"
+                aria-label={name}
+              >
+                {label.lines.map((line, j) => (
+                  <tspan
+                    key={j}
+                    x={label.x}
+                    dy={j ? (13 * label.fontScale) / scale : 0}
+                    textLength={Math.min(
+                      label.width,
+                      (line.length * 6 * label.fontScale) / scale,
+                    )}
+                    lengthAdjust="spacingAndGlyphs"
+                  >
+                    {line}
+                    {j < label.lines.length - 1 ? " " : ""}
+                  </tspan>
+                ))}
+              </text>
+              <text
+                x={label.x}
+                y={
+                  label.y +
+                  ((label.lines.length > 1 ? 19 : 12) * label.fontScale) / scale
+                }
+                textAnchor="middle"
+                fontSize={(11 * label.fontScale) / scale}
+                fill="#63776b"
+                textLength={Math.min(
+                  label.width,
+                  (((r.area / 1e6).toFixed(2).length + 3) *
+                    5.8 *
+                    label.fontScale) /
+                    scale,
+                )}
+                lengthAdjust="spacingAndGlyphs"
+              >
+                {(r.area / 1e6).toFixed(2)} m²
+              </text>
+            </g>
           </g>
         );
       })}

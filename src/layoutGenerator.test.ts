@@ -173,7 +173,7 @@ it("refuses protected sections and invalid configurations safely", () => {
   ).toThrow(/seed/);
   expect(() =>
     generateLayouts(createProject(), { ...starterConfig(), rooms: [] }),
-  ).toThrow(/2–5/);
+  ).toThrow(/2–8/);
 });
 it("preserves existing exterior entrance records while replacing manual interiors", () => {
   const p = createProject();
