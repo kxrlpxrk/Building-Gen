@@ -1,6 +1,6 @@
-# Building Generator · BG-06C.1.1
+# Building Generator · BG-06C.1.2
 
-A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06C.1.1 fixes extension roof-direction editing and exposes validation feedback, preserving direct ornament placement and BG-06C advanced generation. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.3.2**; project schema remains **version 10**.
+A mobile-first architectural studio for medieval, Viking/Norse and grounded-fantasy building plans. React + TypeScript + Vite, with IndexedDB on this device and no backend, accounts, external fonts or runtime API. This repository remains independent of Hearthlands. BG-06C.1.2 automatically reconciles ornaments during roof-direction edits, preserving direct ornament placement and BG-06C advanced generation. The approved BG-06A cross-gables, repaired roof-envelope engine, BG-05 generation and all existing editors remain available. The 2D building model remains authoritative and BG-02B.1 mobile document scrolling is retained. Release **1.3.3**; project schema remains **version 10**.
 
 ## Run, validate and deploy
 
@@ -18,6 +18,35 @@ npm run format:check
 For a sandbox with a read-only home directory: `npm ci --cache /tmp/bg-npm-cache`. Use this checkout, without creating a separate worktree. Development uses port 5173; preview uses 4173. Access through your environment's forwarded-port UI, or run locally. Deploy **dist/** to an HTTPS static host. No server routes or environment secrets. Subdirectory build: `npm run build -- --base=/your-path/`.
 
 Use **HTTPS for iPhone/device playtests**, or localhost on desktop: UUID creation needs secure-context Web Crypto. Keep the same origin (protocol/host/port) when reopening local projects. No deployment is performed by these commands.
+
+## Automatic roof-decoration reconciliation · BG-06C.1.2
+
+Changing **Ridge direction** or **Shed high edge** is one action. The requested roof takes priority over decorative placement. Conflicting crossing ridges rotate with the host automatically; cross-gables are never removed to accommodate decorations. The existing Roof Architecture frame preview uses the same reconciliation when rotating, with preview/Cancel remaining non-destructive.
+
+The previous validator tested the new roof against old ornament anchors, so a dragon rotating onto an open-plan join blocked the roof edit. `roofDecorations.ts` now constructs a transient decoration-free candidate to validate the structure first. It reserves still-supported originals (locked sections first, then sections whose roof settings are unchanged), then resolves incompatible decorations through the existing canonical validators:
+
+1. Keep the original record/ID if valid, including its derived new roof position.
+2. Try the corresponding roof anchor with a safe inset, then the opposite exposed end.
+3. Try compatible exposed main/cross-gable anchors **on the same section**. No unrelated section or hidden join is used.
+4. For wall pieces, try bounded nearby offsets/elevations on the same exposed edge.
+5. Remove only the incompatible decoration when no supported collision-free anchor remains. A legacy paired Gable ornament is removed if both required exposed ends are unavailable; no invented single-ended feature replaces it.
+
+Searches are deterministic and bounded: at most 12 roof-anchor trials or 28 nearby wall positions per pending ornament, under the existing 12-per-section/48-per-building limits. Still-valid originals reserve their anchors before replacements, so a displaced carving cannot steal another original's valid location. Variant, scale, mirror, finish, level and IDs remain intact for surviving records; original collection order is restored. The usual path resolves support per ornament and validates the collection once, with incremental collision reservation only when needed. Cached existing roof/opening calculations are reused.
+
+The complete result passes canonical building/roof/render-budget validation before a **single Undo transaction** and ordinary autosave. The status beside the direction control reports repositioned/removed record counts, removal types/reasons and Undo guidance. Counts describe changed anchors and removed canonical records (a legacy pair counts as one record); decorations whose unchanged anchors follow the rotated roof are preserved. No confirmation dialog or visit to Ornamentation is required. Undo restores the exact previous roof and decorations; Redo reapplies the same result.
+
+Windows, doors, chimneys, canopies, rooms and cross-gables are never automatically removed. Incompatible structural geometry, window/chimney clearance or a required change to a locked section still rejects the entire operation with an accessible error. Existing roof solvers, generators, ornament artwork, direct dragging, mobile scrolling and schema **v10** remain unchanged. No new dependencies or migration. Release **1.3.3**.
+
+Changed files: `roofDecorations.ts` and its unit tests, `roofDirection.ts`/tests, `ExteriorInspector.tsx`, `RoofArchitecture.tsx`, the canonical whole-building callback in `Studio.tsx`, browser direction tests, labels/package metadata and this README.
+
+Verification: **370 unit/storage tests across 20 files pass** with `npm test -- --maxWorkers=1`. Serial execution avoids the five-second timeouts observed when the initial run competed with compilation/software-WebGL work. The full desktop/iPhone-sized Chromium sweep passed **155 cases**, with 11 desktop-inapplicable native-touch skips whose mobile counterparts passed. The final **18 focused browser checks** also passed, including the combined-frame preview summary. Build, formatting and whitespace checks pass; the existing lazy Three.js chunk-size advisory remains. Physical Safari performance/VoiceOver retesting is still required.
+
+Physical iPhone Safari retest:
+
+- Rotate an extension with one dragon: it should move to an exposed end with the same ID/style and no extra step.
+- Rotate one with two terminal carvings: check the removal summary when one cannot fit; Undo/Redo must restore/reapply everything exactly.
+- Rotate host/cross-gable frames and a Fantasy three-extension hall; inspect all roof sides and decoration support at High detail.
+- Check legacy paired gables, locked sections and genuine window/chimney rejections. Save/reopen, duplicate, JSON-roundtrip, then retest direct ornaments/windows, pinch and portrait scrolling.
 
 ## Extension roof direction and rejection feedback · BG-06C.1.1
 

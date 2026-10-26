@@ -49,7 +49,7 @@ test("all presets, exact edges, validation, undo, reload, duplicate and v2 JSON 
   page,
 }) => {
   await create(page, "Polygon hall");
-  await expect(page.getByText("BG-06C.1.1", { exact: true })).toBeVisible();
+  await expect(page.getByText("BG-06C.1.2", { exact: true })).toBeVisible();
   for (const shape of [
     "L-shape",
     "T-shape",

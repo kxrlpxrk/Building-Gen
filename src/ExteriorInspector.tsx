@@ -3,6 +3,7 @@ import {
   roofDirectionError,
   type RoofDirection,
 } from "./roofDirection";
+import { decorationChangeSummary } from "./roofDecorations";
 import OrnamentPlacementControls from "./OrnamentPlacementControls";
 import type { OrnamentPlacement } from "./ornamentPlacement";
 import OrnamentationPanel from "./OrnamentationPanel";
@@ -38,6 +39,7 @@ export default function ExteriorInspector({
   section,
   onSelect,
   onChange,
+  onChangeRoof,
   windowPlacement,
   selectedWindowId,
   onWindow,
@@ -55,6 +57,7 @@ export default function ExteriorInspector({
   section: Section;
   onSelect: (id: string) => void;
   onChange: (s: Section) => string | null;
+  onChangeRoof: (b: Building) => string | null;
   windowPlacement: WindowPlacement;
   selectedWindowId: string;
   onWindow: (id: string) => void;
@@ -63,11 +66,10 @@ export default function ExteriorInspector({
   const [editError, setEditError] = useState("");
   const [directionError, setDirectionError] = useState("");
   const [directionStatus, setDirectionStatus] = useState("");
-  const [pendingAxis, setPendingAxis] = useState<"X" | "Y" | null>(null);
+
   useEffect(() => {
     setEditError("");
     setDirectionError("");
-    setPendingAxis(null);
   }, [section]);
   useEffect(() => setDirectionStatus(""), [section.id]);
   const [architecturePanel, setArchitecturePanel] = useState<
@@ -106,35 +108,26 @@ export default function ExteriorInspector({
     if (!issue) {
       setDirectionError("");
       setDirectionStatus("");
-      setPendingAxis(null);
     }
     return issue;
   }
-  function direction(change: RoofDirection, together = false) {
+  function direction(change: RoofDirection, together = true) {
     setEditError("");
     setDirectionStatus("");
     try {
       const result = prepareRoofDirection(building, section, change, together);
-      const issue = onChange(result.section);
+      const issue = onChangeRoof(result.building);
       if (issue) throw new Error(issue);
       setDirectionError("");
-      setPendingAxis(null);
       const nextRoof = result.model.sections.find((s) => s.id === section.id)
         ?.parts.roof;
       const unchanged =
         !nextRoof?.length || JSON.stringify(nextRoof) === JSON.stringify(roof);
       setDirectionStatus(
-        `Saved roof direction for ${section.name}${together ? " and its crossing frames" : ""}.${unchanged ? " The visible roof surface is unchanged: adjacent roofs may conceal it, or the roof may be symmetric. The explicit direction is saved; orbit to inspect other sides." : " Orbit to inspect the updated roof and joins."}`,
+        `Saved roof direction for ${section.name}. ${decorationChangeSummary(result.changes)}${unchanged ? " The visible roof surface is unchanged: adjacent roofs may conceal it, or the roof may be symmetric. The explicit direction is saved; orbit to inspect other sides." : " Orbit to inspect the updated roof and joins."}`,
       );
     } catch (e) {
       setDirectionError(roofDirectionError((e as Error).message));
-      setPendingAxis(
-        "ridgeAxis" in change &&
-          change.ridgeAxis !== "Auto" &&
-          ex.roofFeatures.length
-          ? change.ridgeAxis
-          : null,
-      );
     }
   }
   return (
@@ -315,13 +308,7 @@ export default function ExteriorInspector({
                 {directionError}
               </p>
             )}
-            {pendingAxis && (
-              <button
-                onClick={() => direction({ ridgeAxis: pendingAxis }, true)}
-              >
-                Rotate host and crossing roofs to local {pendingAxis}
-              </button>
-            )}
+
             {directionStatus && <p role="status">{directionStatus}</p>}
           </div>
           <p id={`${directionId}-help`}>
@@ -416,6 +403,7 @@ export default function ExteriorInspector({
           section={section}
           onChange={onChange}
           onPreview={onPreviewRoof}
+          onChangeRoof={onChangeRoof}
           selected={selectedRoof}
           onSelect={onRoof}
         />

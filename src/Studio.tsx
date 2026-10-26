@@ -593,7 +593,7 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
             {saveState}
           </span>
         </div>
-        <span className="version">BG-06C.1.1</span>
+        <span className="version">BG-06C.1.2</span>
         <button
           className="export-button"
           onClick={() => downloadProject(current)}
@@ -1116,6 +1116,25 @@ export default function Studio({ project, onBack, onSaved, onCreate }: Props) {
                   section={section}
                   onSelect={selectSection}
                   onChange={changeSection}
+                  onChangeRoof={(building) => {
+                    try {
+                      edit(
+                        validateProject({
+                          ...currentRef.current,
+                          building: prepareBuilding(
+                            building,
+                            currentRef.current.building,
+                          ),
+                        }),
+                      );
+                      setGeometryError("");
+                      return null;
+                    } catch (e) {
+                      const issue = (e as Error).message;
+                      setGeometryError(issue);
+                      return issue;
+                    }
+                  }}
                   windowPlacement={windowTool}
                   selectedWindowId={selectedExteriorWindow}
                   onWindow={setSelectedExteriorWindow}

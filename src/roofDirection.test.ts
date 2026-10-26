@@ -64,7 +64,7 @@ describe("BG-06C.1.1 extension directions", () => {
     }
     expect(shapes.size).toBe(4);
   });
-  it("rejects a conflicting crossing direction then rotates both frames atomically without dropping dimensions or IDs", () => {
+  it("automatically rotates conflicting crossing directions in both frames atomically without dropping dimensions or IDs", () => {
     const p = wingFixture();
     const s = p.building.sections[1];
     s.exterior.roofFeatures = [
@@ -78,9 +78,6 @@ describe("BG-06C.1.1 extension directions", () => {
     ];
     validateProject(p);
     const axis = ridgeAlongX(s) ? "Y" : "X";
-    expect(() =>
-      prepareRoofDirection(p.building, s, { ridgeAxis: axis }),
-    ).toThrow(/secondary ridge/);
     const next = prepareRoofDirection(p.building, s, { ridgeAxis: axis }, true);
     const f = next.section.exterior.roofFeatures[0],
       old = s.exterior.roofFeatures[0];
@@ -134,7 +131,7 @@ describe("BG-06C.1.1 extension directions", () => {
       prepareRoofDirection(p.building, s, { ridgeAxis: axis }),
     ).toThrow(/locked/);
   });
-  it("preserves a supported dragon and rejects rotating it onto an open-plan join", () => {
+  it("preserves a supported dragon and reanchors it away from an open-plan join", () => {
     const p = wingFixture(),
       s = p.building.sections[1];
     // Local Y=0 is the shared attachment; both local X ends are exposed.
@@ -151,9 +148,12 @@ describe("BG-06C.1.1 extension directions", () => {
     const original = structuredClone(p.building);
     const unchanged = prepareRoofDirection(p.building, s, { ridgeAxis: "X" });
     expect(unchanged.section.exterior.ornamentation.items[0]).toEqual(o);
-    expect(() =>
-      prepareRoofDirection(p.building, s, { ridgeAxis: "Y" }),
-    ).toThrow(/exposed supported facade/);
+    const moved = prepareRoofDirection(p.building, s, { ridgeAxis: "Y" });
+    expect(moved.section.exterior.ornamentation.items[0]).toEqual({
+      ...o,
+      anchor: { ...o.anchor, end: "Positive" },
+    });
+    expect(moved.changes).toMatchObject({ moved: 1, removed: 0 });
     expect(p.building).toEqual(original);
   });
   it("rejects an explicit Hip axis that would violate existing window eaves clearance", () => {

@@ -1,5 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
-import { serializeProject, validateProject, type Project } from "../src/model";
+import {
+  createProject,
+  serializeProject,
+  validateProject,
+  type Project,
+} from "../src/model";
 import { wingFixture } from "./fixtures/roofCompositions";
 import { defaultRoofFeature } from "../src/roofFeatures";
 import { suggestedOrnament } from "../src/ornamentation";
@@ -149,9 +154,9 @@ test("extension shed high edges persist and never change the main roof", async (
     );
   }
 });
-test("conflicting extension crossing direction explains rejection and offers one atomic rotation", async ({
+test("extension crossing direction rotates atomically in one action", async ({
   page,
-}, info) => {
+}) => {
   const p = wingFixture(),
     s = p.building.sections[1];
   s.exterior.roofFeatures = [
@@ -170,27 +175,6 @@ test("conflicting extension crossing direction explains rejection and offers one
   const axis = ridgeAlongX(s) ? "Y" : "X",
     select = page.getByLabel("Ridge direction", { exact: true });
   await select.selectOption(axis);
-  await expect(select).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByRole("alert")).toContainText(
-    "No roof settings were saved",
-  );
-  await expect(page.getByRole("alert")).toContainText(
-    "Rotate host and crossing roofs",
-  );
-  expect((await records(page))[0]).toEqual(original);
-  const described = await select.getAttribute("aria-describedby");
-  expect(described).toBeTruthy();
-  await page.getByRole("alert").scrollIntoViewIfNeeded();
-  await page.screenshot({
-    path: info.outputPath("crossing-direction-rejection.png"),
-    fullPage: true,
-  });
-  await page
-    .getByRole("button", {
-      name: `Rotate host and crossing roofs to local ${axis}`,
-      exact: true,
-    })
-    .click();
   await expect(select).toHaveValue(axis);
   await expect(select).toHaveAttribute("aria-invalid", "false");
   await expect(page.getByRole("alert")).toHaveCount(0);
@@ -217,7 +201,7 @@ test("conflicting extension crossing direction explains rejection and offers one
     .poll(async () => (await records(page))[0].building)
     .toEqual(accepted.building);
 });
-test("dragon support rejection is visible next to the control and never removes the ornament", async ({
+test("dragon support is reconciled in one action with a visible summary and exact history", async ({
   page,
 }) => {
   const p = wingFixture(),
@@ -232,16 +216,26 @@ test("dragon support rejection is visible next to the control and never removes 
   await page.getByLabel("Exterior section", { exact: true }).selectOption(s.id);
   const select = page.getByLabel("Ridge direction", { exact: true });
   await select.selectOption("Y");
-  await expect(select).toHaveValue("X");
-  await expect(select).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByRole("alert")).toContainText(
-    "relocate the affected ornament",
-  );
-  expect((await records(page))[0]).toEqual(original);
-  await page
-    .getByLabel("Exterior section", { exact: true })
-    .selectOption(p.building.mainSectionId);
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(select).toHaveValue("Y");
+  await expect(select).toHaveAttribute("aria-invalid", "false");
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "1 ornaments repositioned; 0 removed" }),
+  ).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (await records(page))[0].building.sections[1].exterior.ornamentation
+          .items[0].anchor,
+    )
+    .toMatchObject({ end: "Positive" });
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect
+    .poll(async () => (await records(page))[0].building)
+    .toEqual(original.building);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(select).toHaveValue("Y");
 });
 test("locked extension direction is disabled with an associated unlock explanation", async ({
   page,
@@ -294,4 +288,111 @@ test("generated three-extension hall direction edits either save explicitly or e
         ),
       ).toEqual(before.building.sections.filter((s) => s.id !== section.id));
   }
+});
+
+test("unsupported decoration removal completes the direction edit, reports it, and roundtrips exact history", async ({
+  page,
+}) => {
+  const p = wingFixture(),
+    s = p.building.sections[1];
+  s.exterior.ridgeAxis = "X";
+  const o = suggestedOrnament(p.building, s, "Dragon head");
+  o.anchor = { kind: "roof", roofFeatureId: null, end: "Negative", offset: 0 };
+  s.exterior.ornamentation = {
+    level: "Ornate",
+    items: [
+      o,
+      { ...o, id: "reserved-dragon", anchor: { ...o.anchor, end: "Positive" } },
+    ],
+  };
+  validateProject(p);
+  await open(page, p);
+  const original = (await records(page))[0];
+  await page.getByLabel("Exterior section", { exact: true }).selectOption(s.id);
+  await page.getByLabel("Ridge direction", { exact: true }).selectOption("Y");
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "0 ornaments repositioned; 1 removed" }),
+  ).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (await records(page))[0].building.sections[1].exterior.ornamentation
+          .items.length,
+    )
+    .toBe(1);
+  const accepted = (await records(page))[0];
+  expect(accepted.building.sections[1].exterior.ornamentation.items[0].id).toBe(
+    "reserved-dragon",
+  );
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect
+    .poll(async () => (await records(page))[0].building)
+    .toEqual(original.building);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect
+    .poll(async () => (await records(page))[0].building)
+    .toEqual(accepted.building);
+  await page.reload();
+  await page
+    .getByRole("button", { name: `Open ${p.name}`, exact: true })
+    .click();
+  expect((await records(page))[0].building).toEqual(accepted.building);
+});
+
+test("combined frame preview reports ornament reconciliation after acceptance", async ({
+  page,
+}) => {
+  const p = createProject("Frame Summary"),
+    s = p.building.sections[0];
+  s.exterior.roofFeatures = [
+    { ...defaultRoofFeature(s, "cross-summary"), width: 3000 },
+  ];
+  const o = suggestedOrnament(p.building, s, "Dragon head");
+  o.anchor = {
+    kind: "roof",
+    roofFeatureId: "cross-summary",
+    end: "Positive",
+    offset: 0,
+  };
+  s.exterior.ornamentation = { level: "Ornate", items: [o] };
+  validateProject(p);
+  await open(page, p);
+  const original = (await records(page))[0];
+  await page
+    .getByLabel("Selected roof feature", { exact: true })
+    .selectOption("cross-summary");
+  await page
+    .getByRole("button", {
+      name: "Rotate crossing roof frame preview",
+      exact: true,
+    })
+    .click();
+  expect((await records(page))[0]).toEqual(original);
+  await expect(
+    page.getByRole("button", { name: "Accept roof architecture", exact: true }),
+  ).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Accept roof architecture", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "Undo restores the previous roof and decorations" }),
+  ).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        (await records(page))[0].building.sections[0].exterior.ridgeAxis,
+    )
+    .toBe("Y");
+  expect(
+    (await records(page))[0].building.sections[0].exterior.ornamentation
+      .items[0].id,
+  ).toBe(o.id);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect
+    .poll(async () => (await records(page))[0].building)
+    .toEqual(original.building);
 });

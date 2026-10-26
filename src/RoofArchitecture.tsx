@@ -2,15 +2,17 @@ import { useEffect, useState } from "react";
 import type { Building, Section } from "./model";
 import type { RoofFeature } from "./exteriorSettings";
 import { ridgeAlongX } from "./exteriorSettings";
-import { rotateCrossingFrame } from "./roofDirection";
+import { prepareRoofDirection, rotateCrossingFrame } from "./roofDirection";
 import { defaultRoofFeature } from "./roofFeatures";
 import { replaceSection } from "./assembly";
 import { buildExterior } from "./exteriorGeometry";
+import { decorationChangeSummary } from "./roofDecorations";
 import { NumericField } from "./components";
 export default function RoofArchitecture({
   building,
   section,
   onChange,
+  onChangeRoof,
   onPreview,
   selected,
   onSelect,
@@ -18,10 +20,12 @@ export default function RoofArchitecture({
   building: Building;
   section: Section;
   onChange: (s: Section) => string | null;
+  onChangeRoof: (b: Building) => string | null;
   onPreview: (b: Building | null) => void;
   selected: string;
   onSelect: (id: string) => void;
 }) {
+  const [changeSummary, setChangeSummary] = useState("");
   const [draftAxis, setDraftAxis] = useState<"X" | "Y" | null>(null);
   const [draft, setDraft] = useState<RoofFeature[] | null>(null),
     [error, setError] = useState("");
@@ -38,14 +42,22 @@ export default function RoofArchitecture({
       return;
     }
     try {
-      const next = replaceSection(building, {
+      const proposed = {
         ...section,
         exterior: {
           ...section.exterior,
           roofFeatures: draft,
           ridgeAxis: draftAxis ?? section.exterior.ridgeAxis,
         },
-      });
+      };
+      const next = draftAxis
+        ? prepareRoofDirection(
+            building,
+            proposed,
+            { ridgeAxis: draftAxis },
+            false,
+          ).building
+        : replaceSection(building, proposed);
       buildExterior(next);
       setError("");
       onPreview(next);
@@ -193,10 +205,12 @@ export default function RoofArchitecture({
               Rotate crossing roof frame preview
             </button>
             <p>
-              Rotate changes the host and crossing ridges together, preserves
-              widths and one-sided depths, and rescales placement. Full
-              crossings follow the new host span. Unsafe widths or features must
-              be corrected before acceptance.
+              Rotating the frame automatically reconciles ornaments on
+              acceptance. Undo restores any decoration removals. Rotate changes
+              the host and crossing ridges together, preserves widths and
+              one-sided depths, and rescales placement. Full crossings follow
+              the new host span. Unsafe widths or features must be corrected
+              before acceptance.
             </p>
             <div className="section-actions">
               <button
@@ -244,16 +258,34 @@ export default function RoofArchitecture({
               <button
                 disabled={!!error}
                 onClick={() => {
-                  const issue = onChange({
+                  const proposed = {
                     ...section,
                     exterior: {
                       ...section.exterior,
                       roofFeatures: features,
                       ridgeAxis: draftAxis ?? section.exterior.ridgeAxis,
                     },
-                  });
+                  };
+                  let issue: string | null;
+                  let summary = "";
+                  try {
+                    if (draftAxis) {
+                      const result = prepareRoofDirection(
+                        building,
+                        proposed,
+                        { ridgeAxis: draftAxis },
+                        false,
+                      );
+                      issue = onChangeRoof(result.building);
+                      summary = decorationChangeSummary(result.changes);
+                    } else issue = onChange(proposed);
+                  } catch (e) {
+                    issue = (e as Error).message;
+                  }
+
                   setError(issue ?? "");
                   if (!issue) {
+                    setChangeSummary(summary);
                     setDraft(null);
                     setDraftAxis(null);
                     onPreview(null);
@@ -276,6 +308,9 @@ export default function RoofArchitecture({
           </>
         )}
       </fieldset>
+      {changeSummary && (
+        <p role="status">Saved roof direction. {changeSummary}</p>
+      )}
       <p>
         Supported: rectangular Gable hosts with perpendicular secondary ridges,
         at most two separated bays per section/eight per building. Covering and

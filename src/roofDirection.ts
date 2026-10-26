@@ -1,7 +1,9 @@
 /** Roof editing parameters only: the approved roof solvers remain authoritative. */
 import type { Building, Section } from "./model";
 import type { ExteriorSettings } from "./exteriorSettings";
-import { replaceSection } from "./assembly";
+import { reconcileRoofDecorations } from "./roofDecorations";
+import { ridgeAlongX } from "./exteriorSettings";
+import { prepareBuilding } from "./assembly";
 import { buildExterior } from "./exteriorGeometry";
 export type RoofDirection =
   Pick<ExteriorSettings, "ridgeAxis"> | Pick<ExteriorSettings, "shedHighEdge">;
@@ -31,19 +33,33 @@ export function prepareRoofDirection(
   b: Building,
   s: Section,
   direction: RoofDirection,
-  together = false,
+  together = true,
 ) {
+  if (s.locked)
+    throw new Error("Section is locked. Unlock it before changing its roof.");
   const candidate =
-    together && "ridgeAxis" in direction && direction.ridgeAxis !== "Auto"
+    together &&
+    "ridgeAxis" in direction &&
+    direction.ridgeAxis !== "Auto" &&
+    s.exterior.roofFeatures.some((f) => f.ridgeAxis === direction.ridgeAxis) &&
+    (direction.ridgeAxis === "X") !== ridgeAlongX(s)
       ? rotateCrossingFrame(s, direction.ridgeAxis)
       : { ...s, exterior: { ...s.exterior, ...direction } };
   // This also checks locks, anchors, clearances and every existing reference.
-  const next = replaceSection(b, candidate);
+  const reconciled = reconcileRoofDecorations(
+    {
+      ...b,
+      sections: b.sections.map((t) => (t.id === s.id ? candidate : t)),
+    },
+    s.id,
+  );
+  const next = prepareBuilding(reconciled.building, b);
   const model = buildExterior(next);
   return {
     section: next.sections.find((t) => t.id === s.id)!,
     model,
     building: next,
+    changes: reconciled.changes,
   };
 }
 export function roofDirectionError(reason: string): string {
@@ -60,11 +76,9 @@ export function roofDirectionError(reason: string): string {
   const action = /locked/i.test(detail)
     ? "Unlock this section in Footprint mode before editing."
     : /secondary ridge|cross the host/i.test(detail)
-      ? "Use Rotate host and crossing roofs below to try both frames as one validated edit."
-      : /ornament|gable ornament/i.test(detail)
-        ? "Explicitly relocate the affected ornament to a supported exposed gable before retrying."
-        : /window|chimney|clearance/i.test(detail)
-          ? "Adjust or explicitly relocate the affected window or chimney before retrying."
-          : "Adjust the crossing dimensions or roof settings, or explicitly relocate affected features before retrying. Inspect Roof support & limitations for supported intersections.";
+      ? "The host and crossing frames could not be rotated safely. Adjust the crossing dimensions before retrying."
+      : /window|chimney|clearance/i.test(detail)
+        ? "Adjust or explicitly relocate the affected window or chimney before retrying."
+        : "Adjust the crossing dimensions or roof settings, or explicitly relocate affected features before retrying. Inspect Roof support & limitations for supported intersections.";
   return `${detail} No roof settings were saved. ${action}`;
 }
