@@ -1,3 +1,15 @@
+import {
+  assessLayout,
+  assignmentQuality,
+  privateRoom,
+  primaryRoom,
+  proportionPenalty,
+  relatedRooms,
+  privateThroughRoutes,
+  sectionShare,
+  unusableRoom,
+  type LayoutQuality,
+} from "./layoutQuality";
 import { windowOpening } from "./exteriorValidation";
 import { LAYOUT_PURPOSES, type LayoutPurpose } from "./layoutPurposes";
 import type { Building, Project } from "./model";
@@ -8,7 +20,6 @@ import {
   canonicalVertices,
 } from "./assembly";
 import {
-  containsPoint,
   deriveInterior,
   wallLength,
   type Partition,
@@ -55,6 +66,7 @@ export type LayoutProposal = {
   summary: string;
   requiredSatisfied: number;
   preferences: string[];
+  quality: LayoutQuality;
 };
 export type LayoutResult = {
   proposals: LayoutProposal[];
@@ -249,36 +261,6 @@ type PlanningContext = {
   boundaries: { x: number; y: number }[];
   operations: number;
 };
-function mainShare(r: Region, main: PlanningContext["main"]) {
-  let area = 0;
-  // Exact integration over region cells subdivided at the orthogonal section edges.
-  for (const cell of r.cells) {
-    const xs = [
-        cell.x,
-        ...main
-          .map((p) => p.x)
-          .filter((x) => x > cell.x && x < cell.x + cell.width),
-        cell.x + cell.width,
-      ].sort((a, b) => a - b),
-      ys = [
-        cell.y,
-        ...main
-          .map((p) => p.y)
-          .filter((y) => y > cell.y && y < cell.y + cell.height),
-        cell.y + cell.height,
-      ].sort((a, b) => a - b);
-    for (let i = 0; i < xs.length - 1; i++)
-      for (let j = 0; j < ys.length - 1; j++)
-        if (
-          containsPoint(main, {
-            x: (xs[i] + xs[i + 1]) / 2,
-            y: (ys[j] + ys[j + 1]) / 2,
-          })
-        )
-          area += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j]);
-  }
-  return area / r.area;
-}
 function assignment(
   regions: Region[],
   wants: Want[],
@@ -301,7 +283,7 @@ function assignment(
     count[mask] = count[rest] + 1;
   }
   const spatial = regions.map((r) => {
-    const share = mainShare(r, context.main),
+    const share = sectionShare(r, context.main),
       entry = context.entries.some((p) =>
         r.cells.some(
           (t) =>
@@ -317,8 +299,9 @@ function assignment(
         w.type === "Workshop" ||
         w.type === "Corridor";
       return (
-        (publicRoom ? (1 - share) * 0.08 : share * 0.005) +
-        (entry ? (publicRoom ? -0.1 : w.type === "Bedroom" ? 0.12 : 0.04) : 0)
+        (publicRoom ? (1 - share) * 0.04 : share * 0.002) +
+        proportionPenalty(r, w.type) * 0.002 +
+        (entry ? (publicRoom ? -0.025 : privateRoom(w) ? 0.09 : 0.02) : 0)
       );
     });
   });
@@ -337,6 +320,11 @@ function assignment(
       if (count[subset] > wants.length - regions.length + 1) continue;
       if (index === regions.length - 1 && subset !== mask) continue;
       if (min[subset] > regions[index].area) continue;
+      if (
+        count[subset] === 1 &&
+        unusableRoom(regions[index], wants[Math.log2(subset)].type)
+      )
+        continue;
       if (context.operations >= ASSIGNMENT_LIMIT) return null;
       context.operations++;
       const rest = solve(index + 1, mask ^ subset);
@@ -345,7 +333,7 @@ function assignment(
           (regions[index].area - (total * pref[subset]) / weight) / total,
         cost =
           rest.cost +
-          delta * delta +
+          delta * delta * 4 +
           (count[subset] === 1 ? spatial[index][Math.log2(subset)] : 0);
       if (!best || cost < best.cost)
         best = { cost, groups: [subset, ...rest.groups] };
@@ -384,6 +372,7 @@ function cuts(
   namespace: string,
   context: PlanningContext,
   wants: Want[],
+  config: LayoutConfig,
 ): Partition[] {
   const box = bounds(region.loops.flat()),
     result: Partition[] = [];
@@ -397,15 +386,12 @@ function cuts(
   for (const vertical of [true, false])
     for (const fraction of [
       ...fractions,
-      ...wants.map((w) =>
-        Math.min(
-          0.85,
-          Math.max(
-            0.15,
-            w.preferredArea / wants.reduce((n, t) => n + t.preferredArea, 0),
-          ),
-        ),
-      ),
+      ...wants.flatMap((w) => {
+        const f =
+          weights(w, config) /
+          wants.reduce((n, t) => n + weights(t, config), 0);
+        return [f, 1 - f].filter((f) => f > 0.1 && f < 0.9);
+      }),
       ...context.boundaries.flatMap((p) => {
         const v = vertical ? p.x : p.y,
           lo = vertical ? box.minX : box.minY,
@@ -447,12 +433,100 @@ function cuts(
   const unique = [
     ...new Map(result.map((w) => [partitionKey([w]), w])).values(),
   ];
-  // Mix axes before truncation so eight-room searches stay both bounded and varied.
-  return unique
+  // Keep deliberate room-size cuts as well as seeded variation, rather than
+  // letting random truncation discard every useful partition candidate.
+  const targeted = unique.filter((w) => {
+    const vertical = w.a.x === w.b.x;
+    return wants.some((want) => {
+      const f =
+          weights(want, config) /
+          wants.reduce((n, t) => n + weights(t, config), 0),
+        actual =
+          ((vertical ? w.a.x : w.a.y) - (vertical ? box.minX : box.minY)) /
+          (vertical ? box.length : box.width);
+      return Math.min(Math.abs(actual - f), Math.abs(actual - (1 - f))) < 0.008;
+    });
+  });
+  const shuffled = unique
     .map((w) => ({ w, rank: rand() }))
     .sort((a, b) => a.rank - b.rank)
-    .slice(0, wants.length > 5 ? 10 : 16)
     .map((t) => t.w);
+  return [
+    ...new Map(
+      [...targeted.slice(0, 4), ...shuffled].map((w) => [partitionKey([w]), w]),
+    ).values(),
+  ].slice(0, wants.length > 5 ? 10 : 16);
+}
+
+/** Two bounded pair-swap passes improve labels before physical door placement.
+ * Potential side contacts guide search only; validators decide real door links. */
+function refineAssignment(
+  base: Building,
+  walls: Partition[],
+  regions: Region[],
+  initial: Want[],
+  main: PlanningContext["main"],
+  budget: { used: number },
+) {
+  const c = openingContext({
+      ...base,
+      interior: { partitions: walls, rooms: [] },
+    }),
+    graph = new Map(regions.map((r) => [r.key, new Set<string>()]));
+  const entrances = new Set(
+    base.openings.flatMap((o) =>
+      openingSides(c, o).filter((k): k is string => !!k),
+    ),
+  );
+  for (const wall of walls)
+    for (const offset of positions(wallLength(wall))) {
+      if (budget.used >= DOOR_TRIAL_LIMIT)
+        throw new Error(
+          "Door-slot search limit reached; try another seed or fewer rooms.",
+        );
+      budget.used++;
+      try {
+        const d = newOpening(
+          "potential",
+          { kind: "partition", partitionId: wall.id },
+          offset,
+        );
+        validateOpenings(c, [...base.openings, d]);
+        const [a, b] = openingSides(c, d);
+        if (a && b && a !== b) {
+          graph.get(a)!.add(b);
+          graph.get(b)!.add(a);
+        }
+      } catch {
+        /* Not a usable candidate side contact. */
+      }
+    }
+  let best = [...initial],
+    cost = assignmentQuality(regions, best, main, graph, entrances);
+  for (let pass = 0; pass < 2; pass++) {
+    let next = best,
+      nextCost = cost;
+    for (let i = 0; i < best.length; i++)
+      for (let j = i + 1; j < best.length; j++) {
+        const candidate = [...best];
+        [candidate[i], candidate[j]] = [candidate[j], candidate[i]];
+        const score = assignmentQuality(
+          regions,
+          candidate,
+          main,
+          graph,
+          entrances,
+        );
+        if (score < nextCost) {
+          next = candidate;
+          nextCost = score;
+        }
+      }
+    if (next === best) break;
+    best = next;
+    cost = nextCost;
+  }
+  return best;
 }
 function clearSwing(
   context: OpeningContext,
@@ -496,6 +570,7 @@ function connectRooms(
     windows = building.sections.flatMap((s) =>
       s.exterior.windows.map((w) => windowOpening(s, w)),
     ),
+    roomRecords = new Map(building.interior.rooms.map((r) => [r.regionKey, r])),
     roomTypes = new Map(
       building.interior.rooms.map((r) => [r.regionKey, r.type]),
     );
@@ -589,7 +664,9 @@ function connectRooms(
           a,
           b,
           rank:
-            types.includes("Storage") &&
+            (Math.min(offset, wallLength(wall) - offset) / wallLength(wall)) *
+              2 +
+            (types.includes("Storage") &&
             (types.includes("Kitchen") || types.includes("Workshop"))
               ? -3
               : types.includes("Main Hall") || types.includes("Workshop")
@@ -598,7 +675,7 @@ function connectRooms(
                   ? 1
                   : types.includes("Bedroom") && types.includes("Kitchen")
                     ? 5
-                    : 2,
+                    : 2),
         });
       } catch {
         /* Try another exact slot. */
@@ -607,19 +684,56 @@ function connectRooms(
   options.sort((a, b) => a.rank - b.rank || a.door.id.localeCompare(b.door.id));
   for (let step = 0; step < building.interior.rooms.length; step++) {
     const access = circulation(c, openings);
-    if (access.reachable.size === c.regions.length)
+    if (access.reachable.size === c.regions.length) {
+      // Add useful direct service links when real adjacent wall slots permit them.
+      // A spanning tree alone needlessly routed kitchens/stores via public halls.
+      let added = 0;
+      for (const option of options) {
+        if (added >= 3) break;
+        const a = roomRecords.get(option.a)!,
+          b = roomRecords.get(option.b)!;
+        if (
+          relatedRooms(a.type, b.type) < 3 ||
+          privateRoom(a) ||
+          privateRoom(b)
+        )
+          continue;
+        if (circulation(c, openings).graph.get(option.a)?.has(option.b))
+          continue;
+        try {
+          validateOpenings(c, [...windows, ...openings, option.door]);
+          if (swingWarnings(c, [...openings, option.door]).size) continue;
+          openings.push(option.door);
+          added++;
+        } catch {
+          /* Retain the already valid public route. */
+        }
+      }
       return { ...building, openings };
+    }
     let found = false;
     const ranked = [...options].sort((a, b) => {
       const rank = (o: typeof a) => {
         const from = access.reachable.has(o.a) ? o.a : o.b;
-        return o.rank + (roomTypes.get(from) === "Bedroom" ? 20 : 0);
+        const to = from === o.a ? o.b : o.a;
+        return (
+          o.rank +
+          (privateRoom(roomRecords.get(to)!) ? 30 : 0) +
+          (privateRoom(roomRecords.get(to)!) &&
+          !primaryRoom(roomRecords.get(from)!) &&
+          roomTypes.get(from) !== "Corridor" &&
+          roomTypes.get(from) !== "Dining"
+            ? 12
+            : 0)
+        );
       };
       return rank(a) - rank(b) || a.door.id.localeCompare(b.door.id);
     });
     for (const option of ranked) {
       if (access.reachable.has(option.a) === access.reachable.has(option.b))
         continue;
+      const from = access.reachable.has(option.a) ? option.a : option.b;
+      if (privateRoom(roomRecords.get(from)!)) continue;
       try {
         validateOpenings(c, [...windows, ...openings, option.door]);
         if (swingWarnings(c, [...openings, option.door]).size) continue;
@@ -633,7 +747,7 @@ function connectRooms(
     if (!found) break;
   }
   throw new Error(
-    "No valid unobstructed door route reaches every requested room.",
+    "No valid public door route reaches every requested room without using a private chamber as a through-route.",
   );
 }
 /** Pure, seeded, bounded guillotine solver. Worker/UI code owns cancellation. */
@@ -712,7 +826,12 @@ export function generateLayouts(
   let evaluations = 0,
     lastReason =
       "No arrangement met the room areas, 1.8 m clear spans and door clearances.";
-  type State = { walls: Partition[]; regions: Region[]; cost: number };
+  type State = {
+    walls: Partition[];
+    regions: Region[];
+    cost: number;
+    groups: number[];
+  };
   for (const wants of subsets) {
     if (evaluations >= SEARCH_LIMIT || context.operations >= ASSIGNMENT_LIMIT)
       break;
@@ -724,6 +843,7 @@ export function generateLayouts(
         walls: [],
         regions: deriveInterior(geometry.inner, []).regions,
         cost: 0,
+        groups: [(1 << wants.length) - 1],
       },
     ];
     for (let depth = 0; depth < wants.length - 1; depth++) {
@@ -731,7 +851,16 @@ export function generateLayouts(
         seen = new Set<string>();
       explore: for (const state of beam)
         for (const region of [...state.regions].sort((a, b) => b.area - a.area))
-          for (const wall of cuts(region, rand, namespace, context, wants)) {
+          for (const wall of cuts(
+            region,
+            rand,
+            namespace,
+            context,
+            wants.filter(
+              (_, i) => state.groups[state.regions.indexOf(region)] & (1 << i),
+            ),
+            config,
+          )) {
             if (
               evaluations >= subsetLimit ||
               context.operations >= ASSIGNMENT_LIMIT
@@ -764,6 +893,7 @@ export function generateLayouts(
                 walls,
                 regions: result.regions,
                 cost: match.cost + rand() * 0.00005,
+                groups: match.groups,
               });
             } catch {
               /* A cut must pass the existing exact validators. */
@@ -783,9 +913,16 @@ export function generateLayouts(
       const match = assignment(state.regions, wants, config, context);
       if (!match) continue;
       try {
+        const assignedWants = refineAssignment(
+          base,
+          state.walls,
+          state.regions,
+          state.regions.map((_, i) => wants[Math.log2(match.groups[i])]),
+          context.main,
+          doorBudget,
+        );
         const rooms = state.regions.map((r, i) => {
-          const index = Math.log2(match.groups[i]),
-            want = wants[index];
+          const want = assignedWants[i];
           return {
             id: `${namespace}-room-${hashSeed(r.key).toString(16)}`,
             regionKey: r.key,
@@ -808,48 +945,17 @@ export function generateLayouts(
             .filter((o) => o.host.kind === "partition")
             .reduce((n, o) => n + o.width * 100, 0),
           omitted = all.filter((w) => !wants.includes(w)).map((w) => w.name);
-        const adjacencyPenalty = [...access.graph].reduce(
-          (n, [key, neighbours]) =>
-            n +
-            (rooms.find((r) => r.regionKey === key)?.type === "Bedroom" &&
-            [...neighbours].some(
-              (k) => rooms.find((r) => r.regionKey === k)?.type === "Kitchen",
-            )
-              ? 5
-              : 0) +
-            (rooms.find((r) => r.regionKey === key)?.type === "Bedroom" &&
-            (neighbours.size > 1 ||
-              (access.entrances.has(key) && neighbours.size > 0))
-              ? 25
-              : 0),
-          0,
-        );
-        const entryPenalty = [...access.entrances].reduce((n, key) => {
-          const type = rooms.find((r) => r.regionKey === key)?.type;
-          return (
-            n +
-            (type === "Main Hall" || type === "Corridor" || type === "Workshop"
-              ? 0
-              : type === "Kitchen"
-                ? 5
-                : type === "Bedroom" || type === "Bathroom"
-                  ? 20
-                  : 10)
-          );
-        }, 0);
+        const quality = assessLayout(building, config);
+        if (quality.score < 65) {
+          lastReason =
+            "Architectural quality is too compromised (shape, hierarchy or service routes). Try another seed or fewer rooms.";
+          continue;
+        }
         valid.push({
           label: "",
           building,
-          score:
-            Math.round(
-              (1000 -
-                match.cost * 600 -
-                (thresholds / usable) * 100 -
-                adjacencyPenalty -
-                entryPenalty -
-                omitted.length * 100) *
-                100,
-            ) / 100,
+          score: Math.round((quality.score - omitted.length * 4) * 100) / 100,
+          quality,
           usableArea: usable,
           assignedArea: assigned,
           unassignedArea: 0,
@@ -857,43 +963,18 @@ export function generateLayouts(
           omitted,
           requiredSatisfied: required.length,
           preferences: rooms.flatMap((room, i) => {
-            const want = wants[Math.log2(match.groups[i])];
+            const want = assignedWants[i];
             return state.regions[i].area < want.preferredArea * 1e6
               ? [
                   `${room.name}: ${(state.regions[i].area / 1e6).toFixed(2)} m², below preferred ${want.preferredArea.toFixed(2)} m²`,
                 ]
               : [];
           }),
-          summary: `${config.purpose || "Custom"} · ${rooms.length} ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes.`,
+          summary: `${config.purpose || "Custom"} · ${rooms.length} ground-floor rooms · all reachable · architectural quality ${quality.score}/100.`,
         });
       } catch (e) {
         lastReason = (e as Error).message;
       }
-    }
-    for (const candidate of valid) {
-      const access = circulation(
-        openingContext(candidate.building),
-        candidate.building.openings,
-      );
-      for (const key of access.entrances) {
-        const room = candidate.building.interior.rooms.find(
-          (r) => r.regionKey === key,
-        )!;
-        if (!["Main Hall", "Workshop", "Corridor"].includes(room.type))
-          candidate.preferences.push(
-            `Entrance reaches ${room.name}; compare alternatives for a public arrival space. Existing exterior openings are preserved.`,
-          );
-      }
-      for (const room of candidate.building.interior.rooms)
-        if (
-          room.type === "Bedroom" &&
-          ((access.graph.get(room.regionKey!)?.size ?? 0) > 1 ||
-            (access.entrances.has(room.regionKey!) &&
-              (access.graph.get(room.regionKey!)?.size ?? 0) > 0))
-        )
-          candidate.preferences.push(
-            `${room.name}: this proposal uses the chamber as a through-route; compare alternatives for more privacy.`,
-          );
     }
     valid.sort(
       (a, b) =>
@@ -984,6 +1065,17 @@ export function acceptGeneratedLayout(
   )
     throw new Error(
       "The proposed layout has inaccessible rooms or an obstructed swing.",
+    );
+  const access = circulation(c, result.building.openings);
+  if (
+    privateThroughRoutes(
+      access.graph,
+      access.entrances,
+      result.building.interior.rooms,
+    ).length
+  )
+    throw new Error(
+      "The proposed layout requires a private chamber as a through-route.",
     );
   return result;
 }

@@ -1,0 +1,3870 @@
+[
+  {
+    "purpose": "Viking Longhouse",
+    "project": {
+      "schemaVersion": 10,
+      "id": "bgen-f7c7334d-13-project",
+      "name": "Norse Chieftain's Hall Longhouse",
+      "architecture": "Norse",
+      "createdAt": "2026-10-26T00:00:00.000Z",
+      "updatedAt": "2026-10-26T00:00:00.000Z",
+      "building": {
+        "id": "bgen-f7c7334d-13-building",
+        "mainSectionId": "bgen-f7c7334d-13-main",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "assembly"
+        },
+        "sections": [
+          {
+            "id": "bgen-f7c7334d-13-main",
+            "name": "Main longhouse hall",
+            "type": "Hall Extension",
+            "locked": false,
+            "kind": "rectangle",
+            "length": 18000,
+            "width": 8000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "ridgeAxis": "X",
+              "shedHighEdge": "+Y",
+              "stylePreset": "Norse Chieftain's Hall",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "Fantasy",
+                "items": [
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-0",
+                    "type": "Dragon head",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1250,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-1",
+                    "type": "Dragon head",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1250,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-2",
+                    "type": "Bargeboard",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-3",
+                    "type": "Bargeboard",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-5",
+                    "type": "Gable panel",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-6",
+                    "type": "Gable panel",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-7",
+                    "type": "Ridge trim",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-8",
+                    "type": "Carved post",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 0,
+                      "offset": 1000,
+                      "sill": 350
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-10",
+                    "type": "Knotwork panel",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 0,
+                      "offset": 2500,
+                      "sill": 1100
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-38",
+                    "type": "Carved brace",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 1,
+                      "offset": 7000,
+                      "sill": 1100
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-22",
+                    "type": "Shield",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 1,
+                      "offset": 1000,
+                      "sill": 1100
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  }
+                ]
+              },
+              "roofFeatures": [],
+              "windows": [
+                {
+                  "id": "bgen-f7c7334d-13-main-window-0-4",
+                  "edge": 0,
+                  "offset": 15000,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-1-0",
+                  "edge": 1,
+                  "offset": 2667,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-1-1",
+                  "edge": 1,
+                  "offset": 5333,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-2-0",
+                  "edge": 2,
+                  "offset": 3000,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-3-0",
+                  "edge": 3,
+                  "offset": 2667,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-3-1",
+                  "edge": 3,
+                  "offset": 5333,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                }
+              ],
+              "features": [
+                {
+                  "id": "bgen-f7c7334d-13-building-canopy",
+                  "kind": "Entrance canopy",
+                  "x": 0,
+                  "y": 0,
+                  "height": 700,
+                  "doorId": "bgen-f7c7334d-13-building-entrance",
+                  "finish": "Stone"
+                }
+              ],
+              "wallHeight": 3900,
+              "roofPitch": 46,
+              "roofStyle": "Gable",
+              "overhang": 400,
+              "material": "Norse"
+            },
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          },
+          {
+            "id": "bgen-f7c7334d-13-section-0",
+            "name": "Storage 1",
+            "type": "Storage",
+            "locked": false,
+            "kind": "rectangle",
+            "length": 10400,
+            "width": 5900,
+            "wallThickness": 200,
+            "orientation": 180,
+            "floorCount": 1,
+            "exterior": {
+              "ridgeAxis": "X",
+              "shedHighEdge": "+Y",
+              "stylePreset": "Norse Chieftain's Hall",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "Subtle",
+                "items": [
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-39",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 750,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-40",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 750,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-41",
+                    "type": "Carved post",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 1,
+                      "offset": 1000,
+                      "sill": 350
+                    },
+                    "variant": 1,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  }
+                ]
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3400,
+              "roofPitch": 46,
+              "roofStyle": "Gable",
+              "overhang": 400,
+              "material": "Norse"
+            },
+            "position": {
+              "x": 13800,
+              "y": 0,
+              "z": 0
+            }
+          },
+          {
+            "id": "bgen-f7c7334d-13-section-1",
+            "name": "Porch 2",
+            "type": "Porch",
+            "locked": false,
+            "kind": "rectangle",
+            "length": 4500,
+            "width": 2900,
+            "wallThickness": 200,
+            "orientation": 180,
+            "floorCount": 1,
+            "exterior": {
+              "ridgeAxis": "X",
+              "shedHighEdge": "-Y",
+              "stylePreset": "Norse Chieftain's Hall",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "Subtle",
+                "items": [
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-44",
+                    "type": "Carved post",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 1,
+                      "offset": 1000,
+                      "sill": 350
+                    },
+                    "variant": 1,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  }
+                ]
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 2633,
+              "roofPitch": 12,
+              "roofStyle": "Shed",
+              "overhang": 400,
+              "material": "Norse"
+            },
+            "position": {
+              "x": 10000,
+              "y": -5900,
+              "z": 0
+            }
+          },
+          {
+            "id": "bgen-f7c7334d-13-section-2",
+            "name": "Hall Extension 3",
+            "type": "Hall Extension",
+            "locked": false,
+            "kind": "rectangle",
+            "length": 9700,
+            "width": 4300,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "ridgeAxis": "X",
+              "shedHighEdge": "+Y",
+              "stylePreset": "Norse Chieftain's Hall",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "Subtle",
+                "items": [
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-45",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 750,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-46",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 750,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-48",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": "bgen-f7c7334d-13-building-design-0-cross-0",
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 900,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  }
+                ]
+              },
+              "roofFeatures": [
+                {
+                  "id": "bgen-f7c7334d-13-building-design-0-cross-0",
+                  "ridgeAxis": "Y",
+                  "side": "Positive",
+                  "offset": 4900,
+                  "width": 2400,
+                  "depth": 2600,
+                  "pitch": 46,
+                  "relativeHeight": 0
+                }
+              ],
+              "windows": [
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-1-0",
+                  "edge": 1,
+                  "offset": 2150,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-2-0",
+                  "edge": 2,
+                  "offset": 2425,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-2-1",
+                  "edge": 2,
+                  "offset": 4850,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-2-2",
+                  "edge": 2,
+                  "offset": 7275,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-3-0",
+                  "edge": 3,
+                  "offset": 2150,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                }
+              ],
+              "features": [],
+              "wallHeight": 3550,
+              "roofPitch": 46,
+              "roofStyle": "Gable",
+              "overhang": 400,
+              "material": "Norse"
+            },
+            "position": {
+              "x": 3400,
+              "y": 8000,
+              "z": 0
+            }
+          }
+        ],
+        "connections": [
+          {
+            "id": "bgen-f7c7334d-13-join-71fee073",
+            "a": {
+              "sectionId": "bgen-f7c7334d-13-main",
+              "edge": 0
+            },
+            "b": {
+              "sectionId": "bgen-f7c7334d-13-section-0",
+              "edge": 0
+            },
+            "start": {
+              "x": 3400,
+              "y": 0
+            },
+            "end": {
+              "x": 13800,
+              "y": 0
+            },
+            "mode": "open-plan"
+          },
+          {
+            "id": "bgen-f7c7334d-13-join-c02c5290",
+            "a": {
+              "sectionId": "bgen-f7c7334d-13-main",
+              "edge": 2
+            },
+            "b": {
+              "sectionId": "bgen-f7c7334d-13-section-2",
+              "edge": 0
+            },
+            "start": {
+              "x": 3400,
+              "y": 8000
+            },
+            "end": {
+              "x": 13100,
+              "y": 8000
+            },
+            "mode": "open-plan"
+          },
+          {
+            "id": "bgen-f7c7334d-13-join-e61b965",
+            "a": {
+              "sectionId": "bgen-f7c7334d-13-section-0",
+              "edge": 2
+            },
+            "b": {
+              "sectionId": "bgen-f7c7334d-13-section-1",
+              "edge": 0
+            },
+            "start": {
+              "x": 5500,
+              "y": -5900
+            },
+            "end": {
+              "x": 10000,
+              "y": -5900
+            },
+            "mode": "open-plan"
+          }
+        ],
+        "interior": {
+          "partitions": [],
+          "rooms": []
+        },
+        "openings": [
+          {
+            "id": "bgen-f7c7334d-13-building-entrance",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "bgen-f7c7334d-13-main",
+              "edge": 1
+            },
+            "offset": 4000,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          }
+        ]
+      }
+    },
+    "config": {
+      "purpose": "Viking Longhouse",
+      "rooms": [
+        {
+          "key": "purpose-0",
+          "type": "Main Hall",
+          "name": "Main Longhall",
+          "notes": "Shared ground-floor hall; the hearth and furnishings are planning notes only, not generated objects.",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 76.25,
+          "preferredArea": 117.25
+        },
+        {
+          "key": "purpose-1",
+          "type": "Kitchen",
+          "name": "Kitchen",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 27,
+          "preferredArea": 41.5
+        },
+        {
+          "key": "purpose-2",
+          "type": "Bedroom",
+          "name": "Sleeping Chamber",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 31.75,
+          "preferredArea": 48.75
+        },
+        {
+          "key": "purpose-3",
+          "type": "Storage",
+          "name": "Food and Equipment Store",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 15.75,
+          "preferredArea": 24.25
+        },
+        {
+          "key": "purpose-4",
+          "type": "Bedroom",
+          "name": "Chieftain Chamber",
+          "notes": "Optional private chamber, away from through-traffic.",
+          "quantity": 1,
+          "priority": "Preferred",
+          "minimumArea": 19,
+          "preferredArea": 29.25
+        }
+      ],
+      "style": "Balanced",
+      "seed": "1041"
+    },
+    "before": {
+      "label": "A",
+      "building": {
+        "id": "bgen-f7c7334d-13-building",
+        "mainSectionId": "bgen-f7c7334d-13-main",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "assembly"
+        },
+        "sections": [
+          {
+            "id": "bgen-f7c7334d-13-main",
+            "name": "Main longhouse hall",
+            "type": "Hall Extension",
+            "locked": false,
+            "kind": "rectangle",
+            "length": 18000,
+            "width": 8000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "ridgeAxis": "X",
+              "shedHighEdge": "+Y",
+              "stylePreset": "Norse Chieftain's Hall",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "Fantasy",
+                "items": [
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-0",
+                    "type": "Dragon head",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1250,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-1",
+                    "type": "Dragon head",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1250,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-2",
+                    "type": "Bargeboard",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-3",
+                    "type": "Bargeboard",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-5",
+                    "type": "Gable panel",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-6",
+                    "type": "Gable panel",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-7",
+                    "type": "Ridge trim",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-8",
+                    "type": "Carved post",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 0,
+                      "offset": 1000,
+                      "sill": 350
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-10",
+                    "type": "Knotwork panel",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 0,
+                      "offset": 2500,
+                      "sill": 1100
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-38",
+                    "type": "Carved brace",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 1,
+                      "offset": 7000,
+                      "sill": 1100
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-22",
+                    "type": "Shield",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 1,
+                      "offset": 1000,
+                      "sill": 1100
+                    },
+                    "variant": 3,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  }
+                ]
+              },
+              "roofFeatures": [],
+              "windows": [
+                {
+                  "id": "bgen-f7c7334d-13-main-window-0-4",
+                  "edge": 0,
+                  "offset": 15000,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-1-0",
+                  "edge": 1,
+                  "offset": 2667,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-1-1",
+                  "edge": 1,
+                  "offset": 5333,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-2-0",
+                  "edge": 2,
+                  "offset": 3000,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-3-0",
+                  "edge": 3,
+                  "offset": 2667,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-main-window-3-1",
+                  "edge": 3,
+                  "offset": 5333,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                }
+              ],
+              "features": [
+                {
+                  "id": "bgen-f7c7334d-13-building-canopy",
+                  "kind": "Entrance canopy",
+                  "x": 0,
+                  "y": 0,
+                  "height": 700,
+                  "doorId": "bgen-f7c7334d-13-building-entrance",
+                  "finish": "Stone"
+                }
+              ],
+              "wallHeight": 3900,
+              "roofPitch": 46,
+              "roofStyle": "Gable",
+              "overhang": 400,
+              "material": "Norse"
+            },
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          },
+          {
+            "id": "bgen-f7c7334d-13-section-0",
+            "name": "Storage 1",
+            "type": "Storage",
+            "locked": false,
+            "kind": "rectangle",
+            "length": 10400,
+            "width": 5900,
+            "wallThickness": 200,
+            "orientation": 180,
+            "floorCount": 1,
+            "exterior": {
+              "ridgeAxis": "X",
+              "shedHighEdge": "+Y",
+              "stylePreset": "Norse Chieftain's Hall",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "Subtle",
+                "items": [
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-39",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 750,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-40",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 750,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-41",
+                    "type": "Carved post",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 1,
+                      "offset": 1000,
+                      "sill": 350
+                    },
+                    "variant": 1,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  }
+                ]
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3400,
+              "roofPitch": 46,
+              "roofStyle": "Gable",
+              "overhang": 400,
+              "material": "Norse"
+            },
+            "position": {
+              "x": 13800,
+              "y": 0,
+              "z": 0
+            }
+          },
+          {
+            "id": "bgen-f7c7334d-13-section-1",
+            "name": "Porch 2",
+            "type": "Porch",
+            "locked": false,
+            "kind": "rectangle",
+            "length": 4500,
+            "width": 2900,
+            "wallThickness": 200,
+            "orientation": 180,
+            "floorCount": 1,
+            "exterior": {
+              "ridgeAxis": "X",
+              "shedHighEdge": "-Y",
+              "stylePreset": "Norse Chieftain's Hall",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "Subtle",
+                "items": [
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-44",
+                    "type": "Carved post",
+                    "anchor": {
+                      "kind": "wall",
+                      "edge": 1,
+                      "offset": 1000,
+                      "sill": 350
+                    },
+                    "variant": 1,
+                    "scale": 1000,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  }
+                ]
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 2633,
+              "roofPitch": 12,
+              "roofStyle": "Shed",
+              "overhang": 400,
+              "material": "Norse"
+            },
+            "position": {
+              "x": 10000,
+              "y": -5900,
+              "z": 0
+            }
+          },
+          {
+            "id": "bgen-f7c7334d-13-section-2",
+            "name": "Hall Extension 3",
+            "type": "Hall Extension",
+            "locked": false,
+            "kind": "rectangle",
+            "length": 9700,
+            "width": 4300,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "ridgeAxis": "X",
+              "shedHighEdge": "+Y",
+              "stylePreset": "Norse Chieftain's Hall",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "Subtle",
+                "items": [
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-45",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Negative",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 750,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-46",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": null,
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 750,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  },
+                  {
+                    "id": "bgen-f7c7334d-13-building-design-0-carving-48",
+                    "type": "Gable finial",
+                    "anchor": {
+                      "kind": "roof",
+                      "roofFeatureId": "bgen-f7c7334d-13-building-design-0-cross-0",
+                      "end": "Positive",
+                      "offset": 0
+                    },
+                    "variant": 1,
+                    "scale": 900,
+                    "mirror": false,
+                    "finish": "Oiled wood"
+                  }
+                ]
+              },
+              "roofFeatures": [
+                {
+                  "id": "bgen-f7c7334d-13-building-design-0-cross-0",
+                  "ridgeAxis": "Y",
+                  "side": "Positive",
+                  "offset": 4900,
+                  "width": 2400,
+                  "depth": 2600,
+                  "pitch": 46,
+                  "relativeHeight": 0
+                }
+              ],
+              "windows": [
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-1-0",
+                  "edge": 1,
+                  "offset": 2150,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-2-0",
+                  "edge": 2,
+                  "offset": 2425,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-2-1",
+                  "edge": 2,
+                  "offset": 4850,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-2-2",
+                  "edge": 2,
+                  "offset": 7275,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                },
+                {
+                  "id": "bgen-f7c7334d-13-section-2-window-3-0",
+                  "edge": 3,
+                  "offset": 2150,
+                  "width": 650,
+                  "height": 700,
+                  "sill": 1100,
+                  "style": "Timber shuttered",
+                  "shutters": true,
+                  "glazing": false
+                }
+              ],
+              "features": [],
+              "wallHeight": 3550,
+              "roofPitch": 46,
+              "roofStyle": "Gable",
+              "overhang": 400,
+              "material": "Norse"
+            },
+            "position": {
+              "x": 3400,
+              "y": 8000,
+              "z": 0
+            }
+          }
+        ],
+        "connections": [
+          {
+            "id": "bgen-f7c7334d-13-join-71fee073",
+            "a": {
+              "sectionId": "bgen-f7c7334d-13-main",
+              "edge": 0
+            },
+            "b": {
+              "sectionId": "bgen-f7c7334d-13-section-0",
+              "edge": 0
+            },
+            "start": {
+              "x": 3400,
+              "y": 0
+            },
+            "end": {
+              "x": 13800,
+              "y": 0
+            },
+            "mode": "open-plan"
+          },
+          {
+            "id": "bgen-f7c7334d-13-join-c02c5290",
+            "a": {
+              "sectionId": "bgen-f7c7334d-13-main",
+              "edge": 2
+            },
+            "b": {
+              "sectionId": "bgen-f7c7334d-13-section-2",
+              "edge": 0
+            },
+            "start": {
+              "x": 3400,
+              "y": 8000
+            },
+            "end": {
+              "x": 13100,
+              "y": 8000
+            },
+            "mode": "open-plan"
+          },
+          {
+            "id": "bgen-f7c7334d-13-join-e61b965",
+            "a": {
+              "sectionId": "bgen-f7c7334d-13-section-0",
+              "edge": 2
+            },
+            "b": {
+              "sectionId": "bgen-f7c7334d-13-section-1",
+              "edge": 0
+            },
+            "start": {
+              "x": 5500,
+              "y": -5900
+            },
+            "end": {
+              "x": 10000,
+              "y": -5900
+            },
+            "mode": "open-plan"
+          }
+        ],
+        "interior": {
+          "partitions": [
+            {
+              "id": "gen-abf017fb-w-17e99388",
+              "a": {
+                "x": 3600,
+                "y": -50
+              },
+              "b": {
+                "x": 13600,
+                "y": -50
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-abf017fb-w-14d0ad04",
+              "a": {
+                "x": 3600,
+                "y": 8050
+              },
+              "b": {
+                "x": 12900,
+                "y": 8050
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-abf017fb-w-fc49771c",
+              "a": {
+                "x": 3450,
+                "y": 200
+              },
+              "b": {
+                "x": 3450,
+                "y": 7800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-abf017fb-w-f43f45b0",
+              "a": {
+                "x": 3600,
+                "y": -2550
+              },
+              "b": {
+                "x": 13600,
+                "y": -2550
+              },
+              "thickness": 100
+            }
+          ],
+          "rooms": [
+            {
+              "id": "gen-abf017fb-room-ebdceac8",
+              "regionKey": "200,200;3400,200;3400,7800;200,7800",
+              "name": "Chieftain Chamber",
+              "type": "Bedroom",
+              "notes": "Optional private chamber, away from through-traffic."
+            },
+            {
+              "id": "gen-abf017fb-room-e9ff8a44",
+              "regionKey": "3500,200;3600,200;3600,0;13600,0;13600,200;17800,200;17800,7800;12900,7800;12900,8000;3600,8000;3600,7800;3500,7800",
+              "name": "Main Longhall",
+              "type": "Main Hall",
+              "notes": "Shared ground-floor hall; the hearth and furnishings are planning notes only, not generated objects."
+            },
+            {
+              "id": "gen-abf017fb-room-229e1f20",
+              "regionKey": "3600,-5700;5700,-5700;5700,-8600;9800,-8600;9800,-5700;13600,-5700;13600,-2600;3600,-2600",
+              "name": "Sleeping Chamber",
+              "type": "Bedroom",
+              "notes": ""
+            },
+            {
+              "id": "gen-abf017fb-room-6b952a08",
+              "regionKey": "3600,-2500;13600,-2500;13600,-100;3600,-100",
+              "name": "Food and Equipment Store",
+              "type": "Storage",
+              "notes": ""
+            },
+            {
+              "id": "gen-abf017fb-room-cf60d00c",
+              "regionKey": "3600,8100;12900,8100;12900,12100;3600,12100",
+              "name": "Kitchen",
+              "type": "Kitchen",
+              "notes": ""
+            }
+          ]
+        },
+        "openings": [
+          {
+            "id": "bgen-f7c7334d-13-building-entrance",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "bgen-f7c7334d-13-main",
+              "edge": 1
+            },
+            "offset": 4000,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-abf017fb-door-12509e5f",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-abf017fb-w-14d0ad04"
+            },
+            "offset": 7000,
+            "width": 1200,
+            "type": "passage"
+          },
+          {
+            "id": "gen-abf017fb-door-231052ad",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-abf017fb-w-fc49771c"
+            },
+            "offset": 3800,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-abf017fb-door-4e96c89f",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-abf017fb-w-17e99388"
+            },
+            "offset": 6250,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-abf017fb-door-28013053",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-abf017fb-w-f43f45b0"
+            },
+            "offset": 6250,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          }
+        ]
+      },
+      "score": 1056.54,
+      "usableArea": 244640000,
+      "assignedArea": 240950000,
+      "unassignedArea": 0,
+      "thresholdArea": 390000,
+      "omitted": [],
+      "requiredSatisfied": 4,
+      "preferences": [
+        "Chieftain Chamber: 24.32 m², below preferred 29.25 m²",
+        "Main Longhall: 112.54 m², below preferred 117.25 m²",
+        "Sleeping Chamber: 42.89 m², below preferred 48.75 m²",
+        "Food and Equipment Store: 24.00 m², below preferred 24.25 m²",
+        "Kitchen: 37.20 m², below preferred 41.50 m²"
+      ],
+      "summary": "Viking Longhouse · 5 ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes."
+    }
+  },
+  {
+    "purpose": "Medieval Cottage",
+    "project": {
+      "schemaVersion": 10,
+      "id": "quality-project-1",
+      "name": "Medieval Cottage",
+      "architecture": "Norse",
+      "createdAt": "2026-10-26T00:00:00.000Z",
+      "updatedAt": "2026-10-26T00:00:00.000Z",
+      "building": {
+        "id": "quality-building-1",
+        "mainSectionId": "quality-main-1",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [],
+          "rooms": []
+        },
+        "openings": [],
+        "sections": [
+          {
+            "id": "quality-main-1",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 8000,
+            "width": 6000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      }
+    },
+    "config": {
+      "purpose": "Medieval Cottage",
+      "rooms": [
+        {
+          "key": "purpose-0",
+          "type": "Main Hall",
+          "name": "Main Hall",
+          "notes": "Public or shared gathering space, preferably reached directly from the entrance.",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 10.5,
+          "preferredArea": 16
+        },
+        {
+          "key": "purpose-1",
+          "type": "Kitchen",
+          "name": "Food Preparation",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 4.5,
+          "preferredArea": 7
+        },
+        {
+          "key": "purpose-2",
+          "type": "Bedroom",
+          "name": "Sleeping Chamber",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 5.5,
+          "preferredArea": 8.5
+        },
+        {
+          "key": "purpose-3",
+          "type": "Storage",
+          "name": "Food and Equipment Store",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Preferred",
+          "minimumArea": 4,
+          "preferredArea": 6
+        }
+      ],
+      "style": "Balanced",
+      "seed": "1041"
+    },
+    "before": {
+      "label": "A",
+      "building": {
+        "id": "quality-building-1",
+        "mainSectionId": "quality-main-1",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [
+            {
+              "id": "gen-1f3c70b5-w-a8e6739c",
+              "a": {
+                "x": 200,
+                "y": 2350
+              },
+              "b": {
+                "x": 7800,
+                "y": 2350
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-1f3c70b5-w-70bb4542",
+              "a": {
+                "x": 5950,
+                "y": 2400
+              },
+              "b": {
+                "x": 5950,
+                "y": 5800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-1f3c70b5-w-1e2daa1c",
+              "a": {
+                "x": 3500,
+                "y": 200
+              },
+              "b": {
+                "x": 3500,
+                "y": 2300
+              },
+              "thickness": 100
+            }
+          ],
+          "rooms": [
+            {
+              "id": "gen-1f3c70b5-room-20698312",
+              "regionKey": "200,200;3450,200;3450,2300;200,2300",
+              "name": "Food Preparation",
+              "type": "Kitchen",
+              "notes": ""
+            },
+            {
+              "id": "gen-1f3c70b5-room-d1e1e344",
+              "regionKey": "200,2400;5900,2400;5900,5800;200,5800",
+              "name": "Main Hall",
+              "type": "Main Hall",
+              "notes": "Public or shared gathering space, preferably reached directly from the entrance."
+            },
+            {
+              "id": "gen-1f3c70b5-room-2ef210fc",
+              "regionKey": "3550,200;7800,200;7800,2300;3550,2300",
+              "name": "Sleeping Chamber",
+              "type": "Bedroom",
+              "notes": ""
+            },
+            {
+              "id": "gen-1f3c70b5-room-4904fe1c",
+              "regionKey": "6000,2400;7800,2400;7800,5800;6000,5800",
+              "name": "Food and Equipment Store",
+              "type": "Storage",
+              "notes": ""
+            }
+          ]
+        },
+        "openings": [
+          {
+            "id": "gen-1f3c70b5-entry-236e11a4",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "quality-main-1",
+              "edge": 2
+            },
+            "offset": 5000,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-1f3c70b5-door-1c43d068",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-1f3c70b5-w-70bb4542"
+            },
+            "offset": 2150,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-1f3c70b5-door-95c5672",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-1f3c70b5-w-a8e6739c"
+            },
+            "offset": 4750,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-1f3c70b5-door-9be127ad",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-1f3c70b5-w-a8e6739c"
+            },
+            "offset": 1150,
+            "width": 1200,
+            "type": "passage"
+          }
+        ],
+        "sections": [
+          {
+            "id": "quality-main-1",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 8000,
+            "width": 6000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      },
+      "score": 990.18,
+      "usableArea": 42560000,
+      "assignedArea": 41250000,
+      "unassignedArea": 0,
+      "thresholdArea": 300000,
+      "omitted": [],
+      "requiredSatisfied": 3,
+      "preferences": ["Food Preparation: 6.83 m², below preferred 7.00 m²"],
+      "summary": "Medieval Cottage · 4 ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes."
+    }
+  },
+  {
+    "purpose": "Farmhouse",
+    "project": {
+      "schemaVersion": 10,
+      "id": "quality-project-2",
+      "name": "Farmhouse",
+      "architecture": "Norse",
+      "createdAt": "2026-10-26T00:00:00.000Z",
+      "updatedAt": "2026-10-26T00:00:00.000Z",
+      "building": {
+        "id": "quality-building-2",
+        "mainSectionId": "quality-main-2",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [],
+          "rooms": []
+        },
+        "openings": [],
+        "sections": [
+          {
+            "id": "quality-main-2",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 14000,
+            "width": 10000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      }
+    },
+    "config": {
+      "purpose": "Farmhouse",
+      "rooms": [
+        {
+          "key": "purpose-0",
+          "type": "Main Hall",
+          "name": "Main Hall",
+          "notes": "Public or shared gathering space, preferably reached directly from the entrance.",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 32,
+          "preferredArea": 49.5
+        },
+        {
+          "key": "purpose-1",
+          "type": "Kitchen",
+          "name": "Kitchen",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 14.25,
+          "preferredArea": 22
+        },
+        {
+          "key": "purpose-2",
+          "type": "Bedroom",
+          "name": "Sleeping Chamber",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 16.75,
+          "preferredArea": 26
+        },
+        {
+          "key": "purpose-3",
+          "type": "Storage",
+          "name": "Food and Equipment Store",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 8.25,
+          "preferredArea": 13
+        },
+        {
+          "key": "purpose-4",
+          "type": "Utility",
+          "name": "Farm Service Room",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Preferred",
+          "minimumArea": 8.25,
+          "preferredArea": 13
+        }
+      ],
+      "style": "Balanced",
+      "seed": "1041"
+    },
+    "before": {
+      "label": "A",
+      "building": {
+        "id": "quality-building-2",
+        "mainSectionId": "quality-main-2",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [
+            {
+              "id": "gen-a8af7fa3-w-2e85faea",
+              "a": {
+                "x": 9650,
+                "y": 200
+              },
+              "b": {
+                "x": 9650,
+                "y": 9800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-a8af7fa3-w-ac8bd4d0",
+              "a": {
+                "x": 5950,
+                "y": 200
+              },
+              "b": {
+                "x": 5950,
+                "y": 9800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-a8af7fa3-w-997f0c16",
+              "a": {
+                "x": 6000,
+                "y": 6150
+              },
+              "b": {
+                "x": 9600,
+                "y": 6150
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-a8af7fa3-w-d887665b",
+              "a": {
+                "x": 9700,
+                "y": 3350
+              },
+              "b": {
+                "x": 13800,
+                "y": 3350
+              },
+              "thickness": 100
+            }
+          ],
+          "rooms": [
+            {
+              "id": "gen-a8af7fa3-room-11c9209e",
+              "regionKey": "200,200;5900,200;5900,9800;200,9800",
+              "name": "Main Hall",
+              "type": "Main Hall",
+              "notes": "Public or shared gathering space, preferably reached directly from the entrance."
+            },
+            {
+              "id": "gen-a8af7fa3-room-3abfc770",
+              "regionKey": "6000,200;9600,200;9600,6100;6000,6100",
+              "name": "Kitchen",
+              "type": "Kitchen",
+              "notes": ""
+            },
+            {
+              "id": "gen-a8af7fa3-room-fd23d758",
+              "regionKey": "6000,6200;9600,6200;9600,9800;6000,9800",
+              "name": "Farm Service Room",
+              "type": "Utility",
+              "notes": ""
+            },
+            {
+              "id": "gen-a8af7fa3-room-b3ecf590",
+              "regionKey": "9700,200;13800,200;13800,3300;9700,3300",
+              "name": "Food and Equipment Store",
+              "type": "Storage",
+              "notes": ""
+            },
+            {
+              "id": "gen-a8af7fa3-room-a6343164",
+              "regionKey": "9700,3400;13800,3400;13800,9800;9700,9800",
+              "name": "Sleeping Chamber",
+              "type": "Bedroom",
+              "notes": ""
+            }
+          ]
+        },
+        "openings": [
+          {
+            "id": "gen-a8af7fa3-entry-223b2768",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "quality-main-2",
+              "edge": 2
+            },
+            "offset": 10500,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-a8af7fa3-door-312b5948",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-a8af7fa3-w-ac8bd4d0"
+            },
+            "offset": 4800,
+            "width": 1200,
+            "type": "passage"
+          },
+          {
+            "id": "gen-a8af7fa3-door-7babe4ef",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-a8af7fa3-w-2e85faea"
+            },
+            "offset": 1450,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-a8af7fa3-door-64309719",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-a8af7fa3-w-ac8bd4d0"
+            },
+            "offset": 7200,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-a8af7fa3-door-30b0cd8b",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-a8af7fa3-w-d887665b"
+            },
+            "offset": 2050,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          }
+        ],
+        "sections": [
+          {
+            "id": "quality-main-2",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 14000,
+            "width": 10000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      },
+      "score": 987.64,
+      "usableArea": 130560000,
+      "assignedArea": 127870000,
+      "unassignedArea": 0,
+      "thresholdArea": 390000,
+      "omitted": [],
+      "requiredSatisfied": 4,
+      "preferences": [
+        "Kitchen: 21.24 m², below preferred 22.00 m²",
+        "Farm Service Room: 12.96 m², below preferred 13.00 m²",
+        "Food and Equipment Store: 12.71 m², below preferred 13.00 m²"
+      ],
+      "summary": "Farmhouse · 5 ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes."
+    }
+  },
+  {
+    "purpose": "Workshop",
+    "project": {
+      "schemaVersion": 10,
+      "id": "quality-project-3",
+      "name": "Workshop",
+      "architecture": "Norse",
+      "createdAt": "2026-10-26T00:00:00.000Z",
+      "updatedAt": "2026-10-26T00:00:00.000Z",
+      "building": {
+        "id": "quality-building-3",
+        "mainSectionId": "quality-main-3",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [],
+          "rooms": []
+        },
+        "openings": [],
+        "sections": [
+          {
+            "id": "quality-main-3",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 14000,
+            "width": 10000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      }
+    },
+    "config": {
+      "purpose": "Workshop",
+      "rooms": [
+        {
+          "key": "purpose-0",
+          "type": "Workshop",
+          "name": "Main Workshop",
+          "notes": "Primary work floor; keep storage close and avoid private through-traffic.",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 42.25,
+          "preferredArea": 65.25
+        },
+        {
+          "key": "purpose-1",
+          "type": "Storage",
+          "name": "Materials Store",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 16.75,
+          "preferredArea": 26
+        },
+        {
+          "key": "purpose-2",
+          "type": "Utility",
+          "name": "Service Room",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 12.5,
+          "preferredArea": 19.5
+        },
+        {
+          "key": "purpose-3",
+          "type": "Custom",
+          "name": "Office",
+          "notes": "Optional record-keeping or private work space.",
+          "quantity": 1,
+          "priority": "Preferred",
+          "minimumArea": 8.25,
+          "preferredArea": 13
+        }
+      ],
+      "style": "Balanced",
+      "seed": "1041"
+    },
+    "before": {
+      "label": "A",
+      "building": {
+        "id": "quality-building-3",
+        "mainSectionId": "quality-main-3",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [
+            {
+              "id": "gen-7c69e8d5-w-4f971c26",
+              "a": {
+                "x": 6400,
+                "y": 200
+              },
+              "b": {
+                "x": 6400,
+                "y": 9800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-7c69e8d5-w-74665704",
+              "a": {
+                "x": 4300,
+                "y": 200
+              },
+              "b": {
+                "x": 4300,
+                "y": 9800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-7c69e8d5-w-ff2babe8",
+              "a": {
+                "x": 200,
+                "y": 3500
+              },
+              "b": {
+                "x": 4250,
+                "y": 3500
+              },
+              "thickness": 100
+            }
+          ],
+          "rooms": [
+            {
+              "id": "gen-7c69e8d5-room-77858e56",
+              "regionKey": "200,200;4250,200;4250,3450;200,3450",
+              "name": "Office",
+              "type": "Custom",
+              "notes": "Optional record-keeping or private work space."
+            },
+            {
+              "id": "gen-7c69e8d5-room-75e8d14c",
+              "regionKey": "200,3550;4250,3550;4250,9800;200,9800",
+              "name": "Materials Store",
+              "type": "Storage",
+              "notes": ""
+            },
+            {
+              "id": "gen-7c69e8d5-room-8ac7aca",
+              "regionKey": "4350,200;6350,200;6350,9800;4350,9800",
+              "name": "Service Room",
+              "type": "Utility",
+              "notes": ""
+            },
+            {
+              "id": "gen-7c69e8d5-room-41476920",
+              "regionKey": "6450,200;13800,200;13800,9800;6450,9800",
+              "name": "Main Workshop",
+              "type": "Workshop",
+              "notes": "Primary work floor; keep storage close and avoid private through-traffic."
+            }
+          ]
+        },
+        "openings": [
+          {
+            "id": "gen-7c69e8d5-entry-3ee824db",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "quality-main-3",
+              "edge": 1
+            },
+            "offset": 2500,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-7c69e8d5-door-3c6422a0",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7c69e8d5-w-4f971c26"
+            },
+            "offset": 8150,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-7c69e8d5-door-1c241182",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7c69e8d5-w-74665704"
+            },
+            "offset": 7200,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-7c69e8d5-door-121b8038",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7c69e8d5-w-ff2babe8"
+            },
+            "offset": 600,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          }
+        ],
+        "sections": [
+          {
+            "id": "quality-main-3",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 14000,
+            "width": 10000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      },
+      "score": 990.68,
+      "usableArea": 130560000,
+      "assignedArea": 128235000,
+      "unassignedArea": 0,
+      "thresholdArea": 270000,
+      "omitted": [],
+      "requiredSatisfied": 3,
+      "preferences": [
+        "Materials Store: 25.31 m², below preferred 26.00 m²",
+        "Service Room: 19.20 m², below preferred 19.50 m²"
+      ],
+      "summary": "Workshop · 4 ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes."
+    }
+  },
+  {
+    "purpose": "Tavern/Inn",
+    "project": {
+      "schemaVersion": 10,
+      "id": "quality-project-4",
+      "name": "Tavern/Inn",
+      "architecture": "Norse",
+      "createdAt": "2026-10-26T00:00:00.000Z",
+      "updatedAt": "2026-10-26T00:00:00.000Z",
+      "building": {
+        "id": "quality-building-4",
+        "mainSectionId": "quality-main-4",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [],
+          "rooms": []
+        },
+        "openings": [],
+        "sections": [
+          {
+            "id": "quality-main-4",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 18000,
+            "width": 12000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      }
+    },
+    "config": {
+      "purpose": "Tavern/Inn",
+      "rooms": [
+        {
+          "key": "purpose-0",
+          "type": "Main Hall",
+          "name": "Public Hall",
+          "notes": "Public or shared gathering space, preferably reached directly from the entrance.",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 50.25,
+          "preferredArea": 77.5
+        },
+        {
+          "key": "purpose-1",
+          "type": "Kitchen",
+          "name": "Kitchen",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 22.5,
+          "preferredArea": 34.5
+        },
+        {
+          "key": "purpose-2",
+          "type": "Bedroom",
+          "name": "Guest Chamber",
+          "notes": "",
+          "quantity": 2,
+          "priority": "Required",
+          "minimumArea": 17.25,
+          "preferredArea": 26.5
+        },
+        {
+          "key": "purpose-3",
+          "type": "Storage",
+          "name": "Food and Equipment Store",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 13.25,
+          "preferredArea": 20.25
+        },
+        {
+          "key": "purpose-4",
+          "type": "Utility",
+          "name": "Service Room",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Preferred",
+          "minimumArea": 10.5,
+          "preferredArea": 16.25
+        }
+      ],
+      "style": "Balanced",
+      "seed": "1041"
+    },
+    "before": {
+      "label": "A",
+      "building": {
+        "id": "quality-building-4",
+        "mainSectionId": "quality-main-4",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [
+            {
+              "id": "gen-792687b3-w-5e048ed9",
+              "a": {
+                "x": 3200,
+                "y": 200
+              },
+              "b": {
+                "x": 3200,
+                "y": 11800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-792687b3-w-b8108f1d",
+              "a": {
+                "x": 3250,
+                "y": 6000
+              },
+              "b": {
+                "x": 17800,
+                "y": 6000
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-792687b3-w-8bff9bba",
+              "a": {
+                "x": 13350,
+                "y": 200
+              },
+              "b": {
+                "x": 13350,
+                "y": 5950
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-792687b3-w-4c582ee0",
+              "a": {
+                "x": 7650,
+                "y": 200
+              },
+              "b": {
+                "x": 7650,
+                "y": 5950
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-792687b3-w-a2800d46",
+              "a": {
+                "x": 200,
+                "y": 5450
+              },
+              "b": {
+                "x": 3150,
+                "y": 5450
+              },
+              "thickness": 100
+            }
+          ],
+          "rooms": [
+            {
+              "id": "gen-792687b3-room-b2d38794",
+              "regionKey": "200,200;3150,200;3150,5400;200,5400",
+              "name": "Service Room",
+              "type": "Utility",
+              "notes": ""
+            },
+            {
+              "id": "gen-792687b3-room-613b8224",
+              "regionKey": "200,5500;3150,5500;3150,11800;200,11800",
+              "name": "Food and Equipment Store",
+              "type": "Storage",
+              "notes": ""
+            },
+            {
+              "id": "gen-792687b3-room-9de593f4",
+              "regionKey": "3250,200;7600,200;7600,5950;3250,5950",
+              "name": "Guest Chamber 2",
+              "type": "Bedroom",
+              "notes": ""
+            },
+            {
+              "id": "gen-792687b3-room-e32ddc4a",
+              "regionKey": "3250,6050;17800,6050;17800,11800;3250,11800",
+              "name": "Public Hall",
+              "type": "Main Hall",
+              "notes": "Public or shared gathering space, preferably reached directly from the entrance."
+            },
+            {
+              "id": "gen-792687b3-room-d215d27c",
+              "regionKey": "7700,200;13300,200;13300,5950;7700,5950",
+              "name": "Kitchen",
+              "type": "Kitchen",
+              "notes": ""
+            },
+            {
+              "id": "gen-792687b3-room-442c69c4",
+              "regionKey": "13400,200;17800,200;17800,5950;13400,5950",
+              "name": "Guest Chamber 1",
+              "type": "Bedroom",
+              "notes": ""
+            }
+          ]
+        },
+        "openings": [
+          {
+            "id": "gen-792687b3-entry-2fb485b",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "quality-main-4",
+              "edge": 1
+            },
+            "offset": 7500,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-792687b3-door-321e82e5",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-792687b3-w-b8108f1d"
+            },
+            "offset": 3650,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-792687b3-door-5293d73",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-792687b3-w-b8108f1d"
+            },
+            "offset": 7300,
+            "width": 1200,
+            "type": "passage"
+          },
+          {
+            "id": "gen-792687b3-door-5859594f",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-792687b3-w-5e048ed9"
+            },
+            "offset": 9850,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-792687b3-door-8d559c8b",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-792687b3-w-b8108f1d"
+            },
+            "offset": 10900,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-792687b3-door-304d45da",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-792687b3-w-a2800d46"
+            },
+            "offset": 1500,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          }
+        ],
+        "sections": [
+          {
+            "id": "quality-main-4",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 18000,
+            "width": 12000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      },
+      "score": 984.76,
+      "usableArea": 204160000,
+      "assignedArea": 200100000,
+      "unassignedArea": 0,
+      "thresholdArea": 480000,
+      "omitted": [],
+      "requiredSatisfied": 5,
+      "preferences": [
+        "Service Room: 15.34 m², below preferred 16.25 m²",
+        "Food and Equipment Store: 18.59 m², below preferred 20.25 m²",
+        "Guest Chamber 2: 25.01 m², below preferred 26.50 m²",
+        "Kitchen: 32.20 m², below preferred 34.50 m²",
+        "Guest Chamber 1: 25.30 m², below preferred 26.50 m²"
+      ],
+      "summary": "Tavern/Inn · 6 ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes."
+    }
+  },
+  {
+    "purpose": "Manor",
+    "project": {
+      "schemaVersion": 10,
+      "id": "quality-project-5",
+      "name": "Manor",
+      "architecture": "Norse",
+      "createdAt": "2026-10-26T00:00:00.000Z",
+      "updatedAt": "2026-10-26T00:00:00.000Z",
+      "building": {
+        "id": "quality-building-5",
+        "mainSectionId": "quality-main-5",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [],
+          "rooms": []
+        },
+        "openings": [],
+        "sections": [
+          {
+            "id": "quality-main-5",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 24000,
+            "width": 16000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      }
+    },
+    "config": {
+      "purpose": "Manor",
+      "rooms": [
+        {
+          "key": "purpose-0",
+          "type": "Main Hall",
+          "name": "Entrance Hall",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 57.25,
+          "preferredArea": 88.25
+        },
+        {
+          "key": "purpose-1",
+          "type": "Dining",
+          "name": "Dining Hall",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 45.25,
+          "preferredArea": 69.75
+        },
+        {
+          "key": "purpose-2",
+          "type": "Kitchen",
+          "name": "Kitchen",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 33.5,
+          "preferredArea": 51.5
+        },
+        {
+          "key": "purpose-3",
+          "type": "Bedroom",
+          "name": "Private Chamber",
+          "notes": "",
+          "quantity": 2,
+          "priority": "Required",
+          "minimumArea": 26.25,
+          "preferredArea": 40.25
+        },
+        {
+          "key": "purpose-4",
+          "type": "Storage",
+          "name": "Stores",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 19,
+          "preferredArea": 29.25
+        },
+        {
+          "key": "purpose-5",
+          "type": "Custom",
+          "name": "Private Study",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Preferred",
+          "minimumArea": 16.75,
+          "preferredArea": 25.75
+        },
+        {
+          "key": "purpose-6",
+          "type": "Utility",
+          "name": "Service Room",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Preferred",
+          "minimumArea": 14.25,
+          "preferredArea": 22
+        }
+      ],
+      "style": "Balanced",
+      "seed": "1041"
+    },
+    "before": {
+      "label": "A",
+      "building": {
+        "id": "quality-building-5",
+        "mainSectionId": "quality-main-5",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [
+            {
+              "id": "gen-7730c8c-w-b87b61a8",
+              "a": {
+                "x": 200,
+                "y": 3950
+              },
+              "b": {
+                "x": 23800,
+                "y": 3950
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-7730c8c-w-4b47f4b2",
+              "a": {
+                "x": 200,
+                "y": 8150
+              },
+              "b": {
+                "x": 23800,
+                "y": 8150
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-7730c8c-w-25d46e03",
+              "a": {
+                "x": 12000,
+                "y": 8200
+              },
+              "b": {
+                "x": 12000,
+                "y": 15800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-7730c8c-w-173cf443",
+              "a": {
+                "x": 8100,
+                "y": 8200
+              },
+              "b": {
+                "x": 8100,
+                "y": 15800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-7730c8c-w-4f437106",
+              "a": {
+                "x": 200,
+                "y": 10900
+              },
+              "b": {
+                "x": 8050,
+                "y": 10900
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-7730c8c-w-507414a9",
+              "a": {
+                "x": 15150,
+                "y": 8200
+              },
+              "b": {
+                "x": 15150,
+                "y": 15800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-7730c8c-w-c7d201ad",
+              "a": {
+                "x": 10300,
+                "y": 200
+              },
+              "b": {
+                "x": 10300,
+                "y": 3900
+              },
+              "thickness": 100
+            }
+          ],
+          "rooms": [
+            {
+              "id": "gen-7730c8c-room-2ac37d4e",
+              "regionKey": "200,200;10250,200;10250,3900;200,3900",
+              "name": "Private Chamber 2",
+              "type": "Bedroom",
+              "notes": ""
+            },
+            {
+              "id": "gen-7730c8c-room-83e27984",
+              "regionKey": "200,4000;23800,4000;23800,8100;200,8100",
+              "name": "Entrance Hall",
+              "type": "Main Hall",
+              "notes": ""
+            },
+            {
+              "id": "gen-7730c8c-room-712ece64",
+              "regionKey": "200,8200;8050,8200;8050,10850;200,10850",
+              "name": "Service Room",
+              "type": "Utility",
+              "notes": ""
+            },
+            {
+              "id": "gen-7730c8c-room-57d6698e",
+              "regionKey": "200,10950;8050,10950;8050,15800;200,15800",
+              "name": "Private Chamber 1",
+              "type": "Bedroom",
+              "notes": ""
+            },
+            {
+              "id": "gen-7730c8c-room-ed6b57b4",
+              "regionKey": "8150,8200;11950,8200;11950,15800;8150,15800",
+              "name": "Stores",
+              "type": "Storage",
+              "notes": ""
+            },
+            {
+              "id": "gen-7730c8c-room-5c8078c",
+              "regionKey": "10350,200;23800,200;23800,3900;10350,3900",
+              "name": "Kitchen",
+              "type": "Kitchen",
+              "notes": ""
+            },
+            {
+              "id": "gen-7730c8c-room-78b459d4",
+              "regionKey": "12050,8200;15100,8200;15100,15800;12050,15800",
+              "name": "Private Study",
+              "type": "Custom",
+              "notes": ""
+            },
+            {
+              "id": "gen-7730c8c-room-b14f840",
+              "regionKey": "15200,8200;23800,8200;23800,15800;15200,15800",
+              "name": "Dining Hall",
+              "type": "Dining",
+              "notes": ""
+            }
+          ]
+        },
+        "openings": [
+          {
+            "id": "gen-7730c8c-entry-25d2c142",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "quality-main-5",
+              "edge": 1
+            },
+            "offset": 6000,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-7730c8c-door-6800d6e",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7730c8c-w-4b47f4b2"
+            },
+            "offset": 8850,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-7730c8c-door-773f81ac",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7730c8c-w-b87b61a8"
+            },
+            "offset": 8850,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-7730c8c-door-7be00089",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7730c8c-w-4b47f4b2"
+            },
+            "offset": 5900,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-7730c8c-door-a81f3aec",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7730c8c-w-4b47f4b2"
+            },
+            "offset": 17700,
+            "width": 1200,
+            "type": "passage"
+          },
+          {
+            "id": "gen-7730c8c-door-b0864c29",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7730c8c-w-b87b61a8"
+            },
+            "offset": 11800,
+            "width": 1200,
+            "type": "passage"
+          },
+          {
+            "id": "gen-7730c8c-door-1865393c",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7730c8c-w-25d46e03"
+            },
+            "offset": 1150,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-7730c8c-door-1b08b755",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-7730c8c-w-4f437106"
+            },
+            "offset": 5900,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          }
+        ],
+        "sections": [
+          {
+            "id": "quality-main-5",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 24000,
+            "width": 16000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      },
+      "score": 978.79,
+      "usableArea": 368160000,
+      "assignedArea": 360005000,
+      "unassignedArea": 0,
+      "thresholdArea": 690000,
+      "omitted": [],
+      "requiredSatisfied": 6,
+      "preferences": [
+        "Private Chamber 2: 37.19 m², below preferred 40.25 m²",
+        "Service Room: 20.80 m², below preferred 22.00 m²",
+        "Private Chamber 1: 38.07 m², below preferred 40.25 m²",
+        "Stores: 28.88 m², below preferred 29.25 m²",
+        "Kitchen: 49.77 m², below preferred 51.50 m²",
+        "Private Study: 23.18 m², below preferred 25.75 m²",
+        "Dining Hall: 65.36 m², below preferred 69.75 m²"
+      ],
+      "summary": "Manor · 8 ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes."
+    }
+  },
+  {
+    "purpose": "Trading Hall",
+    "project": {
+      "schemaVersion": 10,
+      "id": "quality-project-6",
+      "name": "Trading Hall",
+      "architecture": "Norse",
+      "createdAt": "2026-10-26T00:00:00.000Z",
+      "updatedAt": "2026-10-26T00:00:00.000Z",
+      "building": {
+        "id": "quality-building-6",
+        "mainSectionId": "quality-main-6",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [],
+          "rooms": []
+        },
+        "openings": [],
+        "sections": [
+          {
+            "id": "quality-main-6",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 18000,
+            "width": 10000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      }
+    },
+    "config": {
+      "purpose": "Trading Hall",
+      "rooms": [
+        {
+          "key": "purpose-0",
+          "type": "Main Hall",
+          "name": "Trading Floor",
+          "notes": "Public or shared gathering space, preferably reached directly from the entrance.",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 52.5,
+          "preferredArea": 81
+        },
+        {
+          "key": "purpose-1",
+          "type": "Storage",
+          "name": "Goods Store",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 26.25,
+          "preferredArea": 40.5
+        },
+        {
+          "key": "purpose-2",
+          "type": "Custom",
+          "name": "Counting Room",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Required",
+          "minimumArea": 14.25,
+          "preferredArea": 21.75
+        },
+        {
+          "key": "purpose-3",
+          "type": "Utility",
+          "name": "Service Room",
+          "notes": "",
+          "quantity": 1,
+          "priority": "Preferred",
+          "minimumArea": 10.75,
+          "preferredArea": 16.75
+        }
+      ],
+      "style": "Balanced",
+      "seed": "1041"
+    },
+    "before": {
+      "label": "A",
+      "building": {
+        "id": "quality-building-6",
+        "mainSectionId": "quality-main-6",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [
+            {
+              "id": "gen-b1f23f9b-w-6ba9c270",
+              "a": {
+                "x": 4650,
+                "y": 200
+              },
+              "b": {
+                "x": 4650,
+                "y": 9800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-b1f23f9b-w-3531a2a4",
+              "a": {
+                "x": 4700,
+                "y": 7050
+              },
+              "b": {
+                "x": 17800,
+                "y": 7050
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-b1f23f9b-w-dd505a44",
+              "a": {
+                "x": 12000,
+                "y": 7100
+              },
+              "b": {
+                "x": 12000,
+                "y": 9800
+              },
+              "thickness": 100
+            }
+          ],
+          "rooms": [
+            {
+              "id": "gen-b1f23f9b-room-dcff0736",
+              "regionKey": "200,200;4600,200;4600,9800;200,9800",
+              "name": "Goods Store",
+              "type": "Storage",
+              "notes": ""
+            },
+            {
+              "id": "gen-b1f23f9b-room-a6959184",
+              "regionKey": "4700,200;17800,200;17800,7000;4700,7000",
+              "name": "Trading Floor",
+              "type": "Main Hall",
+              "notes": "Public or shared gathering space, preferably reached directly from the entrance."
+            },
+            {
+              "id": "gen-b1f23f9b-room-8d2976de",
+              "regionKey": "4700,7100;11950,7100;11950,9800;4700,9800",
+              "name": "Counting Room",
+              "type": "Custom",
+              "notes": ""
+            },
+            {
+              "id": "gen-b1f23f9b-room-925b5256",
+              "regionKey": "12050,7100;17800,7100;17800,9800;12050,9800",
+              "name": "Service Room",
+              "type": "Utility",
+              "notes": ""
+            }
+          ]
+        },
+        "openings": [
+          {
+            "id": "gen-b1f23f9b-entry-27911e58",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "quality-main-6",
+              "edge": 1
+            },
+            "offset": 6250,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-b1f23f9b-door-100635fc",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-b1f23f9b-w-3531a2a4"
+            },
+            "offset": 6550,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-b1f23f9b-door-157f730f",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-b1f23f9b-w-6ba9c270"
+            },
+            "offset": 3600,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-b1f23f9b-door-54266fd4",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-b1f23f9b-w-3531a2a4"
+            },
+            "offset": 11150,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          }
+        ],
+        "sections": [
+          {
+            "id": "quality-main-6",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 18000,
+            "width": 10000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      },
+      "score": 990.56,
+      "usableArea": 168960000,
+      "assignedArea": 166420000,
+      "unassignedArea": 0,
+      "thresholdArea": 270000,
+      "omitted": [],
+      "requiredSatisfied": 3,
+      "preferences": [
+        "Counting Room: 19.57 m², below preferred 21.75 m²",
+        "Service Room: 15.53 m², below preferred 16.75 m²"
+      ],
+      "summary": "Trading Hall · 4 ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes."
+    }
+  },
+  {
+    "purpose": "Custom",
+    "project": {
+      "schemaVersion": 10,
+      "id": "quality-project-7",
+      "name": "Custom",
+      "architecture": "Norse",
+      "createdAt": "2026-10-26T00:00:00.000Z",
+      "updatedAt": "2026-10-26T00:00:00.000Z",
+      "building": {
+        "id": "quality-building-7",
+        "mainSectionId": "quality-main-7",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [],
+          "rooms": []
+        },
+        "openings": [],
+        "sections": [
+          {
+            "id": "quality-main-7",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 12000,
+            "width": 8000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      }
+    },
+    "config": {
+      "seed": "1041",
+      "style": "Balanced",
+      "rooms": [
+        {
+          "key": "hall",
+          "type": "Main Hall",
+          "quantity": 1,
+          "minimumArea": 22,
+          "preferredArea": 32,
+          "priority": "Required"
+        },
+        {
+          "key": "kitchen",
+          "type": "Kitchen",
+          "quantity": 1,
+          "minimumArea": 10,
+          "preferredArea": 14,
+          "priority": "Required"
+        },
+        {
+          "key": "bedroom",
+          "type": "Bedroom",
+          "quantity": 1,
+          "minimumArea": 10,
+          "preferredArea": 16,
+          "priority": "Required"
+        },
+        {
+          "key": "storage",
+          "type": "Storage",
+          "quantity": 1,
+          "minimumArea": 4,
+          "preferredArea": 8,
+          "priority": "Required"
+        }
+      ],
+      "purpose": "Custom"
+    },
+    "before": {
+      "label": "A",
+      "building": {
+        "id": "quality-building-7",
+        "mainSectionId": "quality-main-7",
+        "frame": {
+          "origin": {
+            "x": 0,
+            "y": 0
+          },
+          "axis": 0,
+          "rotation": 0,
+          "mode": "legacy"
+        },
+        "connections": [],
+        "interior": {
+          "partitions": [
+            {
+              "id": "gen-a8246a91-w-939f44c6",
+              "a": {
+                "x": 2500,
+                "y": 200
+              },
+              "b": {
+                "x": 2500,
+                "y": 7800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-a8246a91-w-350da220",
+              "a": {
+                "x": 8200,
+                "y": 200
+              },
+              "b": {
+                "x": 8200,
+                "y": 7800
+              },
+              "thickness": 100
+            },
+            {
+              "id": "gen-a8246a91-w-5a0eb3f8",
+              "a": {
+                "x": 8250,
+                "y": 2800
+              },
+              "b": {
+                "x": 11800,
+                "y": 2800
+              },
+              "thickness": 100
+            }
+          ],
+          "rooms": [
+            {
+              "id": "gen-a8246a91-room-98c3c390",
+              "regionKey": "200,200;2450,200;2450,7800;200,7800",
+              "name": "Kitchen",
+              "type": "Kitchen",
+              "notes": ""
+            },
+            {
+              "id": "gen-a8246a91-room-e7238242",
+              "regionKey": "2550,200;8150,200;8150,7800;2550,7800",
+              "name": "Main Hall",
+              "type": "Main Hall",
+              "notes": ""
+            },
+            {
+              "id": "gen-a8246a91-room-e8ef04a8",
+              "regionKey": "8250,200;11800,200;11800,2750;8250,2750",
+              "name": "Storage",
+              "type": "Storage",
+              "notes": ""
+            },
+            {
+              "id": "gen-a8246a91-room-bc908e00",
+              "regionKey": "8250,2850;11800,2850;11800,7800;8250,7800",
+              "name": "Bedroom",
+              "type": "Bedroom",
+              "notes": ""
+            }
+          ]
+        },
+        "openings": [
+          {
+            "id": "gen-a8246a91-entry-1d9a911b",
+            "host": {
+              "kind": "exterior",
+              "sectionId": "quality-main-7",
+              "edge": 0
+            },
+            "offset": 6000,
+            "width": 900,
+            "type": "exterior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-a8246a91-door-261976d4",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-a8246a91-w-350da220"
+            },
+            "offset": 1900,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          },
+          {
+            "id": "gen-a8246a91-door-26c2a8e5",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-a8246a91-w-939f44c6"
+            },
+            "offset": 4750,
+            "width": 1200,
+            "type": "passage"
+          },
+          {
+            "id": "gen-a8246a91-door-45899a01",
+            "host": {
+              "kind": "partition",
+              "partitionId": "gen-a8246a91-w-350da220"
+            },
+            "offset": 6450,
+            "width": 900,
+            "type": "interior-door",
+            "hinge": "left",
+            "swing": 1
+          }
+        ],
+        "sections": [
+          {
+            "id": "quality-main-7",
+            "name": "Main building",
+            "type": "Custom",
+            "locked": false,
+            "kind": "rectangle",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "length": 12000,
+            "width": 8000,
+            "wallThickness": 200,
+            "orientation": 0,
+            "floorCount": 1,
+            "exterior": {
+              "material": "Norse",
+              "ridgeAxis": "Auto",
+              "shedHighEdge": "Auto",
+              "stylePreset": "Rustic Norse",
+              "detailLevel": "Standard",
+              "covering": "Wood shingles",
+              "ornamentation": {
+                "level": "None",
+                "items": []
+              },
+              "roofFeatures": [],
+              "windows": [],
+              "features": [],
+              "wallHeight": 3800,
+              "roofPitch": 42,
+              "roofStyle": "Gable",
+              "overhang": 450
+            }
+          }
+        ]
+      },
+      "score": 990.52,
+      "usableArea": 88160000,
+      "assignedArea": 86285000,
+      "unassignedArea": 0,
+      "thresholdArea": 300000,
+      "omitted": [],
+      "requiredSatisfied": 4,
+      "preferences": [],
+      "summary": "Custom · 4 ground-floor rooms · all reachable. Primary rooms favour the main section; private rooms favour leaf routes."
+    }
+  }
+]

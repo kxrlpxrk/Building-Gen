@@ -516,10 +516,12 @@ export default function GeneratorPanel({
             ))}
           </div>
           <p className="interior-help">
-            Scoring favours room-size targets, useful adjacency and low passage
-            area. Minimum sizes, valid geometry, unobstructed swings and
-            complete access are mandatory. Previews are read-only; pan, zoom,
-            pinch and Fit remain available.
+            Quality ranks main-room hierarchy, practical proportions, real
+            service connections, privacy, section suitability and partition
+            simplicity. Private chambers cannot be required through-routes.
+            Minimum sizes, valid geometry, unobstructed swings and complete
+            access are mandatory. Previews are read-only; pan, zoom, pinch and
+            Fit remain available.
           </p>
           {(compare ? result.proposals : proposal ? [proposal] : []).map(
             (p) => (
@@ -528,6 +530,47 @@ export default function GeneratorPanel({
                   Proposal {p.label} · score {p.score}
                 </h3>
                 <p>{p.summary}</p>
+                <details className="interior-help">
+                  <summary>Architectural quality breakdown</summary>
+                  <dl className="interior-totals">
+                    {Object.entries(p.quality.components).map(
+                      ([key, value]) => (
+                        <div key={key}>
+                          <dt>
+                            {
+                              (
+                                {
+                                  hierarchy: "Main-room hierarchy",
+                                  proportions: "Room proportions",
+                                  adjacency: "Functional connections",
+                                  privacy: "Privacy",
+                                  circulation: "Entrance circulation",
+                                  sectionSuitability: "Section suitability",
+                                  simplicity: "Partition simplicity",
+                                } as Record<string, string>
+                              )[key]
+                            }
+                          </dt>
+                          <dd>{value}/100</dd>
+                        </div>
+                      ),
+                    )}
+                  </dl>
+                </details>
+                <ul aria-label={`Proposal ${p.label} architectural strengths`}>
+                  {p.quality.strengths.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+                {p.quality.warnings.length > 0 && (
+                  <ul
+                    aria-label={`Proposal ${p.label} architectural compromises`}
+                  >
+                    {p.quality.warnings.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                )}
                 <p>
                   Required rooms satisfied: {p.requiredSatisfied} /{" "}
                   {config.rooms

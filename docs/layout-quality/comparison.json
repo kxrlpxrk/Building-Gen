@@ -1,0 +1,351 @@
+[
+  {
+    "purpose": "Viking Longhouse",
+    "before": {
+      "score": 91.45,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 88,
+        "adjacency": 79,
+        "privacy": 88,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Main Longhall is the dominant room (47% of net room area).",
+        "Main Longhall lies chiefly in the main structure.",
+        "Exterior entrance opens into Main Longhall."
+      ],
+      "warnings": [
+        "Sleeping Chamber is entered from a work/service room rather than a hall."
+      ]
+    },
+    "after": {
+      "score": 95.66,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 93,
+        "adjacency": 86,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Main Longhall is the dominant room (47% of net room area).",
+        "Main Longhall lies chiefly in the main structure.",
+        "Kitchen ↔ Food and Equipment Store: direct validated doorway/passage.",
+        "Exterior entrance opens into Main Longhall."
+      ],
+      "warnings": []
+    }
+  },
+  {
+    "purpose": "Medieval Cottage",
+    "before": {
+      "score": 95.17,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 79,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Main Hall is the dominant room (47% of net room area).",
+        "Main Hall lies chiefly in the main structure.",
+        "Exterior entrance opens into Main Hall."
+      ],
+      "warnings": []
+    },
+    "after": {
+      "score": 96.78,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 86,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Main Hall is the dominant room (47% of net room area).",
+        "Main Hall lies chiefly in the main structure.",
+        "Food Preparation ↔ Food and Equipment Store: direct validated doorway/passage.",
+        "Exterior entrance opens into Main Hall."
+      ],
+      "warnings": []
+    }
+  },
+  {
+    "purpose": "Farmhouse",
+    "before": {
+      "score": 93.83,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 81,
+        "privacy": 88,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Main Hall is the dominant room (43% of net room area).",
+        "Main Hall lies chiefly in the main structure.",
+        "Kitchen ↔ Food and Equipment Store: direct validated doorway/passage.",
+        "Exterior entrance opens into Main Hall."
+      ],
+      "warnings": [
+        "Sleeping Chamber is entered from a work/service room rather than a hall."
+      ]
+    },
+    "after": {
+      "score": 97.24,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 88,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Main Hall is the dominant room (44% of net room area).",
+        "Main Hall lies chiefly in the main structure.",
+        "Food and Equipment Store ↔ Kitchen: direct validated doorway/passage.",
+        "Exterior entrance opens into Main Hall."
+      ],
+      "warnings": []
+    }
+  },
+  {
+    "purpose": "Workshop",
+    "before": {
+      "score": 87.45,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 86,
+        "adjacency": 63,
+        "privacy": 88,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Main Workshop is the dominant room (55% of net room area).",
+        "Main Workshop lies chiefly in the main structure.",
+        "Exterior entrance opens into Main Workshop."
+      ],
+      "warnings": [
+        "Office is entered from a work/service room rather than a hall.",
+        "Service Room: elongated or stepped shape; uninterrupted clear core 100%."
+      ]
+    },
+    "after": {
+      "score": 98.2,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 100,
+        "privacy": 88,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Main Workshop is the dominant room (57% of net room area).",
+        "Main Workshop lies chiefly in the main structure.",
+        "Main Workshop ↔ Materials Store: direct validated doorway/passage.",
+        "Exterior entrance opens into Main Workshop."
+      ],
+      "warnings": [
+        "Office is entered from a work/service room rather than a hall."
+      ]
+    }
+  },
+  {
+    "purpose": "Tavern/Inn",
+    "before": {
+      "score": 92.87,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 69,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Public Hall is the dominant room (42% of net room area).",
+        "Public Hall lies chiefly in the main structure.",
+        "Exterior entrance opens into Public Hall."
+      ],
+      "warnings": [
+        "Service Room ↔ Kitchen: 3 door steps; a closer service link would be preferable."
+      ]
+    },
+    "after": {
+      "score": 97.24,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 88,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Public Hall is the dominant room (42% of net room area).",
+        "Public Hall lies chiefly in the main structure.",
+        "Kitchen ↔ Food and Equipment Store: direct validated doorway/passage.",
+        "Exterior entrance opens into Public Hall."
+      ],
+      "warnings": []
+    }
+  },
+  {
+    "purpose": "Manor",
+    "before": {
+      "score": 88.33,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 87,
+        "adjacency": 75,
+        "privacy": 76,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 96
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Entrance Hall is the dominant room (27% of net room area).",
+        "Entrance Hall lies chiefly in the main structure.",
+        "Entrance Hall ↔ Dining Hall: direct validated doorway/passage.",
+        "Exterior entrance opens into Entrance Hall."
+      ],
+      "warnings": [
+        "Entrance Hall: elongated or stepped shape; uninterrupted clear core 100%.",
+        "Private Chamber 1 is entered from a work/service room rather than a hall.",
+        "Private Study is entered from a work/service room rather than a hall."
+      ]
+    },
+    "after": {
+      "score": 94.79,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 98,
+        "adjacency": 79,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 99
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Entrance Hall is the dominant room (27% of net room area).",
+        "Entrance Hall lies chiefly in the main structure.",
+        "Dining Hall ↔ Kitchen: direct validated doorway/passage.",
+        "Stores ↔ Kitchen: direct validated doorway/passage.",
+        "Exterior entrance opens into Entrance Hall."
+      ],
+      "warnings": []
+    }
+  },
+  {
+    "purpose": "Trading Hall",
+    "before": {
+      "score": 99.68,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 98,
+        "adjacency": 100,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Trading Floor is the dominant room (54% of net room area).",
+        "Trading Floor lies chiefly in the main structure.",
+        "Exterior entrance opens into Trading Floor."
+      ],
+      "warnings": []
+    },
+    "after": {
+      "score": 100,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 100,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Trading Floor is the dominant room (54% of net room area).",
+        "Trading Floor lies chiefly in the main structure.",
+        "Exterior entrance opens into Trading Floor."
+      ],
+      "warnings": []
+    }
+  },
+  {
+    "purpose": "Custom",
+    "before": {
+      "score": 94.21,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 94,
+        "adjacency": 79,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Exterior entrance opens into Main Hall."
+      ],
+      "warnings": []
+    },
+    "after": {
+      "score": 96.78,
+      "components": {
+        "hierarchy": 100,
+        "proportions": 100,
+        "adjacency": 86,
+        "privacy": 100,
+        "circulation": 100,
+        "sectionSuitability": 100,
+        "simplicity": 100
+      },
+      "strengths": [
+        "All rooms have entrance paths without using a private chamber as a through-route.",
+        "Kitchen ↔ Storage: direct validated doorway/passage.",
+        "Exterior entrance opens into Main Hall."
+      ],
+      "warnings": []
+    }
+  }
+]
